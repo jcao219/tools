@@ -1,4 +1,3 @@
-tools
-=====
+Public tools for CS3110
 
-Public tools repository
+
