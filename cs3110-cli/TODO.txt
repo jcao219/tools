@@ -1,0 +1,104 @@
+- [X] harness: better terminal output 
+  - mimic last semesters' harness
+  - [X] PASS or FAIL for each test [2/2]
+    - [X] get name of every test case
+      - [X] get print from a Sys.command (just redirect to file)
+      - [X] -log creates 
+    - [X] identify which failed
+- [X] document harness failures in _output folder [3/3]
+  - [X] extract "test was false" from output
+  - [X] enscript [3/3]
+    - [X] save source code
+    - [X] save list of fails
+    - [X] save list of all tests
+  - [X] save text-based output
+- [X] smoke: better terminal output
+  - pretty sure just marginal changes
+- [X] premature nocompile (187 files ok)
+- [X] debug the broken ps printer. Should
+  not fail with Unix error on ik249
+  (123 files ok)
+- [X] pretty printer. Modify toplevel for unittest printer [2/2]
+  - HEY ocaml has a nice method for writing objects to output stream
+    maybe this will work?
+  - [X] use the ocamltest library from last semester
+  - [X] incorporate timeouts to that library
+    - aa688
+- [X] harness the ps2 submissions [2/2]
+  - [X] smoke [2/2]
+    - [X] run it
+    - [X] verify emails + nocompiles
+  - [X] harness
+- [X] bug: stops printing halfway through
+- [X] warnings as errors
+- [X] oUnit -> ounit
+- [X] "include" folder
+- [X] change _depend to .depend, ditto on .lib
+- [X] install on other computers [5/5]
+  - document all error messages!
+  - ocamlfind cannot find package threads (incomplete)
+    - patch from [[https://groups.google.com/forum/#!msg/nmag-users/dINExVJZXng/qglQmPFJUoUJ][here]]
+  - [X] clean osx
+  - [X] arch box
+    - ok so far . .
+    - AH! Cannot ocamlfind ounit
+      - make sure ounit installed
+      - may be case insensitivity
+      - may be weird ounit install
+  - [X] rentenna3
+    - ocamlc not found
+      - unable to locate opam
+        - not found: add-apt-repository
+        - fail: python-software-properties
+        - apt-get update
+        - success: python-s-p
+        - success: add-apt-repository
+  - apt-get install ocaml
+    - success: opam initi, comfigure env
+    - fail: opam ocamlfind
+      - apt-get m4
+    - 
+  - [X] rentenna box
+    - install python-...
+    - install m4
+    - add repo
+    - apt update
+    - install ocaml opam
+    - opam init, opam config env
+    - opam install ocamlfind ounit pa_ounit
+  - [X] ubuntu
+    - virtual machine, 3.12 already installed
+      - cannot build, need ocamlfind
+      - opam -> ocamlfind 
+      - follows opam instructions
+        add-apt-repository ppa:avsm/ppa
+        - may need to `apt-get install python-software-properties`
+        apt-get update
+        apt-get install ocaml opam
+      - still no ocamlfind, still 3.12
+      - opam init
+        - add line to .profile, .opaminit
+      - opam config env
+      - ocaml -version not 4.01.0 ? 
+        opam switch 4.01.0
+      - opam install ocamlfind
+        - apt-get install m4
+      - opam install ounit
+      - opam install pa_ounit
+      - pa_ounit.syntax not found
+- [X] rigorous documentation
+- [ ] grades sheet for CMS
+  - [ ] test name -> point value
+  - [ ] accumulate points into sheet
+  - [ ] add markdown as comments
+    - add snarks like "great job" ?
+- [ ] assertions for students [0/2]
+  - [ ] try opam package
+  - [ ] otherwise crunch into release just like staff
+- [ ] opam
+  - [ ] stick the whole thing in a repo (it's not a big thing)
+- [ ] reverse harness
+  - [ ] get tests from student dirs (input is dirs, just like harness)
+  - [ ] run tests on group of fakes
+  - [ ] fake name -> point
+  - [ ] give points based on who you make fail
