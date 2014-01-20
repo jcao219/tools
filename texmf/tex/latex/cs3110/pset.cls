@@ -12,7 +12,6 @@
 \RequirePackage{3110}
 \RequirePackage{hyperref}
 \RequirePackage{fourier}
-\RequirePackage{DejaVuSansMono}
 \RequirePackage[letterpaper,margin=1in]{geometry}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Page Layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
