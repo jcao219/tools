@@ -8,9 +8,9 @@ Global {
     widthtype=percent
     width=100
     height=26
-    transparent=0
+    transparent=1
     tintcolor=#000000
-    alpha=0
+    alpha=158
     autohide=0
     heightwhenhidden=2
     setdocktype=1
@@ -19,7 +19,7 @@ Global {
     fontsize=10
     fontcolor=#ffffff
     usefontsize=0
-    background=1
+    background=0
     backgroundfile=/usr/share/lxpanel/images/background.png
     iconsize=24
     loglevel=2
@@ -116,33 +116,17 @@ Plugin {
 }
 
 Plugin {
-    type = cpu
-}
-
-Plugin {
     type = tray
 }
 
 Plugin {
     type = dclock
     Config {
-        ClockFmt=%R
+        ClockFmt=%l:%m %p
         TooltipFmt=%A %x
         BoldFont=0
         IconOnly=0
         CenterText=0
-    }
-}
-
-Plugin {
-    type = launchbar
-    Config {
-        Button {
-            id=lxde-screenlock.desktop
-        }
-        Button {
-            id=lxde-logout.desktop
-        }
     }
 }
 
