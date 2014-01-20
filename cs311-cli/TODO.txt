@@ -87,18 +87,77 @@
       - opam install pa_ounit
       - pa_ounit.syntax not found
 - [X] rigorous documentation
-- [ ] grades sheet for CMS
-  - [ ] test name -> point value
-  - [ ] accumulate points into sheet
-  - [ ] add markdown as comments
-    - add snarks like "great job" ?
-- [ ] assertions for students [0/2]
-  - [ ] try opam package
-  - [ ] otherwise crunch into release just like staff
-- [ ] opam
-  - [ ] stick the whole thing in a repo (it's not a big thing)
-- [ ] reverse harness
-  - [ ] get tests from student dirs (input is dirs, just like harness)
-  - [ ] run tests on group of fakes
-  - [ ] fake name -> point
-  - [ ] give points based on who you make fail
+- [X] grades sheet for CMS
+  - [X] yaml
+  - [X] test name -> point value
+  - [X] create rubric [2/2]
+    - [X] first draft
+    - [X] point totals in test name
+  - [X] test [3/3]
+    - [X] build rubric
+    - [X] use existing
+    - [X] catch errors in rubric
+  - [X] assert rubric
+  - [X] accumulate points into sheet [4/4]
+    - [X] init stream
+    - [X] write netid
+    - [X] write points
+    - [X] write comments
+- [X] assertions for students [2/2]
+  - [X] try opam package
+    - [[http://opam.ocaml.org/doc/Packaging.html][packaging]]
+    - [X] assertions.git
+    - [X] assertions-opam.git
+    - [X] update the makefile
+    - [X] KILLED gotta use oasis
+    - currently doing test package in /tmp
+    - see if it installed in my .opam
+    - find & use from ocamlfind/ocamlbuild
+  - [X] otherwise crunch into release just like staff
+    - is this even a good idea?
+  - (nevermind) opam [0/1]
+    - [ ] stick the whole thing in a repo (it's not a big thing)
+- [X] reverse harness [4/4]
+  - [X] get tests from student dirs (input is dirs, just like harness)
+  - [X] run tests on group of fakes
+  - [X] fake name -> point
+  - [X] give points based on who you make fail
+- ISSUES with reverse harness
+  - staff needs perfect solution, even 
+    after pset changes / clarifies
+  - staff needs perfect dummy solutions
+    (perfect tests are hard enough)
+  - cannot have all dummies fail
+    because student could win with
+    assert(false)
+  - cannot have all dummies pass because
+    students may not have tested rigorously
+  - need both, need a medium
+  - but then need points to enforce
+  - rather a binary "did you write tests?"
+    and maybe "do you pass your tests?"
+- [-] better documentation 
+  - [ ] students
+    - [ ] readme (assertions)
+    - [ ] mli
+    - [ ] makefile
+  - [-] staff
+    - [ ] coyp studdent
+    - [ ] mli
+    - [X] tailor a little more
+- [X] relax timeout
+- [ ] compile mapreduce, other big things
+- (nevermind) real YAML parser
+  - [[https://github.com/mk270/oyaml][oyaml]] (nevermind)
+- [X] make sure fnames are in constants
+  - [X] student
+  - [X] staff
+- [X] good exceptions
+  - [X] student
+  - [X] staff
+- [ ] helpers for magic files
+  - [ ] pls enter smoke test targets, etc
+- [ ] pre_methods, to clean up dispatch
+- [ ] merge the history and work into the tools repo.
+  - [ ] maybe set it up for remote tracking somehow if we also want a private one?
+  - http://gbayer.com/development/moving-files-from-one-git-repository-to-another-preserving-history/

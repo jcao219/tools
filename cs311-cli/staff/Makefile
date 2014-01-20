@@ -1,4 +1,4 @@
-LINK=/usr/local/bin/cs3110
+LINK=/usr/local/bin/cs3110-staff
 STD_LIB=`ocamlc -where`
 
 all: compile clean
@@ -9,20 +9,22 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	ocamlc -o cs3110 unix.cma cs3110_cli.mli cs3110_cli.ml
+	ocamlc -o cs3110-staff unix.cma cs3110_cli.mli cs3110_cli.ml
 
 clean:
 	rm cs3110_cli.cmi
 	rm cs3110_cli.cmo
 
+install: assertions compile clean
+
 uninstall:
-	rm cs3110
+	rm cs3110-staff
 	rm ${STD_LIB}/assertions.cmi
 	rm ${STD_LIB}/assertions.cmo
 	rm ${STD_LIB}/assertions.cma
 
 link:
-	ln -s `pwd`/cs3110 $(LINK)
+	ln -s `pwd`/cs3110-staff $(LINK)
 
 unlink:
 	rm $(LINK)

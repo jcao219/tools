@@ -25,8 +25,8 @@ Installation
 ============
 
 Download the script and the dependencies.
-Execute `make`.
-This creates the `cs3110` executable.
+Execute `make install`.
+This creates the `cs3110` executable and a supporting library of assertions.
 
 You can call this executable with the absolute path, create a symlink with `make link`, or extend your `PATH` to include the containing directory. 
 
@@ -39,6 +39,18 @@ You may delete the directory too, but that's arguably overkill.
 
 If you ran `make link` earlier, `make unlink` will remove that symbolic link.
 If you modified your path earlier, you should delete that portion of your shell init file. 
+
+Assertions Library
+==================
+
+Command Summary
+===============
+
+Writing Tests
+=============
+
+Test names may not contain whitespace. 
+Sorry, but assuming test names never contain whitespace makes it much easier to separate a failed test from its error message in the output produced by the inline test runner.
 
 FAQ
 ===
