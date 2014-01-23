@@ -1,6 +1,6 @@
 let expected_version = "4.01.0"
 let depend_file = "./.depend"
-let lib_file = "./.lib"
+let lib_file = "./.libs"
 
 exception File_not_found of string
 
@@ -66,8 +66,8 @@ let build (main_module : string) : unit =
     else [] in
   let libraries = 
     if Sys.file_exists lib_file
-    then ["-libs"; csv_of_file lib_file]
-    else [] in
+    then ["-libs"; "assertions,"^csv_of_file lib_file]
+    else ["-libs"; "assertions"] in
   check_code (run_process "ocamlbuild" (dependencies @ libraries @ [
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 

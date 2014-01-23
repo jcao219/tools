@@ -15,7 +15,7 @@ clean:
 	rm cs3110_cli.cmi
 	rm cs3110_cli.cmo
 
-install: assertions compile clean
+install: assertions compile clean link
 
 uninstall:
 	rm cs3110

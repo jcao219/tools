@@ -10,7 +10,7 @@ let cms_fname = Format.sprintf "%s/spreadsheet.csv" cms_dir
 let depend_file = "./.depend"
 let diff_results = "_diff_results.csv"
 let email_dir = "./_email"
-let lib_file = "./.lib"
+let lib_file = "./.libs"
 let nocompile_dir = "./_nocompile"
 let output_dir = "./_output"
 let reverse_cms = Format.sprintf "%s/reverse.csv" cms_dir
@@ -204,7 +204,7 @@ let build (main_module : string) : int =
     else [] in
   let libraries = 
     if Sys.file_exists lib_file
-    then ["-libs"; "assertions"; csv_of_file lib_file]
+    then ["-libs"; "assertions," ^ csv_of_file lib_file]
     else ["-libs"; "assertions"] in
   run_process "ocamlbuild" (dependencies @ libraries @ [
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
