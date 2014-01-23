@@ -9,9 +9,7 @@ set grepprg=grep\ -nH\ $*
 
 colorscheme elflord
 set guifont=Courier:h14
-set cursorline
 set nohlsearch
-hi CursorLine term=none cterm=none ctermbg=235
 set scrolloff=5
 set number
 set tabstop=2
