@@ -142,32 +142,32 @@ Checks whether the first argument is less (using `(<)`) than the second.
 Raises a helpful exception if not and return unit if so.
 
 assert_equal
-============
+------------
 Checks whether its arguments are equal using `=`.
 If so, returns unit.
 If not, raises and exception, printing its arguments.
 
 assert_almost_equal
-===================
+-------------------
 Compares two floating point numbers for equality with 4-digit precision.
 Returns unit if they are the same within this epsilon and raises an exception otherwise.
 
 assert_not_equal
-================
+----------------
 Checks whether its arguments are unequal using `<>`.
 Returns unit if true and raises an exception otherwise.
 
 assert_is
-=========
+---------
 Checks whether its arguments are the same object.
 Similar to `assert_equal`, but uses `==` for equality.
 
 assert_is_not
-=============
+-------------
 Opposite of `assert_is`.
 
 assert_raises
-=============
+-------------
 At a high level, this function checks whether executing a function raises an exception.
 Requires 3 arguments.
 
@@ -184,7 +184,7 @@ For example, consider `List.find 0 [1;2]`, which should raise the exception `Not
 One should call `assert_raises (Some Not_found) (List.find 0) ([1;2])` to test this behavior.
 
 timeout
-=======
+-------
 Not an assertion per se, but still useful.
 Checks whether executing a function finishes within a set amount of time.
 Requires 3 arguments.
