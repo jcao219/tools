@@ -25,7 +25,8 @@
 ;; package name will point you here).
 
 (add-to-list 'load-path "~/.emacs.d/tuareg-2.0.6")
-(add-to-list 'load-path "~/.emacs.d/auctex-11.86")
+(add-to-list 'load-path "~/.emacs.d/auctex-11.87")
+(add-to-list 'load-path "~/.emacs.d/auctex-11.87/preview")
 (add-to-list 'load-path "~/.emacs.d/color-theme-6.6.0/")
 
 ;; Sets the PATH environment variable.
@@ -54,12 +55,6 @@
                 ("\\.topml$" . tuareg-mode))
               auto-mode-alist))
 
-;; Configures LaTeX environment
-(require 'tex-site)
-
-(load "auctex.el" nil t t)
-(require 'tex-mik)
-
 ;; Adds /usr/texbin to the path
 (getenv "PATH")
   (setenv "PATH"
@@ -67,6 +62,12 @@
   "/usr/texbin" ":"
  (getenv "PATH")))
  (setq latex-run-command "pdflatex")
+
+;; Configures LaTeX environment
+(require 'tex-site)
+
+(load "auctex.el" nil t t)
+(require 'tex-mik)
 
 ;; sets default compiler to pdflatex
 (setq TeX-engine 'pdflatex)
