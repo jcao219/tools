@@ -1,4 +1,4 @@
-%% pset.cls (A class file for CS 3110 problem sets)
+%% pset.cls (A class file for CS 3110 Problem Sets)
 %%
 %% version 2
 %% Aug 28, 2013
