@@ -17,7 +17,7 @@ clean:
 
 install: assertions compile clean link
 
-uninstall:
+uninstall: unlink
 	rm cs3110
 	rm ${STD_LIB}/assertions.cmi
 	rm ${STD_LIB}/assertions.cmo
