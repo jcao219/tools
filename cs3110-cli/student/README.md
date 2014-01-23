@@ -27,19 +27,19 @@ Installation
 ============
 
 Download the script and the dependencies.
-Execute `make`.
-This creates the `cs3110` executable.
+Execute `make install`.
+This creates the supporting assertions library, the `cs3110` executable, and links it to `/usr/local/lib`.
 
-You can call this executable with the absolute path, create a symlink with `make link`, or extend your `PATH` to include the containing directory.
+Note that linking is convenient, but optional.
+You can alternatively call the `cs3110` executable with the absolute path or extend your `PATH` environment variable to include the containing directory.
 
 Removal
 =======
 
-Simply `make uninstall`. 
-If you ran `make link` earlier, `make unlink` will remove that symbolic link.
+Run `make uninstall`. 
 If you modified your path earlier, you should delete that portion of your shell init file. 
 
-You may delete the `cs311-cli` directory too, but that's arguably overkill.
+You may delete the `cs3110-cli` directory too, but that's arguably overkill.
 
 Usage
 =====
@@ -99,6 +99,101 @@ We strongly urge you to write unit tests early and often to check the correctnes
 In fact, this functionality is the primary reason we supply the `cs3110` script.
 Quickly compiling a module and running tests will prevent serious or hard-to-identify bugs from appearing during development, and keeping a comprehensive test suite handy gives assurance that later changes to the codebase did not break the implementation.
 Writing unit tests is guaranteed to improve your grade in cs3110.
+
+Assertions
+==========
+
+This testing framework comes with a simple library, `assertions.ml`, that includes functions designed to augment the standard `assert` statement.
+When running the `cs3110` executable, your programs may reference `Assertions` as they would `List` or `String` or any other standard OCaml library.
+Use of this library is optional, but we document it here.
+
+Many of these commands print their arguments on failure.
+This is done by the functions in `serializer.ml`.
+They look at the internal representation of OCaml values and attempt to print a string representation.
+
+Unfortunately, the printer is not entirely accurate.
+It executes at runtime and thus does not have enough information to generate a perfect representation.
+For one, it is not clear how to print user-defined types.
+But simple values like `0`, `false`, and `[]` all print to the same string, `0`.
+
+The OCaml Toplevel is able to discern and appropriately print these values because it can use AST information to print.
+Our serializer cannot, so keep this in mind when reading its error messages.
+
+assert_true
+-----------
+Almost the same as OCaml's `assert` statement.
+Accepts a boolean argument and returns unit if it is true and raises an exception otherwise.
+
+assert_false
+------------
+The opposite of `assert_true`.
+Raises an exception if the argument is `false` and returns unit otherwise.
+
+assert_greater
+--------------
+Checks whether its first argument is greater (using `(>)`) than its second argument.
+If true, returns unit.
+If false, prints its arguments with a helpful error mesage.
+
+assert_less
+-----------
+The opposite of `assert_greater`.
+Checks whether the first argument is less (using `(<)`) than the second.
+Raises a helpful exception if not and return unit if so.
+
+assert_equal
+============
+Checks whether its arguments are equal using `=`.
+If so, returns unit.
+If not, raises and exception, printing its arguments.
+
+assert_almost_equal
+===================
+Compares two floating point numbers for equality with 4-digit precision.
+Returns unit if they are the same within this epsilon and raises an exception otherwise.
+
+assert_not_equal
+================
+Checks whether its arguments are unequal using `<>`.
+Returns unit if true and raises an exception otherwise.
+
+assert_is
+=========
+Checks whether its arguments are the same object.
+Similar to `assert_equal`, but uses `==` for equality.
+
+assert_is_not
+=============
+Opposite of `assert_is`.
+
+assert_raises
+=============
+At a high level, this function checks whether executing a function raises an exception.
+Requires 3 arguments.
+
+The first is an option, indicating which exception should be raised.
+`None` means "raise any exception".
+This is useful for catching functions that are supposed to `failwith` an arbitrary argument, or when the exception raised does not matter.
+`Some Sys_error` means "catch `Sys_error` exceptions, returning unit if one is raised, and raise an error if execution completes without exception or any other exception is raised".
+
+The second is a function of type `'a ->'b` and the third is a value of type `'a`.
+The function is applied to the argument inside the body of `assert_raises`.
+
+If you want to use a function that takes multiple arguments, partially apply it until it matches the form `'a -> 'b`.
+For example, consider `List.find 0 [1;2]`, which should raise the exception `Not_found`.
+One should call `assert_raises (Some Not_found) (List.find 0) ([1;2])` to test this behavior.
+
+timeout
+=======
+Not an assertion per se, but still useful.
+Checks whether executing a function finishes within a set amount of time.
+Requires 3 arguments.
+
+First is an integer, the timeout in seconds.
+Second is a function of type `'a -> 'b` and third is a value of type `'a`.
+
+Uses system alarms to time the the current process, then applies the second and third arguments as the timer diminishes.
+Returns unit if the function terminates in time and raises `Timeout` otherwise.
 
 FAQ
 ===
@@ -197,6 +292,44 @@ If you are using the [bash](http://www.gnu.org/software/bash/) shell, which is a
 
 The `.` at the end of the file signals that it should be hidden on the computer, so it will not appear when you `ls` in the home folder, nor when you use a graphical tool like Finder to view the contents of the home folder.
 Use `ls -a` or configure your explorer to show hidden files.
+
+Q. Could not run `make install`. Making the link failed with 'Permission denied'.
+---------------------------------------------------------------------------------
+
+You did not have permission to edit the file named by the variable `LINK` at the top of the Makefile.
+Either change this variable to a different file or re-run `make install` with root permissions.
+
+Q. Could not run `make install`. Making the link failed with 'No such file or directory'.
+-----------------------------------------------------------------------------------------
+
+The file named by the variable `LINK` (defined at the top of the Makefile) does not exist on your machine.
+You can either make the file or re-define `LINK` to one that exists.
+Ask on Piazza or come to office hours for help.
+
+Q. What is root? What is "sudo"? What are root permissions? What is the "superuser"?
+------------------------------------------------------------------------------------
+
+On unix-like computers (OSX and all Linux distributions, including the cs3110 virtual machine), many operations are restricted.
+Ordinary users may not alter files or directories in certain locations of the computer.
+This is for security reasons.
+Recklessly altering certain files may be dangerous to your computer.
+
+The "root" or "superuser" is a special user who may edit all files on the computer, even the protected ones.
+However, a user sometimes wants to perform actions the computer thinks are dangerous.
+For example, only root can install new software.
+So there is a mechanism for a user to obtain root permissions; that is, to edit protected files.
+This is done by prepending "sudo" to the desired command.
+"sudo" asks for permission to perform a restricted action.
+
+As an example, `apt-get` is the ubuntu package manager.
+It helps install new software and manage existing software.
+To install ocaml, a user would type:
+    $ apt-get install ocaml
+However, this is a restricted operation.
+Only the superuser may install new software.
+Thus one more often uses this command to install ocaml:
+    $ sudo apt-get install ocaml
+Which means "execute the command `apt-get install ocaml` with root permissions.
 
 Credits
 =======
