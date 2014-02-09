@@ -350,8 +350,8 @@ let assert_valid_line () : string -> unit =
   (fun (raw_line : string) ->
     let ln = String.trim raw_line in
     let _ = incr lineno in
-    (* Valid lines are either comments, starting with an octothorp *)
-    let is_comment = (ln.[0] = '#') in
+    (* Valid lines are either comments, starting with an octothorp, or empty *)
+    let is_comment = (String.length ln = 0) || (ln.[0] = '#') in
     (* Else they are 'key:val' pairs, with exactly one colon and non-whitespace strings on either end *)
     let l_raw, r_raw = lsplit ln ':' in
     let l, r = (String.trim l_raw), (String.trim r_raw) in
@@ -466,7 +466,7 @@ let dict_of_rubric_file (f : string) =
   let _ = List.iter (fun raw_line ->
     let _ = incr lineno in
     let line = String.trim raw_line in
-    if line.[0] <> '#' && (String.length line) > 0 then
+    if (String.length line) > 0 && line.[0] <> '#' then
       (* Line is hopefully a test. Pretend that it is *)
       let raw_name, raw_points = lsplit line ':' in
       let name = String.trim raw_name in
