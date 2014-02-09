@@ -710,7 +710,7 @@ let harness (test_dir : string) (directories : string list) : unit =
       (* Replace double quotes with single quotes *)
       let comments = 
         String.map (fun c -> if c = '"' then '\'' else c
-        ) (String.concat " \\n " (read_lines (open_in txt_fname)))
+        ) (String.concat " \n " (read_lines (open_in txt_fname)))
       in
       output_string cms_chn (Format.sprintf ",\"%s\"\n" comments)
     in
