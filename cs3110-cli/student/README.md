@@ -4,6 +4,7 @@ cs3110-cli
 Command line tools for cs3110.
 The solution for compiling, testing, and running your code. 
 Commands are:
+
 * `cs3110 compile <filename>` compile the target file into a bytecode executable
 * `cs3110 run <filename> [args]` Run the executable created by `cs3110 compile <filename>` with the supplied arguments
 * `cs3110 test <filename>` Execute the `pa_ounit` tests within the file

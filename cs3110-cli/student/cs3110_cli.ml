@@ -73,10 +73,13 @@ let build (main_module : string) : unit =
     "-use-ocamlfind"; "-no-links"; 
     "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), \
                                package(pa_ounit.syntax), \
-                               package(oUnit)";
+                               package(oUnit), \
+                               package(qcheck)";
     "-tag-line"; "<*.d.byte> : package(pa_ounit), \
+                               package(qcheck), \
                                package(oUnit)";
     "-tag-line"; "<*.native> : package(pa_ounit), \
+                               package(qcheck), \
                                package(oUnit)";
     target
   ]))

@@ -1,4 +1,4 @@
-LINK=/usr/local/bin/cs3110-staff
+LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
 all: compile clean
