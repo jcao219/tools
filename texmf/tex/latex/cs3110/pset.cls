@@ -116,13 +116,13 @@
 \newcommand\bracket[1]{\ifx#1\empty\else[#1]\fi}
 
 \newcommand\problem[2]{
-	\addtocounter{problem}{1}
+	\refstepcounter{problem}
 	\setcounter{exercise}{0}
 	\section*{Problem \theproblem: #1 {\normalsize(#2 pts)}}
 }
 
 \newcommand\exercise[1]{
-	\addtocounter{exercise}{1}
+	\refstepcounter{exercise}
 	\subsection*{Exercise \theexercise: #1}
 }
 
