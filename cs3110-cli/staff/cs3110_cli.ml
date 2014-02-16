@@ -13,12 +13,15 @@ let diff_results = "_diff_results.csv"
 let email_dir = "./_email"
 let lib_file = "./.libs"
 let nocompile_dir = "./_nocompile"
+let opam_packages_file = "./_opam_packages"
 let output_dir = "./_output"
 let reverse_cms = Format.sprintf "%s/reverse.csv" cms_dir
 let reverse_dir = "./reverse_tests"
 let reverse_rubric = "./reverse_rubric.yaml"
 let rubric_file = "./rubric.yaml"
 let smoke_targets = "./smoke_test"
+(* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
+let std_opam_packages = ["pa_ounit.syntax"; "ounit"; "pa_ounit"; "qcheck"]
 let tests_dir = "./tests"
 
 let test_output = "inline_tests.log"
@@ -202,24 +205,28 @@ let build (main_module : string) : int =
   let dependencies = 
     if Sys.file_exists depend_file
     then ["-Is"; csv_of_file depend_file]
-    else [] in
+    else []
+  in
   let libraries = 
     if Sys.file_exists lib_file
     then ["-libs"; "assertions," ^ csv_of_file lib_file]
-    else ["-libs"; "assertions"] in
+    else ["-libs"; "assertions"]
+  in
+  let all_opam_packages = std_opam_packages @ 
+    if Sys.file_exists opam_packages_file
+    then (read_lines (open_in opam_packages_file))
+    else []
+  in
+  let opam_packages_str = 
+      (String.concat ", " 
+      (List.map (fun p -> Format.sprintf "package(%s)" p) all_opam_packages))
+  in
   run_process "ocamlbuild" (dependencies @ libraries @ [
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), \
-                               package(pa_ounit.syntax), \
-                               package(oUnit), \
-                               package(qcheck)";
-    "-tag-line"; "<*.d.byte> : package(pa_ounit), \
-                               package(oUnit), \
-                               package(qcheck)";
-    "-tag-line"; "<*.native> : package(pa_ounit), \
-                               package(oUnit), \
-                               package(qcheck)";
+    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
+    "-tag-line"; "<*.d.byte> : " ^ opam_packages_str;
+    "-tag-line"; "<*.native> : " ^ opam_packages_str;
     target
   ])
 

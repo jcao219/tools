@@ -1,6 +1,9 @@
 let expected_version = "4.01.0"
 let depend_file = "./.depend"
 let lib_file = "./.libs"
+(* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
+let std_opam_packages = ["pa_ounit.syntax"; "ounit"; "pa_ounit"; "qcheck"]
+let opam_packages_file = "./_opam_packages"
 
 exception File_not_found of string
 
@@ -63,24 +66,28 @@ let build (main_module : string) : unit =
   let dependencies = 
     if Sys.file_exists depend_file
     then ["-Is"; csv_of_file depend_file]
-    else [] in
+    else [] 
+  in
   let libraries = 
     if Sys.file_exists lib_file
     then ["-libs"; "assertions,"^csv_of_file lib_file]
-    else ["-libs"; "assertions"] in
+    else ["-libs"; "assertions"] 
+  in
+  let all_opam_packages = std_opam_packages @ 
+    if Sys.file_exists opam_packages_file
+    then (read_lines (open_in opam_packages_file))
+    else []
+  in
+  let opam_packages_str = 
+      (String.concat ", " 
+      (List.map (fun p -> Format.sprintf "package(%s)" p) all_opam_packages))
+  in
   check_code (run_process "ocamlbuild" (dependencies @ libraries @ [
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), \
-                               package(pa_ounit.syntax), \
-                               package(oUnit), \
-                               package(qcheck)";
-    "-tag-line"; "<*.d.byte> : package(pa_ounit), \
-                               package(qcheck), \
-                               package(oUnit)";
-    "-tag-line"; "<*.native> : package(pa_ounit), \
-                               package(qcheck), \
-                               package(oUnit)";
+    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
+    "-tag-line"; "<*.d.byte> : " ^ opam_packages_str;
+    "-tag-line"; "<*.native> : " ^ opam_packages_str;
     target
   ]))
 
