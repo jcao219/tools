@@ -11,6 +11,7 @@
 \RequirePackage[hidelinks]{hyperref}
 \RequirePackage{enumerate,soul,relsize,scrextend,mdframed}
 \RequirePackage{listings}
+\RequirePackage{proof}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% For Typesetting OCaml %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -48,6 +49,20 @@
 %% TODO
 % %% For Uncommon Type Variables
 % \newcommand{talloc}[1]{'#1}
+
+%%%%%%%%%%%%%%%%%%%%%%% For Typesetting Proof Trees %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newenvironment{logic}
+   {\renewcommand{\and}{\ensuremath{\land}}
+    \renewcommand{\or}{\ensuremath{\lor}}
+    \renewcommand{\not}{\ensuremath{\lnot}}}
+   {}
+\newcommand{\implies}{\ensuremath{\mathrel{\Rightarrow}}}
+\renewcommand{\iff}{\ensuremath{\mathrel{\Leftrightarrow}}}
+\newcommand{\proves}{\ensuremath{\vdash}}
+
+\newcommand{\Rule}[2]{\infer{#2}{#1}}
+\newcommand{\RuleSide}[3]{\infer[#3]{#2}{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% For Typesetting Text %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
