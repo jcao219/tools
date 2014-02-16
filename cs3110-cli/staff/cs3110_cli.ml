@@ -4,6 +4,7 @@ exception Invalid_rubric of string
 
 let expected_version = "4.01.0"
 let email_subject = "[CS3110 test harness] compile error"
+let email_admins = "_email_bcc.txt"
 
 let cms_dir = "./_cms"
 let cms_fname = Format.sprintf "%s/spreadsheet.csv" cms_dir
@@ -304,13 +305,17 @@ let diff (directories : string list) : unit =
 (** [email ()] send the email messages stored in the _email directory.  *
  * Assumes that every folder name under _email is a valid Cornell netid *)
 let email () : unit = 
-  let _ = assert_file_exists email_dir in
+  let _ = 
+    assert_file_exists email_dir;
+    assert_file_exists email_admins;
+  in
   let messages = Sys.readdir email_dir in
   let num_sent = ref 0 in
   (* Use the [mail] command to package off the email message *)
   Array.iter (fun (msg_file : string) ->
     let recipient = (strip_suffix msg_file) ^ "@cornell.edu" in
-    let cmd = Format.sprintf "mail -s '%s' '%s' < %s/%s" email_subject recipient email_dir msg_file in
+    let bcc = Format.sprintf "-b '%s'" (String.concat "' -b '" (read_lines (open_in email_admins))) in
+    let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s" email_subject bcc recipient email_dir msg_file in
     let _ = Format.printf "### Executing '%s'\n%!" cmd in
     let exit_code = Sys.command cmd in
     if exit_code <> 0 then 
