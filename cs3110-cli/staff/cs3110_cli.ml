@@ -21,7 +21,7 @@ let reverse_rubric = "./reverse_rubric.yaml"
 let rubric_file = "./rubric.yaml"
 let smoke_targets = "./smoke_test"
 (* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
-let std_opam_packages = ["pa_ounit.syntax"; "ounit"; "pa_ounit"; "qcheck"]
+let std_opam_packages = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]
 let tests_dir = "./tests"
 
 let test_output = "inline_tests.log"

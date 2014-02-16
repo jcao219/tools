@@ -2,7 +2,7 @@ let expected_version = "4.01.0"
 let depend_file = "./.depend"
 let lib_file = "./.libs"
 (* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
-let std_opam_packages = ["pa_ounit.syntax"; "ounit"; "pa_ounit"; "qcheck"]
+let std_opam_packages = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]
 let opam_packages_file = "./_opam_packages"
 
 exception File_not_found of string
