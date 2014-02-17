@@ -114,6 +114,6 @@ exception Timeout
 let sigalrm_handler = Sys.Signal_handle (fun _ -> raise Timeout)
 let timeout (time : int) (f : 'a -> 'b) (arg : 'a) =
    let old_behavior = Sys.signal Sys.sigalrm sigalrm_handler in
-   let reset_sigalrm () = Sys.set_signal Sys.sigalrm old_behavior in
+   let reset_sigalrm () = ignore (Unix.alarm 0); Sys.set_signal Sys.sigalrm old_behavior in
    ignore (Unix.alarm time) ;
    let res = f arg in reset_sigalrm () ; res
