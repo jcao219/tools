@@ -1,0 +1,29 @@
+
+_cs3110 () {
+  local cur prev opts
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  opts="compile run test clean help"
+
+  case "${prev}" in
+    compile|run|test)
+      _filedir
+      return 0
+      ;;
+    help|clean)
+      return 0
+      ;;
+    *)
+      ;;
+  esac
+
+  COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+}
+
+complete -F _cs3110 cs3110
+
+#
+# vim: syntax=sh
+#
