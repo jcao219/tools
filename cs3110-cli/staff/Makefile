@@ -4,7 +4,7 @@ STD_LIB=`ocamlc -where`
 all: compile clean
 
 assertions:
-	ocamlc -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
+	ocamlfind ocamlc -package qcheck -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
 	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
 	rm serializer.cmi serializer.cmo
 

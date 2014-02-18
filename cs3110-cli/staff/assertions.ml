@@ -117,3 +117,14 @@ let timeout (time : int) (f : 'a -> 'b) (arg : 'a) =
    let reset_sigalrm () = ignore (Unix.alarm 0); Sys.set_signal Sys.sigalrm old_behavior in
    ignore (Unix.alarm time) ;
    let res = f arg in reset_sigalrm () ; res
+
+exception QCheck_failure of string
+let assert_qcheck cases test = 
+match QCheck.check cases test with
+  | QCheck.Ok     _ -> ()
+  | QCheck.Failed [] -> 
+    raise (QCheck_failure "Quickcheck could not generate a failed instance.")
+  | QCheck.Failed (h::_) -> 
+    let msg = Printf.sprintf "Invalid output on instance '%s'\n" (Serializer.truncate h) in
+    raise (QCheck_failure msg)
+  | QCheck.Error (_, e) -> raise e

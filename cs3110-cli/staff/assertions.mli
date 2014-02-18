@@ -40,3 +40,6 @@ exception Timeout
 (** [timeout i f x] executes [f x], terminating in at most [i]
  * seconds. Raises [Timeout] if [f x] was killed early. *)
 val timeout : int -> ('a -> 'b) -> 'a -> 'b
+
+exception QCheck_failure of string
+val assert_qcheck : 'a QCheck.Arbitrary.t -> 'a QCheck.Prop.t -> unit
