@@ -12,8 +12,8 @@ compile:
 	ocamlc -o cs3110-staff unix.cma cs3110_cli.mli cs3110_cli.ml
 
 clean:
-	rm cs3110_cli.cmi
-	rm cs3110_cli.cmo
+	rm -f cs3110_cli.cmi
+	rm -f cs3110_cli.cmo
 
 install: assertions compile clean
 
