@@ -1,13 +1,7 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
-SRC=constants.mli constants.ml \
-iOUtil.mli iOUtil.ml \
-processUtil.mli processUtil.ml \
-filepathUtil.mli filepathUtil.ml \
-postscript.mli postscript.ml
-
-all: compile clean
+all: compile
 
 assertions:
 	ocamlfind ocamlc -package qcheck -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
@@ -15,10 +9,12 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	ocamlc -o cs3110-staff unix.cma $(SRC) cs3110_cli.mli cs3110_cli.ml
+	corebuild -Is include,assertions,util main.native
+	mv main.native cs3110-staff
 
 clean:
-	rm -f *.cm*
+	corebuild -clean
+	rm -rf _cms
 
 install: assertions compile clean
 
