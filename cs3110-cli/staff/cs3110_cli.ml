@@ -1018,6 +1018,7 @@ Usage: cs3110-staff COMMMAND [args]
   cs3110 rubric <sol_dir>              Create a rubric using the implementations
                                         in sol_dir to compile the tests.
   cs3110 run <file>                    Run the program file.ml.
+  cs3110 stat <spreadsheet>            Compute statistics given a harness-generated spreadsheet 
   cs3110 smoke <targets>               Compile all targets.
   cs3110 test <file>                   Run the tests in file.ml.
 "
@@ -1038,6 +1039,10 @@ let () =
       if arg1.[0] = '@'
       then diff (directories_of_list arg1)
       else diff (arg1 :: args)
+    | [ _; "doc"; src_dir; output_dir] ->
+      check_code (doc ~src_dir:src_dir output_dir)
+    | [ _; "doc"; output_dir] ->
+      check_code (doc output_dir)
     | [ _; "email" ] -> email ()
     | _ :: "harness" :: arg1 :: args -> 
       (* Make sure test dir exists *)
@@ -1071,12 +1076,6 @@ let () =
       else smoke (arg1 :: args)
     | [ _; "test"; target ] -> 
         let target' = strip_suffix target in check_code (test target')
-    | [ _; "doc"; src_dir; output_dir] -> begin
-      check_code (doc ~src_dir:src_dir output_dir)
-    end
-    | [ _; "doc"; output_dir] -> begin
-      check_code (doc output_dir)
-    end
     | _ -> print_endline "Invalid arguments."; help ()
   with File_not_found filename ->
     Format.printf "Could not find the file %s.\n%!" filename
