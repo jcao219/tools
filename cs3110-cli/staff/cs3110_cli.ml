@@ -324,7 +324,7 @@ let diff (directories : string list) : unit =
            * They suffer the penalty. *)
           0
         else begin
-          (* Run a diff, ask user for judgement. 
+          (* Run a diff, ask user for judgment. 
            * Automatically handles missing files and 'no difference' resubmits *)
           let new_file = Format.sprintf "%s/%s" dir fname in
           let cmd = Format.sprintf "diff %s %s/%s/%s" new_file nocompile_dir netid fname in
@@ -352,7 +352,7 @@ let diff (directories : string list) : unit =
                 in
                 (* Collect input *)
                 while (!user_input <> 0 && !user_input <> 1) do (
-                  print_endline "Please enter 0 or 1 as judgement. 1 is good.";
+                  print_endline "Please enter 0 or 1 as judgment. 1 is good.";
                   try user_input := int_of_string (read_line ()) with
                     | Failure "int_of_string" -> ()
                 ) done;
