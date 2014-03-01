@@ -1024,7 +1024,7 @@ let stat (sheet_name : string) : unit =
         incr(nocompile)
       else if (starts_with (!line) "PASS") then begin
         (* Test passes! *)
-        let test_name = snd(rsplit (!line) '-') in
+        let test_name = fst(rsplit (snd(rsplit (!line) '-')) '"') in
         (if not (Hashtbl.mem results_by_test test_name) 
          then Hashtbl.add results_by_test test_name (ref 0, ref 0));
         incr(fst(Hashtbl.find results_by_test test_name))
