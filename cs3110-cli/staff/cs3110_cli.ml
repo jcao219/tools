@@ -321,6 +321,8 @@ let diff (directories : string list) : unit =
   let num_diffed = ref 0 in
   let results_chn = open_out diff_results in
   (* For each file in the nocompile folder, check if it has a match in [directories] *)
+  let all_nocompiles= Sys.readdir "./_nocompile" in
+  let () = Array.sort Pervasives.compare all_nocompiles in
   Array.iter (fun netid -> 
     if Hashtbl.mem netid_map netid then
       let dir = Hashtbl.find netid_map netid in
@@ -335,55 +337,64 @@ let diff (directories : string list) : unit =
           (* Run a diff, ask user for judgment. 
            * Automatically handles missing files and 'no difference' resubmits *)
           let new_file = Format.sprintf "%s/%s" dir fname in
-          let cmd = Format.sprintf "diff %s %s/%s/%s" new_file nocompile_dir netid fname in
-          let _ = Format.printf "\n### Executing '%s' ###\n%!" cmd in
+          let old_file = Format.sprintf "%s/%s/%s" nocompile_dir netid fname in
+          let simple_cmd = Format.sprintf "diff -q %s %s" old_file new_file in
+          let pretty_cmd = 
+            let diff_cmd = if (Sys.command "which colordiff > /dev/null" = 0) 
+              then "colordiff"
+              else "diff" in 
+            Format.sprintf "%s -u %s %s | less -R" diff_cmd old_file new_file in
+          let _ = Format.printf "\n### Executing '%s' \n%!" simple_cmd in
           if not (Sys.file_exists new_file) then
             (* Resubmission does not contain a file. 
              * Return 1 because they do not have a late submission *)
             let _ = Format.printf "File '%s' does not exist!\n%!" new_file in
             1
-          else 
-            let _ = Sys.command (Format.sprintf "%s > %s" cmd diff_tmp) in
-            begin match (read_lines (open_in diff_tmp)) with
-              | [] -> 
-                (* No differences. Print and return 1. It's 1 
-                 * because they did not submit late *)
-                let _ = Format.printf "diff of '%s' finished with no differences\n%!" in
-                1
-              | h::t as lines ->
-                (* Non-empty diff! Display it and wait for user response *)
-                (* Set up to collect input *)
-                let _ = 
-                  List.iter print_endline lines;
-                  user_input := 2;
-                  print_string "** "
-                in
-                (* Collect input *)
-                while (!user_input <> 0 && !user_input <> 1) do (
-                  print_endline "Please enter 0 or 1 as judgment. 1 is good.";
-                  try user_input := int_of_string (read_line ()) with
-                    | Failure "int_of_string" -> ()
-                ) done;
-                (* Shut down *)
-                let _ = 
-                  print_endline "Ok! ";
-                  incr num_diffed
-                in
-                !user_input
-            end
+          else begin
+            (* First, check if there are any differences *)
+            if (Sys.command simple_cmd) = 0 then
+              (* No differences. Print and return 1. It's 1 
+               * because they did not submit late *)
+              let _ = Format.printf "diff of '%s/%s' finished with no differences\n%!" netid fname in
+              1
+            else
+              (* There are differences. Display a prettier diff, wait for user
+               * response *)
+              let show_diff = fun () -> Sys.command pretty_cmd in
+              let () = (* set up repl *)
+                ignore (show_diff ());
+                user_input := 2
+              in
+              (* Collect input *)
+              let () = while (!user_input <> 0 && !user_input <> 1) do (
+                print_string "#### Decision time! Choose one of (y/n/r/s) or type 'h' for help.\n> ";
+                match String.lowercase (read_line ()) with
+                | "y" | "yes" -> user_input := 1
+                | "n" | "no"  -> user_input := 0
+                | "r"         -> ignore (show_diff ())
+                | "s"         -> ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file))
+                | _           -> print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n: Reject the diff. Will need to deduct slip day on CMS\n       r : Re-display the diff\n       s : Show the source files (first old, then new)\n" 
+              ) done in
+              (* done with repl *)
+              let () = 
+                print_endline "Ok! ";
+                incr num_diffed
+              in
+              !user_input
+          end
         end 
       (* btw, initial accumulator for the fold is 1 because of the guard on 0 
        * If [acc = 0], we stop doing diffs for the student. *)
       ) 1 (Sys.readdir (Format.sprintf "%s/%s" nocompile_dir netid)) in
       (* Save the results to the .csv *)
       output_string results_chn (Format.sprintf "%s,%d\n" netid result)
-  ) (Sys.readdir "./_nocompile");
+  ) all_nocompiles;
   (* Close up *)
   let _ = 
     ignore(Sys.command (Format.sprintf "rm -f %s" diff_tmp));
     close_out results_chn
   in
-  Format.printf "Finished diffing %d files. See '%s' for results\n%!" (!num_diffed) diff_results
+  Format.printf "Finished inputting decisions for %d files. See '%s' for results\n%!" (!num_diffed) diff_results
 
 (** [email ()] send the email messages stored in the _email directory.  *
  * Assumes that every folder name under _email is a valid Cornell netid *)
