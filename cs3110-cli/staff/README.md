@@ -26,6 +26,12 @@ Detailed descriptions follow.
 These are a superset of the commands in the student version.
 New commands automate mass testing.
 
+Dependencies
+============
+
+* `enscript`, used to generate .ps output
+* `colordiff`, used to make prettier diffs. See the FAQ.
+
 NEW Command Summary
 ===================
 
@@ -317,6 +323,15 @@ Q. How do I download files from CMS?
 3. Click "All", the red word in the top-center of the page. This selects all students in the table that fills the rest of the page.
 4. Click "Files", the grey button at the top-right of the page.
 5. Select a download location and unzip the result. Party!
+
+Q. How do I get colored diff output?
+------------------------------------
+
+Follow the instructions from [this gist](https://gist.github.com/dansimau/3104183) on adding colors to diff:
+
+1. Install `colordiff`
+2. Alias `diff` to `colordiff`
+3. (optional) change the default colors in colordiff by executing `echo "newtext=green\noldtext=red\ndiffstuff=cyan" >> ~/.colordiffrc`
 
 Credits
 =======
