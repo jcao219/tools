@@ -327,11 +327,13 @@ Q. How do I download files from CMS?
 Q. How do I get colored diff output?
 ------------------------------------
 
-Follow the instructions from [this gist](https://gist.github.com/dansimau/3104183) on adding colors to diff:
+Install `colordiff`.
+Once installed, the harness should notice the software and use it instead of regular, black-and-white diff.
 
-1. Install `colordiff`
-2. Alias `diff` to `colordiff`
-3. (optional) change the default colors in colordiff by executing `echo "newtext=green\noldtext=red\ndiffstuff=cyan" >> ~/.colordiffrc`
+Additionally, we recommend changing the default color scheme.
+Execute this command and restart the terminal to see colors that match github's scheme: new text in green and deleted text in red.
+
+    echo "newtext=green\noldtext=red\ndiffstuff=cyan" >> ~/.colordiffrc
 
 Credits
 =======
