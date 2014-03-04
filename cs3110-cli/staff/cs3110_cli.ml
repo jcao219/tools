@@ -367,13 +367,13 @@ let diff (directories : string list) : unit =
               in
               (* Collect input *)
               let () = while (!user_input <> 0 && !user_input <> 1) do (
-                print_string "#### Decision time! Choose one of (y/n/r/s) or type 'h' for help.\n> ";
+                print_string "#### Decision time! Choose one of (y/n/d/s) or type 'h' for help.\n> ";
                 match String.lowercase (read_line ()) with
                 | "y" | "yes" -> user_input := 1
                 | "n" | "no"  -> user_input := 0
-                | "r"         -> ignore (show_diff ())
+                | "d"         -> ignore (show_diff ())
                 | "s"         -> ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file))
-                | _           -> print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n: Reject the diff. Will need to deduct slip day on CMS\n       r : Re-display the diff\n       s : Show the source files (first old, then new)\n" 
+                | str         -> if str <> "h" then print_endline "#### Invalid option"; print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n : Reject the diff. Will need to deduct slip day on CMS\n       d : Show the diff again\n       s : Show the source files (first old, then new)\n" 
               ) done in
               (* done with repl *)
               let () = 
