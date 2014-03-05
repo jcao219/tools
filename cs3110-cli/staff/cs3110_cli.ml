@@ -281,7 +281,8 @@ let get_files_with_extension (desired_extension : string)
   try get_files dir with _ -> []
 
 let doc ?(src_dir=Sys.getcwd ()) (output_dir : string) : int =
-  Printf.printf "Generating documentation for directory: %s\n" src_dir;
+  let () = Printf.printf "Generating documentation for directory: %s\n" src_dir in
+  let () = ensure_dir output_dir in
   let build_dir =
     try
       if Sys.is_directory "_build" then "_build"
@@ -1081,7 +1082,7 @@ Usage: cs3110-staff COMMMAND [args]
   cs3110 compile <file>                Compile file.ml.
   cs3110 diff <targets>                Compare supplied files with those stored
                                         as no compiles.
-  cs3110 doc [src_dir] <output_dir>    Generates the ocamldoc documentation for
+  cs3110 doc <output_dir> [src_dir]    Generates the ocamldoc documentation for
                                        the .mli files in [src_dir] and dumps
                                        output to <output_dir>. Default src_dir
                                        is the current working directory.
@@ -1117,7 +1118,7 @@ let () =
       if arg1.[0] = '@'
       then diff (directories_of_list arg1)
       else diff (arg1 :: args)
-    | [ _; "doc"; src_dir; output_dir] ->
+    | [ _; "doc"; output_dir; src_dir] ->
       check_code (doc ~src_dir:src_dir output_dir)
     | [ _; "doc"; output_dir] ->
       check_code (doc output_dir)
