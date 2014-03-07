@@ -85,10 +85,10 @@ let build (main_module : string) : unit =
   check_code (run_process "ocamlbuild" (dependencies @ libraries @ [
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
-    "-tag-line"; "<*.ml{,i}> : thread";
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
-    "-tag-line"; "<*.d.byte> : thread, " ^ opam_packages_str;
-    "-tag-line"; "<*.native> : thread, " ^ opam_packages_str;
+    "-tag-line"; "<**/*.ml{,i}> : thread";
+    "-tag-line"; "<**/*.ml{,i}> : syntax(bin_prot), syntax(camlp4o), " ^ opam_packages_str;
+    "-tag-line"; "<**/*.d.byte> : thread, " ^ opam_packages_str;
+    "-tag-line"; "<**/*.native> : thread, " ^ opam_packages_str;
     target
   ]))
 
