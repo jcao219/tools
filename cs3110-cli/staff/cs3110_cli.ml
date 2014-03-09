@@ -675,6 +675,26 @@ let harness_collect_output (rubric) : int * string list =
         (pts + new_points, Format.sprintf "PASS -- %s" name)
     in (pts', msg :: strs)) (0, []) test_names
 
+(** [harness_sanitize_fname str] Check whether the file named [str] contains
+ * any unit tests. If so, prompt the user to edit the file. Re-prompt until
+ * file is clean. *)
+let harness_sanitize_src (fname : string) : unit =
+  (* Use grep -q, which returns 0 if any matches are found *)
+  let cmd = Format.sprintf "grep -q \"TEST\" %s" fname in
+  let clean = ref (Sys.command(cmd)) in
+  while (!clean = 0) do (
+    Format.printf "\
+********************************************************************************\n\
+*** WARNING : file '%s' contains the string TEST. This is probably BAD!         \n\
+***           Please edit the file and delete all unit tests, then press RETURN.\n\
+*** Input the string \"ACCEPT\" to accept this file anyway (case-sensitive).    \n\
+********************************************************************************\n\
+" fname;
+    if ("ACCEPT" = (read_line()))
+    then clean := 1
+    else clean := Sys.command(cmd);
+  ()) done
+
 (** [harness tests targets] run each set of unit tests under [tests] 
  * against [targets] *)
 let harness (test_dir : string) (directories : string list) : unit =
@@ -744,6 +764,11 @@ let harness (test_dir : string) (directories : string list) : unit =
           if not (Sys.file_exists src_fname) then
             output_string ps_chn "SOURCE NOT FOUND\n"
           else begin
+            let () = 
+              Sys.chdir cwd;
+              harness_sanitize_src (dir^"/"^src_fname);
+              Sys.chdir dir
+            in
             output_string ps_chn (Format.sprintf "Source code for file '%s':\n" src_fname);
             ps_set_font ps_chn ps_code_font;
             List.iter (fun line ->
