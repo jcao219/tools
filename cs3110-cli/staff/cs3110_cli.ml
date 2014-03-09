@@ -358,6 +358,10 @@ let diff (directories : string list) : unit =
                * because they did not submit late *)
               let _ = Format.printf "diff of '%s/%s' finished with no differences\n%!" netid fname in
               1
+            (* Next, check if either file was empty *)
+            else if false (* (Sys.command (TODO needs a command)) = 0*) then
+              (* Empty file! That's a slip day *)
+              0
             else
               (* There are differences. Display a prettier diff, wait for user
                * response *)
