@@ -20,6 +20,7 @@ Requirements
 * [ocamlfind](http://opam.ocamlpro.com/pkg/ocamlfind/1.4.0/)
 * [oUnit](http://opam.ocamlpro.com/pkg/ounit/2.0.0/) 
 * [pa_ounit](http://opam.ocamlpro.com/pkg/pa_ounit/109.36.00/)
+* [qcheck](http://opam.ocamlpro.com/pkg/qcheck/qcheck.0.2/)
 
 Once you have installed OCaml and OPAM, you should be able to download the remaining dependencies by executing `opam install <package-name>`, where `<package-name>` is one of `ocamlfind`, `ounit`, or `pa_ounit`.
 Detailed instructions for installing Make, OCaml, and OPAM are included below, in the FAQ.
