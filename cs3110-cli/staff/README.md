@@ -335,6 +335,13 @@ Execute this command and restart the terminal to see colors that match github's 
 
     echo "newtext=green\noldtext=red\ndiffstuff=cyan" >> ~/.colordiffrc
 
+Q. Unrecognized redirect
+========================
+If you see the error "unrecognized redirect" when running tests, it's likely a problem with the shell OCaml is using to execute Sys commands.
+The default on the VM appears to be one `sh` which does not support commands like `echo 'hi' 2 >& 1 > /dev/null`.
+A quick fix is to change your `sh` executable to point to bash (i.e. `export shlink=\`which sh\`; rm $shlink; ln -s \`which bash\` $shlink;`).
+In the future, the VM should have a new default shell and this won't be an issue!
+
 Credits
 =======
 
