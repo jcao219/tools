@@ -230,7 +230,7 @@ let build (main_module : string) : int =
       (List.map (fun p -> Format.sprintf "package(%s)" p) all_opam_packages))
   in
   run_process "ocamlbuild" (dependencies @ libraries @ [
-    "-cflag"; "-w"; "-cflag"; "A-4-33-40-41-42-43-34-44"; (* Jane street's warnings as errors *)
+    (* "-cflag"; "-w"; "-cflag"; "A-4-33-40-41-42-43-34-44"; (* Jane street's warnings as errors *) *)
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
     "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
