@@ -15,10 +15,6 @@ let lib_file = "./.libs"
 let nocompile_dir = "./_nocompile"
 let opam_packages_file = "./.opam_packages"
 let output_dir = "./_output"
-let reverse_cms = Format.sprintf "%s/reverse.csv" cms_dir
-let reverse_dir = "./reverse_tests"
-let reverse_rubric = "./reverse_rubric.yaml"
-let rubric_file = "./rubric.yaml"
 let smoke_targets = "./smoke_test"
 (* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
 let std_opam_packages = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]
@@ -1117,9 +1113,6 @@ Usage: cs3110-staff COMMMAND [args]
   cs3110 harness <targets>             Run the tests in the directory ./tests
                                         against all targets.
   cs3110 help                          Displays this message.
-  cs3110 reverse <test_name> <targets> Run test named test_name.ml from each of
-                                        the targets on the solutions
-                                        in [reverse_dir].
   cs3110 run <file>                    Run the program file.ml.
   cs3110 stat <spreadsheet>            Compute statistics given a harness-generated spreadsheet 
   cs3110 smoke <targets>               Compile all targets.
@@ -1158,16 +1151,6 @@ let () =
       if arg1.[0] = '@'
       then harness abs_dir (directories_of_list arg1)
       else harness abs_dir (arg1 :: args)
-    | _ :: "reverse" :: test_name :: arg1 :: args -> 
-      let test_name = strip_suffix test_name in
-      (* Make sure test dir exists *)
-      let () = assert_file_exists reverse_dir in
-      (* convert to absolute path *)
-      let abs_dir = absolute_path reverse_dir in 
-      (* Run reverse harness *)
-      if arg1.[0] = '@'
-      then reverse test_name abs_dir (directories_of_list arg1)
-      else reverse test_name abs_dir (arg1 :: args)
     | _ :: "run" :: target :: args -> 
         let target' = strip_suffix target in 
         check_code (run target' args)
