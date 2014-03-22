@@ -703,10 +703,6 @@ let harness_sanitize_src (fname : string) : unit =
 (** [harness tests targets] run each set of unit tests under [tests] 
  * against [targets] *)
 let harness (test_dir : string) (directories : string list) : unit =
-  let _ = 
-    assert_file_exists test_dir;
-    ensure_dir output_dir
-  in
   let cwd = Sys.getcwd () in
   let directories = strip_trailing_slash_all directories in
   let student_part_score = ref 0 in
@@ -1124,8 +1120,6 @@ Usage: cs3110-staff COMMMAND [args]
   cs3110 reverse <test_name> <targets> Run test named test_name.ml from each of
                                         the targets on the solutions
                                         in [reverse_dir].
-  cs3110 rubric <sol_dir>              Create a rubric using the implementations
-                                        in sol_dir to compile the tests.
   cs3110 run <file>                    Run the program file.ml.
   cs3110 stat <spreadsheet>            Compute statistics given a harness-generated spreadsheet 
   cs3110 smoke <targets>               Compile all targets.
@@ -1137,7 +1131,6 @@ Usage: cs3110-staff COMMMAND [args]
 let () = 
   let _ = 
     config_env ();
-    ensure_dir cms_dir
   in
   try
     match Array.to_list Sys.argv with
@@ -1155,7 +1148,10 @@ let () =
     | [ _; "email" ] -> email ()
     | _ :: "harness" :: arg1 :: args -> 
       (* Make sure test dir exists *)
-      let _ = assert_file_exists tests_dir in
+      let () = assert_file_exists tests_dir in
+      (* Ensure output directories *)
+      let () = ensure_dir cms_dir in
+      let () = ensure_dir output_dir in
       (* convert to absolute path *)
       let abs_dir = absolute_path tests_dir in 
       (* Run harness *)
@@ -1165,20 +1161,16 @@ let () =
     | _ :: "reverse" :: test_name :: arg1 :: args -> 
       let test_name = strip_suffix test_name in
       (* Make sure test dir exists *)
-      let _ = assert_file_exists reverse_dir in
+      let () = assert_file_exists reverse_dir in
       (* convert to absolute path *)
       let abs_dir = absolute_path reverse_dir in 
       (* Run reverse harness *)
       if arg1.[0] = '@'
       then reverse test_name abs_dir (directories_of_list arg1)
       else reverse test_name abs_dir (arg1 :: args)
-    | _ :: "rubric" :: solutions -> 
-      let _ = assert_file_exists tests_dir in
-      let test_suite = Array.fold_right (fun f acc -> 
-        ((strip_suffix f)) :: acc) (Sys.readdir tests_dir) [] in
-      create_rubric test_suite solutions
     | _ :: "run" :: target :: args -> 
-        let target' = strip_suffix target in check_code (run target' args)
+        let target' = strip_suffix target in 
+        check_code (run target' args)
     | _ :: "smoke" :: arg1 :: args -> 
       if arg1.[0] = '@'
       then smoke (directories_of_list arg1)
