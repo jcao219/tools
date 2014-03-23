@@ -38,17 +38,19 @@ let ps_open_channel (fname : string) (title : string) : out_channel =
 
 (**** i/o utilities ***********************************************************)
 
+(** [fold_in_channel f acc c] Analog to List.fold_left, just for in_channels.
+ * Calls [f] on built-up accumulator and each line of the file.
+ * [f ( ... ( f acc line_1 ) ... ) line_n] *)
+let rec fold_in_channel (f : 'a -> string -> 'a) (acc : 'a) (chn : in_channel) : 'a =
+  try 
+    fold_in_channel f (f acc (input_line chn)) chn
+  with End_of_file -> 
+    let _ = close_in chn in 
+    acc
+
 (** [read_lines c] reads all lines from channel [c] into a list *)
 let read_lines (chn : in_channel) : string list =
-  let rec read_aux (chn : in_channel) (out : string list) : string list =
-    try 
-      let output' = input_line chn :: out in
-      read_aux chn output'
-    with End_of_file -> 
-      let _ = close_in chn in 
-      out
-  in
-  List.rev (read_aux chn [])
+  List.rev (fold_in_channel (fun acc s -> s::acc) [] chn)
 
 (** [csv_of_file filename] reads all lines in [filename] and concatenates them
  * with commas *)
@@ -162,10 +164,10 @@ let return_code_of_exit_status (st : Unix.process_status) : int =
       (* let _ = Printf.printf "run_process EXIT : %s\n%!" (String.concat " "(filename :: args)) in *)
       exit_code
     | Unix.WSIGNALED n ->
-      Format.printf "Sub-process killed (signal %d)\n%!" n;
+      let () = Format.printf "Sub-process killed (signal %d)\n%!" n in
       -1
     | Unix.WSTOPPED n ->
-      Format.printf "Sub-process stopped (signal %d)\n%!" n;
+      let () = Format.printf "Sub-process stopped (signal %d)\n%!" n in
       -1
 
 (** [run_process f args] Runs an executable and waits for termination, returning 
@@ -181,7 +183,7 @@ let run_process (filename : string) (args : string list) : int =
 (** [check_code c] exit uncleanly if [c] indicates an error *)
 let check_code (return_code : int) : unit =
   if return_code <> 0 then begin
-    Format.printf "Error (exit code %d)\n%!" return_code;
+    let () = Format.printf "Error (exit code %d)\n%!" return_code in
     exit return_code
   end
 
@@ -208,8 +210,10 @@ module Grades_table : sig
 
 end = struct 
 
+  exception Invalid_spreadsheet of string
+
   (* NetID, scores_by_test *)
-  type row = string * (string * int list) list
+  type row = string * ((string * int list) list)
 
   module S = Set.Make(struct 
     type t = row
@@ -223,6 +227,9 @@ end = struct
 
   let cSEPARATOR = ","
 
+  (* [make_title s] Convert [s] into something that'd go on to CMS *)
+  let make_title s = String.capitalize (fst (lsplit s '_'))
+
   (* [add_row t netId scores_by_test] ALMOST adds data directly to the sheet.
    * There is one preprocessing step: converted the bucketed [scores_by_test]
    * to scores and totals *)
@@ -230,19 +237,22 @@ end = struct
     (* Add padding to nocompiles *)
     let scores_by_test =
       List.fold_right (fun (test_name,scores) acc ->
-        match scores with
+        let test_title = make_title test_name in
+        begin match scores with
           | [] -> (* No compile *)
             (* Find the number of test cases *)
             let cases = List.fold_left (fun acc (name, cases) ->
-              if test_name = name then cases else acc) [] t.test_cases_by_file
+              if test_title = name then cases else acc) [] t.test_cases_by_file
             in
             (* Padding *)
-            (test_name, (List.fold_left (fun acc _ -> 0 :: acc) [] cases)) :: acc
+            (test_title, (List.fold_left (fun acc _ -> 0 :: acc) [] cases)) :: acc
           | h::t -> 
-            (test_name, scores) :: acc
+            (test_title, scores) :: acc
+        end
       ) scores_by_test []
     in
-    { t with data = S.add (netId,scores_by_test) t.data }
+    let v = (netId,scores_by_test) in
+    { t with data = S.add v (S.remove v t.data) }
 
   (* [init fname names_by_file] create a new spreadsheet named [fname]
    * columns are:
@@ -250,14 +260,76 @@ end = struct
    * - totals for each test file *)
   let init names_by_file : t = 
     {
-      test_cases_by_file = names_by_file;
+      test_cases_by_file = List.map (fun (fname,cases) -> make_title fname, cases) names_by_file;
       data = S.empty;
     }
 
+  (** [init_read_header s cs] helper for initialization. Step through [s]
+   * by [cSEPARATOR], if capitalized, assume is test name. Otherwise assume is case *)
+  let rec init_read_header str acc_cases cases_by_name =
+    (* Split the string *)
+    let hd, tl = lsplit str cSEPARATOR.[0] in
+    (* Do shit with [hd] *)
+    let acc', cases' =
+      if (Char.code 'A' <= Char.code hd.[0]) && (Char.code hd.[0] <= Char.code 'Z')
+      then (* Uppercase, must be a test. *)
+        begin match acc_cases with
+          | [] -> (* Ignore this, probably NetId *)
+            acc_cases, cases_by_name
+          | h::t ->
+            [], (hd, (List.rev acc_cases)) :: cases_by_name
+        end
+      else (* Lowercase, it's a test case *)
+        hd :: acc_cases, cases_by_name
+    in
+    (* Choose whether to recurse or end *)
+    if not (String.contains tl cSEPARATOR.[0])
+    then cases' (* [acc_cases] should really be empty here *)
+    else init_read_header tl acc' cases'
+
   (* Parse exisiting spreadsheet for column names and values *)
   let init_from_file (fname : string) : t =
-    (* First collect names, then iteratively add rows *)
-    failwith "init from file NOT IMPLEMENTED"
+    (* Open channel *)
+    let chn = open_in fname in
+    (* Read titles into a test-cases-by-file *)
+    let parsed_title = 
+      try 
+        List.rev (init_read_header (input_line chn) [] [])
+      with End_of_file -> raise (Invalid_spreadsheet ("Error parsing spreadsheet. File is empty.\n"))
+    in
+    let parsed_lines =
+      (* Fold over lines *)
+      fold_in_channel (fun row_set line ->
+        let netid, line = lsplit line cSEPARATOR.[0] in
+        (* Fold over test cases within line *)
+        let scores_by_test = 
+          List.rev (snd (List.fold_left (fun (line,acc) (name,cases) ->
+          (* Pull one score per case *)
+            let line, scores =
+              List.fold_left (fun (line, acc) _ ->
+                let hd, tl = lsplit line cSEPARATOR.[0] in
+                if hd = "" then
+                  (* Advance cursor *)
+                  tl, acc 
+                else
+                  try tl, (int_of_string hd) :: acc with Failure "int_of_string" -> 
+                  raise (Invalid_spreadsheet (Format.sprintf "Error parsing spreadsheet: cannot convert %s to int.\n" hd))
+              ) (line,[]) cases
+            in
+            let line' = 
+              let ln = String.length line in
+              if ln < 2 then line else String.sub line 1 (ln-1)
+            in
+            line', ((name, List.rev scores) :: acc)
+          ) (line,[]) parsed_title))
+        in
+        S.add (netid,scores_by_test) row_set
+      ) S.empty chn
+    in
+    { 
+      test_cases_by_file = parsed_title;
+      data = parsed_lines
+    }
 
   (* Print the spreadsheet *)
   let write t filename =
@@ -272,7 +344,7 @@ end = struct
             output_string chn (cSEPARATOR ^ name)
           ) cases 
         in 
-        output_string chn (cSEPARATOR ^ (String.capitalize (fst (lsplit test_name '_'))))
+        output_string chn (cSEPARATOR ^ test_name)
       ) t.test_cases_by_file
     in
     let () = output_string chn (cSEPARATOR ^ "Total\n") in
@@ -303,7 +375,7 @@ let clean () : unit =
 (** [build] compile [m] into a bytecode executable. 
  * Relies on ocamlbuild. TODO quiet version? *) 
 let build (main_module : string) : int =
-  assert_file_exists (main_module ^ ".ml");
+  let () = assert_file_exists (main_module ^ ".ml") in
   let target = Format.sprintf "%s.d.byte" main_module in
   let _ = Format.printf "Compiling '%s.ml'\n%!" main_module in
   let dependencies = 
@@ -358,7 +430,7 @@ let do_if_directory (dir : string)
                     (err_msg : string)
                     (exit_code : int) : 'a =
   if Sys.file_exists dir && Sys.is_directory dir then f dir
-  else prerr_endline err_msg; exit exit_code 
+  else let () = prerr_endline err_msg in exit exit_code 
 
 (** [filter_by_extension desired_extension files] returns a list of
     the files in [files] that have the desired extension. *)
@@ -501,24 +573,24 @@ let diff (directories : string list) : unit =
 (** [email ()] send the email messages stored in the _email directory.  *
  * Assumes that every folder name under _email is a valid Cornell netid *)
 let email () : unit = 
-  let _ = 
-    assert_file_exists email_dir;
-    assert_file_exists email_admins;
-  in
+  let () = assert_file_exists email_dir in
+  let () = assert_file_exists email_admins in
   let messages = Sys.readdir email_dir in
   let num_sent = ref 0 in
   (* Use the [mail] command to package off the email message *)
-  Array.iter (fun (msg_file : string) ->
-    let recipient = (strip_suffix msg_file) ^ "@cornell.edu" in
-    let bcc = Format.sprintf "-b '%s'" (String.concat "' -b '" (read_lines (open_in email_admins))) in
-    let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s" email_subject bcc recipient email_dir msg_file in
-    let _ = Format.printf "### Executing '%s'\n%!" cmd in
-    let exit_code = Sys.command cmd in
-    if exit_code <> 0 then 
-      print_endline ("Failed to send message to: " ^ recipient)
-    else
-      incr num_sent
-  ) messages;
+  let () = 
+    Array.iter (fun (msg_file : string) ->
+      let recipient = (strip_suffix msg_file) ^ "@cornell.edu" in
+      let bcc = Format.sprintf "-b '%s'" (String.concat "' -b '" (read_lines (open_in email_admins))) in
+      let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s" email_subject bcc recipient email_dir msg_file in
+      let () = Format.printf "### Executing '%s'\n%!" cmd in
+      let exit_code = Sys.command cmd in
+      if exit_code <> 0 then 
+        print_endline ("Failed to send message to: " ^ recipient)
+      else
+        incr num_sent
+    ) messages
+  in
   Format.printf "Finished sending %d messages.\n%!" !num_sent
 
 (* The general form of the test command *)
@@ -694,14 +766,14 @@ let harness (test_dir : string) (directories : string list) : unit =
               harness_sanitize_src (dir^"/"^src_fname);
               Sys.chdir dir
             in
-            output_string ps_chn (Format.sprintf "Source code for file '%s':\n" src_fname);
-            ps_set_font ps_chn ps_code_font;
+            let () = output_string ps_chn (Format.sprintf "Source code for file '%s':\n" src_fname) in
+            let () = ps_set_font ps_chn ps_code_font in
             List.iter (fun line ->
               output_string ps_chn line; output_string ps_chn "\n"
             ) (read_lines (open_in src_fname))
           end
         in
-        flush ps_chn;
+        let () = flush ps_chn in
         output_string txt_chn (Format.sprintf "### %s ###\n" test_name)
       in
       let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
@@ -761,7 +833,7 @@ let harness (test_dir : string) (directories : string list) : unit =
 (** [run file args] run the executable generated by [cs3110 compile file] *)
 let run (main_module : string) (args : string list) : int =
   let cmd = Format.sprintf "_build/%s.d.byte" main_module in
-  assert_file_exists cmd;
+  let () = assert_file_exists cmd in
   run_process cmd args
 
 (** [smoke_compile_one ms d] compile each module in the list [ms] under the 
@@ -780,9 +852,9 @@ let smoke_compile_one (targets : string list) (dir_name : string) : unit =
       failed_targets := target :: !failed_targets
   in
   let cwd = Sys.getcwd () in
-  let _ = Sys.chdir dir_name in
-  List.iter compile_and_record targets;
-  let _ = Sys.chdir cwd in
+  let () = Sys.chdir dir_name in
+  let () = List.iter compile_and_record targets in
+  let () = Sys.chdir cwd in
   (* If there were failures, record an email message *)
   match !failed_targets with 
     | [] -> ()
@@ -801,11 +873,11 @@ Good luck!\n\
 --- Automatically generated message from the CS3110 test harness ---\n\
 " name (String.concat ".ml\n* " (List.rev !failed_targets)) in
       let email_chn = open_out (Format.sprintf "./_email/%s.txt" name) in
-      output_string email_chn message;
-      close_out email_chn;
+      let () = output_string email_chn message in
+      let () = close_out email_chn in
       (* Save each failing source file *)
       let nocompile_dir = Format.sprintf "./_nocompile/%s" name in
-      ensure_dir nocompile_dir;
+      let () = ensure_dir nocompile_dir in
       let copy_file (target : string) =
         let fname = Format.sprintf "%s/%s.ml" dir_name target in
         (* Either copy the existing source code or initialize an empty file. 
@@ -829,10 +901,8 @@ Good luck!\n\
 let smoke (directories : string list) : unit =
   let directories = strip_trailing_slash_all directories in
   (* setup *)
-  let _ = 
-    ensure_dir email_dir;
-    ensure_dir nocompile_dir
-  in
+  let () = ensure_dir email_dir in
+  let () = ensure_dir nocompile_dir in
   (* Try to infer targets from test names. Assuming all tests are 
    * of form 'file_test.ml' *)
   let targets = 
@@ -862,7 +932,7 @@ let stat (sheet_name : string) : unit =
   let line = ref "" in
   try
     while (true) do (
-      line := String.trim (input_line chn);
+      let () = line := String.trim (input_line chn) in
       if (starts_with (!line) "NO COMPILE") then
         (* Failed to compile, update the nocompile count *)
         incr(nocompile)
@@ -932,9 +1002,7 @@ Usage: cs3110-staff COMMMAND [args]
 (**** main function ***********************************************************)
 
 let () = 
-  let _ = 
-    config_env ();
-  in
+  let () = config_env () in
   try
     match Array.to_list Sys.argv with
     | [ _; "help" ]  -> help ()
