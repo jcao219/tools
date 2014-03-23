@@ -9,7 +9,7 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	ocamlc -o cs3110-staff unix.cma cs3110_cli.mli cs3110_cli.ml
+	ocamlc -o cs3110-staff unix.cma cs3110_cli.ml
 
 clean:
 	rm -f cs3110_cli.cmi
