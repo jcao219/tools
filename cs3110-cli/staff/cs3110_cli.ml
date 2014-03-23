@@ -1,6 +1,5 @@
 (**** exceptions and constants ************************************************)
 exception File_not_found of string
-exception Invalid_rubric of string
 
 let expected_version = "4.01.0"
 let email_subject = "[CS3110 test harness] compile error"
@@ -193,6 +192,96 @@ let config_env () =
     ()
   with
   | Not_found -> Unix.putenv "OCAMLRUNPARAM" "b"
+
+(**** spreadsheet *********************************************************)
+
+module CMS : sig 
+  type t
+  val add_row : t -> string -> int list -> string -> t
+
+  (* [close ()] prints and closes the spreadsheet *) 
+  val close : t -> unit
+  val init : string -> (string * string list) list -> t
+  val init_from_file : string -> t
+
+  val row_append : t -> int list -> unit
+  val row_init : t -> string -> unit
+  (* Add comments and publish current proto-row *)
+  val row_close : t -> string -> t
+
+end = struct 
+
+  exception State_error of string
+  exception Invalid_row of string
+
+  (* NetID, scores, comments *)
+  type row = string * int list * string
+  (* Spreadsheet is name -> row, row is testname->result *)
+  module S = Set.Make(struct 
+    type t = row
+    let compare (id1,_,_) (id2,_,_) = Pervasives.compare id1 id2
+  end)
+  (* NetID, scores-to-date *)
+  type proto_row = string * (int list)
+  (* CMS_spreadsheet is (filename, column names, data) *)
+  type t = { filename : string; 
+             test_names : string list; 
+             data : S.t; 
+             mutable current_row : proto_row option }
+      
+(* TODO TODO TODO debug the add/print *)
+  let add_row t netId results comments =
+    if not (List.length results = List.length t.test_names)
+    then raise (Invalid_row "Cannot add row -- too few results")
+    else { t with data = S.add (netId,results,comments) t.data }
+
+  let init fname names_by_file : t = 
+    let names = List.fold_right (fun (_,ns) acc -> ns @ acc) names_by_file [] in
+    { filename=fname; test_names=names; data=S.empty; current_row = None }
+
+  (* Parse exisiting spreadsheet for column names and values *)
+  let init_from_file (fname : string) : t =
+    (* First collect names, then iteratively add rows *)
+    failwith "init from file NOT IMPLEMENTED"
+
+  (* Print the spreadsheet *)
+  let close t =
+    print_endline "CLOSING SHEET";
+    let chn = open_out t.filename in
+    (* Print header *)
+    let () = output_string chn "NetID" in
+    let () = 
+      List.iter (fun name -> 
+        output_string chn (Format.sprintf ",%s" (String.capitalize name))
+      ) t.test_names
+    in
+    let () = output_string chn ",Add Comments\n" in
+    (* Print data *)
+    let () = 
+      S.iter (fun (id,rs,c) ->
+        print_endline "CLOSING ONE";
+        let results_str = String.concat "," (List.map string_of_int rs) in
+        output_string chn (Format.sprintf "%s,%s,%s\n" id results_str c)
+      ) t.data
+    in
+    ignore (close_out chn)
+
+  let row_append t (rs : int list) : unit =
+    begin match t.current_row with
+      | None -> raise (State_error "Current row is `None`. Cannot append to empty row.")
+      | Some (id,results) -> t.current_row <- Some (id, results @ rs)
+    end
+
+  let row_init t (netid : string) : unit =
+    t.current_row <- Some (netid, [])
+
+  let row_close t str =
+    begin match t.current_row with
+      | None -> raise (State_error "Current row is `None`. Cannot close empty row.")
+      | Some (id,results) -> add_row t id results str
+    end
+
+end
 
 (**** cs3110 commands *********************************************************)
 
@@ -445,236 +534,46 @@ let test_quiet (main_module : string) =
 let test (main_module : string) : int =
   test_quiet main_module
 
-(**** rubric creation *********************************************************)
-
-(* Return a function that ensures one line of rubric is valid.
- * It is a generator so that it can track line numbers. *)
-let assert_valid_line () : string -> unit = 
-  let lineno = ref 0 in 
-  (fun (raw_line : string) ->
-    let ln = String.trim raw_line in
-    let _ = incr lineno in
-    (* Valid lines are either comments, starting with an octothorp, or empty *)
-    let is_comment = (String.length ln = 0) || (ln.[0] = '#') in
-    (* Else they are 'key:val' pairs, with exactly one colon and non-whitespace strings on either end *)
-    let l_raw, r_raw = lsplit ln ':' in
-    let l, r = (String.trim l_raw), (String.trim r_raw) in
-    let has_two_colons = (String.contains r ':') in
-    let empty_field = (String.length l = 0) || (String.length r = 0) in
-    let right_not_int = try ignore(int_of_string r); false with Failure "int_of_string" -> true in
-    (* Else they are not valid lines *)
-    if (not is_comment) && (has_two_colons || empty_field || right_not_int) then
-      raise (Invalid_rubric (Format.sprintf "Rubric '%s' is not valid. Error on line %d" rubric_file (!lineno)) )
-  )
-
-(* Ensure the rubric file is correctly formatted *)
-let assert_valid_rubric () : unit =
-  List.iter (assert_valid_line ()) (read_lines (open_in rubric_file))
-
-(** [create_rubric suite targets] Use the test files ([suite]) and a batch of 
- * solutions ([targets]) to build a properly formatted rubric *)
-let create_rubric (test_suite : string list) (dirs : string list) : unit = 
-  let cwd = Sys.getcwd () in
-  let _ = Format.printf "Let's make a rubric!\n\
-*********************************************************************\n\
-**** DISCLAIMER: cs3110 supports a very limited subset of YAML   ****\n\
-**** Lines must be comments (beginning with an octothorp, #) or  ****\n\
-**** 'test_name:int_value' pairs. That's right, a proper line of ****\n\
-**** data has a string then a colon then an integer.             ****\n\
-**** Whitespace is ignored.                                      ****\n\
-*********************************************************************\n\n"
-  in
-  let _ = Format.printf "First thing: searching for a directory that compiles.\n" in
-  let test_dir = absolute_path tests_dir in
-  (* Iterate over students. Build each of their files. Find the first one that compiles for everything. *)
-  let good_student = 
-    let dir_opt = List.fold_left (fun dir_opt new_dir ->
-      match dir_opt with 
-        | Some dir -> dir_opt (* already found a good student, skip rest of directories *)
-        | None -> (* Go to student's folder, copy in the tests, compile each, check output *)
-          let _ = Sys.chdir new_dir in
-          (* Copy the tests over, compile  each *) 
-          let all_compile = List.fold_left (fun acc test_name ->
-            acc && (let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
-                    let exit_code = build test_name in exit_code = 0)
-          ) true test_suite in
-          let _ = Sys.chdir cwd in
-          if all_compile then Some new_dir else None
-    ) None dirs in
-    (* See if we found a submission that compiled everything or not *)
-    match dir_opt with 
-      | Some d -> 
-        let _ = Format.printf "Fantastic. Directory '%s' compiles all tests. Will use it to generate test names.\n" d in
-        d
-      | None -> 
-        raise (Invalid_rubric "Uh-oh! Could not generate a rubric.\n(Then again, you don't need one. Either everybody failed or the tests are bogus.)\n")
-  in
-  (* Got a good directory to build test executable in. Go ahead & collect names *)
-  let _ = Format.printf "\n\
-Okay then, let's get started. I will echo the name of each test.\n\
-Your job is to input an INTEGER point value after each name.\n\
-Output will be saved into '%s'.\n\
-Test names are inferred from the '%s' folder, so edit that if something seems out of place.\n\
-ReadysetGO!       \n"  rubric_file tests_dir in
-  let _ = Sys.chdir good_student in
-  (* Collect list of unit tests for each test file. 
-   * Organize in list of (string * string list) *)
-  let test_names = List.rev (List.fold_left (fun all_names test_file_full ->
-    let test_file = strip_suffix test_file_full in
-    (* Run the test to print names *)
-    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test_file test_output in
-    let _ = Sys.command cmd in
-    (* Generated file contains one line per unit test *)
-    let names = List.rev (List.fold_left (fun acc line ->
-      let name = test_name_of_line line in
-      name :: acc
-    ) [] (read_lines (open_in test_output))) in
-    (test_file , names) :: all_names
-  ) [] test_suite) in
-  let _ = Sys.chdir cwd in
-  let chn = open_out rubric_file in
-  let response = ref (-1) in
-  (* Query for point totals per test *)
-  let _ = List.iter (fun (file_name, unittest_names) ->
-    let _ = Format.printf "\n## Collecting point values for file '%s' ##\n" file_name in
-    let _ = output_string chn (Format.sprintf "# %s\n" file_name) in
-    (* For each unit test, ask the user for a point value & save it *)
-    List.iter (fun name ->
-      while ((!response < 0) || (!response > 100)) do (
-        let _ = 
-          Format.printf "Enter an integer point value for '%s' (between 0 and 100): \n" name;
-          try response := read_int () with 
-            | Failure "int_of_string" ->
-              print_endline "Sorry, try again"; response := (-1)
-        in ()
-      ) done; 
-      (* Save the point value to the rubric *)
-      let _ = 
-        output_string chn (Format.sprintf "%s : %d\n" name (!response));
-        Format.printf "Ok! ";
-        response := (-1)
-      in flush chn
-    ) unittest_names
-  ) test_names in
-  let _ = flush chn; close_out chn in
-  Format.printf "Successfully recorded rubric in file '%s'\n" rubric_file
-
-(** [dict_of_rubric f] read in the yaml-eqsue file [f]. Create a 
- * dictionary of (unit_test_name -> (file_name * point_value)) *)
-let dict_of_rubric_file (f : string) = 
-  (* unit_test_name -> (test_file_name * int) dict) *)
-  let rubric = Hashtbl.create 17 in
-  (* State while parsing file. 
-   * Track line number and filename *)
-  let lineno = ref 0 in
-  let _ = List.iter (fun raw_line ->
-    let _ = incr lineno in
-    let line = String.trim raw_line in
-    if (String.length line) > 0 && line.[0] <> '#' then
-      (* Line is hopefully a test. Pretend that it is *)
-      let raw_name, raw_points = lsplit line ':' in
-      let name = String.trim raw_name in
-      let points = 
-        try int_of_string raw_points with 
-          | Failure "int_of_string" ->
-            raise (Invalid_rubric (Format.sprintf "Rubric '%s' is not valid. Error on line %d\n" rubric_file (!lineno)))
-      in
-      Hashtbl.add rubric name (points)
-  ) (read_lines (open_in f)) 
-  in rubric
-
-let reverse_create_rubric (fname : string) (suite : string list): unit =
-  let _ = Format.printf "ATTENTION: need to create a rubric for the reverse tests.\n\
-Let me ask you a few questions about each dummy implementation.\n\
-First, whether the implementation is supposed to pass all tests\n
-and second how many points the outcome is worth:\n\n%!" in
-  let chn = open_out fname in
-  let int_response = ref (-1) in
-  let str_response = ref " " in (* Need at least one character for the guard on the while loop *)
-  let _ = List.iter (fun name ->
-    (* Loop until user inputs 'Y' or 'N'. Ignores case and trailing characters *)
-    while (((!str_response).[0] <> 'Y') && ((!str_response).[0] <> 'N')) do (
-      let _ = Format.printf "Should test implementation '%s' pass all tests? (Y/N)\n%!" name in
-      str_response := (String.uppercase (read_line ())) ^ " "
-    ) done;
-    let _ = print_string "Ok! " in
-    (* Loop until the user inputs a positive integer, even if it's over 100 *)
-    while ((!int_response < 0) || (!int_response > 100)) do (
-      let _ = Format.printf "How many points is '%s' worth? (Give an integer between 0 and 100\n%!" name in
-      try int_response := read_int () with
-        | Failure "int_of_string" -> (Format.printf "Sorry, try again\n"; int_response := (-1))
-    ) done;
-      (* Save results to rubric *)
-    print_string "Ok! ";
-    output_string chn (Format.sprintf "%s : %s : %d\n" name (!str_response) (!int_response));
-      (* Reset and such *)
-    int_response := (-1);
-    str_response := " ";
-    ()
-  ) suite in
-  let _ = close_out chn in
-  Format.printf "Finished creating reversed rubric\n%!"
-
-(* Read a dictionary from a file of "test : should_pass : points" 
- * sample line would be: "mytest : Y:99" *)
-let reverse_dict (rubric_file : string) = 
-  let d = Hashtbl.create 7 in
-  let () = List.iter (fun line ->
-    if not (line.[0] = '#') then
-      (* Not a comment. Pls process *)
-      let raw_name, rest = lsplit line ':' in
-      let raw_should_pass, raw_points = lsplit rest ':' in
-      let name = String.trim raw_name in
-      let should_pass = 
-        match (String.trim raw_should_pass).[0] with
-          | 'Y' -> true
-          | 'N' -> false
-          | _ -> raise (Invalid_rubric (Format.sprintf "Cannot tell whether test '%s' should pass or fail in '%s'\n" name rubric_file))
-      in
-      let points = 
-        try int_of_string raw_points with
-          | Failure "int_of_string" -> raise (Invalid_rubric "Malformed reverse rubric")
-      in
-      Hashtbl.add d name (should_pass, points)
-  ) (read_lines (open_in rubric_file)) in
-  d
-
-(**** back to cs3110 commands *************************************************)
-
-(** [harness_collect_output rubric] reads the generated files for
- * test output and test failures and organizes the results.
- * Points are awarded based on whether the student passed.
- * Values are taken from the [rubric] hashtable *)
-let harness_collect_output (rubric) : int * string list =
-  let _ = assert_file_exists test_output in
-  let _ = assert_file_exists fail_output in
-  (* Collect test names *)
-  let test_names = List.fold_left (fun acc line -> 
-    let name = snd (rsplit line ':') in
-    name :: acc) [] (read_lines (open_in test_output)) 
-  in
-  (* Organize error messages *)
+(** [harness_collect_output rubric] Iterate over test results,
+ * store pass/fail information in [sheet], return pretty-printed output *)
+let harness_collect_output (sheet : CMS.t) : string list =
+  (* Make sure output was generated. 
+   * Need to manipulate these files *)
+  let () = assert_file_exists test_output in
+  let () = assert_file_exists fail_output in
+  (* OKAY, things are a little confusing here. 
+   * There are 2 files of interest: 
+   *   [test_output], containing names of tests, and 
+   *   [fail_output], containing names of failed tests and error messages
+   * The protocol is to 
+   *   1. Iterate over [fail_output], organize errors by name
+   *   2. Iterate over [test_output], record whether tests passed or failed in order, pretty-print result
+   *)
+  (* Step 1: Organize error messages *)
   let errors_by_name = Hashtbl.create 27 in
-  let _ = List.iter (fun line -> 
+  let () = List.iter (fun line -> 
     let name = test_name_of_line line in
     Hashtbl.add errors_by_name name line
   ) (read_lines (open_in fail_output)) in
-  (* Generate final list of output. Test name + pass/fail message *)
-  List.fold_left (fun (pts, strs) name ->
-    let pts', msg = 
-      if Hashtbl.mem errors_by_name name then
-        (* a fail-er, no need to collect points *)
-        let err = Hashtbl.find errors_by_name name in
-        (pts, Format.sprintf "FAIL -- %s : %s" name err)
-      else 
-        (* a passer, get column name (test file name) and point value *)
-        let new_points = 
-          if not (Hashtbl.mem rubric name)
-          then raise (Invalid_rubric (Format.sprintf "Error: missing test '%s' in rubric\n" name))
-          else Hashtbl.find rubric name
-        in
-        (pts + new_points, Format.sprintf "PASS -- %s" name)
-    in (pts', msg :: strs)) (0, []) test_names
+  (* Step 2: Collect pretty output. Simultaneously update [sheet]. *)
+  let scores, pretty_results = 
+    List.fold_right (fun line (ints,strs) ->
+    let name = snd (rsplit line ':') in
+    if Hashtbl.mem errors_by_name name then
+      (* Failed *)
+      let err_msg = Hashtbl.find errors_by_name name in
+      let msg = Format.sprintf "FAIL -- %s : %s" name err_msg in
+      (0::ints, msg::strs)
+    else 
+      (* Passed *)
+      let msg = Format.sprintf "PASS -- %s" name in
+      (1::ints, msg::strs)
+    ) (read_lines (open_in test_output)) ([],[])
+  in
+  (* ATM, scores are limited to {0,1} *)
+  (* TODO, qcheck tests should get partial credit *)
+  let () = CMS.row_append sheet scores in
+  pretty_results
 
 (** [harness_sanitize_fname str] Check whether the file named [str] contains
  * any unit tests. If so, prompt the user to edit the file. Re-prompt until
@@ -696,56 +595,81 @@ let harness_sanitize_src (fname : string) : unit =
     else clean := Sys.command(cmd);
   ()) done
 
+(* Search all directories for one that passes all tests *)
+let find_compiling_implementation test_suite dirs : string option = 
+  let cwd = Sys.getcwd () in
+  List.fold_left (fun dir_opt new_dir ->
+    match dir_opt with 
+      | Some _ -> dir_opt (* already found a good student, skip rest of directories *)
+      | None -> (* Go to student's folder, copy in the tests, compile each, check output *)
+        let () = Sys.chdir new_dir in
+          (* Copy the tests over, compile  each *) 
+        let all_compile = List.fold_left (fun acc test_name ->
+          acc && (let _ = Sys.command (Format.sprintf "cp %s ." test_name) in
+                  (* TODO build is failing *)
+                  let exit_code = build (strip_suffix (snd (rsplit test_name '/'))) in exit_code = 0)
+        ) true test_suite in
+        let () = Sys.chdir cwd in
+        if all_compile then Some new_dir else None
+  ) None dirs
+
+(* [find_all_test_names t i] using compiling implementation [i], collect 
+ * the names of all tests in the suite [t] *)
+(* TODO does not work in isolation *)
+let find_all_test_names test_names impl = 
+  let cwd = Sys.getcwd () in
+  let () = Sys.chdir impl in
+  let names = List.rev (List.fold_left (fun all_names test_file_full ->
+    let test_file = strip_suffix test_file_full in
+    (* Run the test to print names *)
+    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test_file test_output in
+    let _ = Sys.command cmd in
+    (* Generated file contains one line per unit test *)
+    let names = List.rev (List.fold_left (fun acc line ->
+      let name = test_name_of_line line in
+      name :: acc
+    ) [] (read_lines (open_in test_output))) in
+    (test_file , names) :: all_names
+  ) [] test_names) in
+  let () = Sys.chdir cwd in
+  names
+
 (** [harness tests targets] run each set of unit tests under [tests] 
  * against [targets] *)
 let harness (test_dir : string) (directories : string list) : unit =
   let cwd = Sys.getcwd () in
   let directories = strip_trailing_slash_all directories in
-  let student_part_score = ref 0 in
-  (* [test_suite] is a list of files containing tests. *)
-  let test_suite = Array.fold_right (fun f acc -> 
-    ((strip_suffix f)) :: acc) (Sys.readdir test_dir) [] in
-  (* Ensure rubric *)
-  let _ =
-    if Sys.file_exists rubric_file
-    then assert_valid_rubric ()
-    else create_rubric test_suite directories
+  (* [test_suite] is a list of files containing tests. 
+   * 2014-03-22: Maybe someday this should be a module. *)
+  let test_names,test_abs_paths = 
+    Array.fold_right (fun fname (a1,a2) -> 
+      ((strip_suffix fname)::a1, (test_dir^"/"^fname)::a2)
+    ) (Sys.readdir test_dir) ([],[]) in
+  let good_student = match find_compiling_implementation test_abs_paths directories with 
+    | Some dir -> dir 
+    | None -> let () = Format.printf "Error: could not find compiling implementation. Cannot create spreadsheet (but I guess you don't need one).\nExiting...\n" in exit(1)
   in
-  let rubric = dict_of_rubric_file rubric_file in
+  let test_names_by_file = find_all_test_names test_names good_student in
   (* Initialize spreadsheet for CMS *)
-  let cms_chn = 
-    if Sys.file_exists cms_fname then
-      (* Open existing file *)
-      open_out_gen [Open_creat; Open_text; Open_append] 0o777 cms_fname
-    else 
-      let cms_chn = open_out cms_fname in
-      output_string cms_chn "NetID";
-      List.iter (fun name ->
-        output_string cms_chn (Format.sprintf ",%s" (String.capitalize name))
-      ) test_suite;
-      output_string cms_chn ",Add Comments\n";
-      cms_chn
+  let sheet = 
+    if Sys.file_exists cms_fname
+    then CMS.init_from_file cms_fname
+    else CMS.init cms_fname test_names_by_file
   in
   (* For each implementation to test, copy in the tests, build, and run. *)
-  let _ = List.iter (fun dir -> 
+  (* Pass around the spreadsheet *)
+  let sheet = List.fold_left (fun sheet dir -> 
     (* Prepare for testing *)
     let netid = tag_of_path dir in
     let txt_fname = Format.sprintf "./%s/%s.md" output_dir netid in
     let txt_chn = open_out txt_fname in
-    (* Print netid to CMS, change to student dir *)
-    let _ = 
-      output_string cms_chn netid;
-      Sys.chdir dir 
-    in
-    (* Print titles *)
-    let _ = 
-      Format.printf "\n## Running tests for '%s' ##\n%!" netid;
-      output_string txt_chn (Format.sprintf "## Automated test results for %s ##\n" netid)
-    in
+    (* Initialize CMS row, change into student dir for testing, print titles *)
+    let () = CMS.row_init sheet netid in
+    let () = Sys.chdir dir in
+    let () = Format.printf "\n## Running tests for '%s' ##\n%!" netid in
+    let () = output_string txt_chn (Format.sprintf "## Automated test results for %s ##\n" netid) in
     (* Build and run *)
-    let _ = List.iter (fun test_name ->
-      (* Reset part score on CMS *)
-      let _ = student_part_score := 0 in
+    let () = List.iter (fun test_name ->
       (* Prepare postscript document *)
       let ps_chn =
         let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd output_dir netid test_name in
@@ -778,32 +702,32 @@ let harness (test_dir : string) (directories : string list) : unit =
       in
       let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
       let exit_code = build test_name in
-      let output_by_line = 
+      (* collect output for printing *)
+      let output_by_line =
         if exit_code <> 0 then 
           ["NO COMPILE"]
         else begin
           (* Run tests, organize output *)
           let _ = test_logging_errors test_name in
-          let score, lines = harness_collect_output rubric in
-          let _ = student_part_score := score in
-          lines
+          harness_collect_output sheet
         end
       in
       (* Postscript title *)
-      let _ =
+      let () =
         ps_set_font ps_chn ps_header_font;
         output_string ps_chn "\nTest Results:\n";
         ps_set_font ps_chn ps_normal_font
       in
       (* Print results for each test case *)
-      let _ = List.iter (fun msg -> 
-        print_endline msg; 
-        output_string txt_chn "    "; output_string txt_chn msg; output_string txt_chn "\n";
-        output_string ps_chn msg; output_string ps_chn "\n";
-      ) output_by_line; print_endline ""; output_string ps_chn "\n"
+      let () = 
+        List.iter (fun msg -> 
+          print_endline msg; 
+          output_string txt_chn "    "; output_string txt_chn msg; output_string txt_chn "\n";
+          output_string ps_chn msg; output_string ps_chn "\n";
+        ) output_by_line;
+        print_endline ""; 
+        output_string ps_chn "\n"
       in
-      (* Print aggregate results to CMS *)
-      let _ = output_string cms_chn (Format.sprintf ",%d" (!student_part_score)) in
       (* Flush and close postscript *)
       let _ = 
         flush ps_chn;
@@ -811,7 +735,7 @@ let harness (test_dir : string) (directories : string list) : unit =
         Unix.close_process_out ps_chn
       in
       (* Remove generated files *)
-      let _ = 
+      let () = 
         (* 2014-01-19: Removing tests so they don't screw with reverse harness *)
         ignore(Sys.command (Format.sprintf "rm %s.ml" test_name));
         if Sys.file_exists test_output then 
@@ -821,25 +745,20 @@ let harness (test_dir : string) (directories : string list) : unit =
         ()
       in
       ()
-    ) test_suite in
-    (* Finished with [dir]. Clean up, print total points to CMS, move out. *)
+    ) test_names in
+    (* Finished with one student. *)
     let _ = 
       close_out txt_chn;
       Sys.chdir cwd 
     in
-    (* Write comments to the CMS spreadsheet *)
-    let _ =
       (* Replace double quotes with single quotes *)
-      let comments = 
-        String.map (fun c -> if c = '"' then '\'' else c
-        ) (String.concat " \n " (read_lines (open_in txt_fname)))
-      in
-      output_string cms_chn (Format.sprintf ",\"%s\"\n" comments)
+    let comments = 
+      String.map (fun c -> if c = '"' then '\'' else c
+      ) (String.concat " \n " (read_lines (open_in txt_fname)))
     in
-    ()
-  ) directories in
-  let _ = close_out cms_chn in
-  ()
+    CMS.row_close sheet comments
+  ) sheet directories in
+  CMS.close sheet
 
 (** [run file args] run the executable generated by [cs3110 compile file] *)
 let run (main_module : string) (args : string list) : int =
@@ -847,117 +766,10 @@ let run (main_module : string) (args : string list) : int =
   assert_file_exists cmd;
   run_process cmd args
 
-(** [reverse tests targets] Run a reverse harness on [targets], 
- * generating output for CMS. That is:
- * - extract test cases from each target
- * - run test cases on each of the fake students in [tests]
- * - match expected vs. actual (pass/fail)
- * This runs very similar to harness. Should share functionality. 
- * 2014-01-19: currently supports exactly one test file. 
- * 2014-01-19: This code eventually needs cleaning and abstraction.
- * Thing is, I don't trust in its future. Would rather delete it. *)
-let reverse (test_name : string) (tests_dir : string) (targets : string list) =
-  (* TODO add in point bonus for having at least [n] tests? *)
-  (* Get names of all dummies. This is a list of folder names *)
-  let suite = Array.fold_right (fun f acc -> 
-    (tests_dir ^ "/" ^ (strip_suffix f)) :: acc) (Sys.readdir reverse_dir) [] in
-  (* Set up reverse_rubric *)
-  let rubric =
-    if not (Sys.file_exists reverse_rubric) then
-      reverse_create_rubric reverse_rubric suite;
-    reverse_dict reverse_rubric
-  in
-  (* Set up CMS *)
-  let cms_chn = open_out reverse_cms in
-  let _ = output_string cms_chn "NetID,Tests,Add Comments\n" in
-  let cwd = Sys.getcwd () in
-  let total_points = ref 0 in
-  (* For each target, run target's test on each dummy in suite *)
-  List.iter (fun target_dir ->
-    let netid = tag_of_path target_dir in
-    (* Update CMS with netid *)
-    let _ = output_string cms_chn netid in
-    let target_abs = absolute_path target_dir in
-    (* Set up md, ps *)
-    let txt_fname = Format.sprintf "%s/%s-reverse.md" output_dir netid in
-    let txt_chn = open_out (txt_fname) in
-    let ps_chn = 
-      let fname = Format.sprintf "%s/%s/%s-reverse.ps" cwd output_dir netid in
-      let title = Format.sprintf "%s\t\t%s.ml" netid test_name in
-      ps_open_channel fname title
-    in
-    (* Write headings and code to postscript *)
-    let _ = 
-      output_string txt_chn (Format.sprintf "## Reverse test results for %s ##\n" netid);
-      output_string ps_chn (Format.sprintf "Source code for file '%s':\n" test_name);
-      ps_set_font ps_chn ps_code_font;
-      List.iter (fun line -> 
-        output_string ps_chn line; output_string ps_chn "\n"
-      ) (read_lines (open_in (Format.sprintf "%s/%s.ml" target_dir test_name)));
-      (* ps title *)
-      ps_set_font ps_chn ps_header_font;
-      output_string ps_chn "\nTest Results:\n";
-      ps_set_font ps_chn ps_normal_font
-    in
-    (* Run the tests *)
-    List.iter (fun test_dir ->
-      Sys.chdir test_dir;
-      let passed = 
-        let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." target_abs test_name) in
-        let exit_code = build test_name in
-        if exit_code <> 0 then
-          false
-        else 
-          let _ = test_logging_errors test_name in
-          let r = begin match (read_lines (open_in fail_output)) with
-            | [] -> true
-            | h::t -> false
-          end in
-          let _ = Sys.command (Format.sprintf "rm %s.ml %s" test_name fail_output) in
-          r
-      in
-      (* Expected results *)
-      let should_pass, points_possible = Hashtbl.find rubric test_dir in
-      (* Match expected vs. actual pass/fail status *)
-      let points_earned, msg = match should_pass = passed with
-        | true -> 
-          total_points := (!total_points) + points_possible;
-          points_possible, Format.sprintf "PASS -- %s\n" test_dir
-        | false -> 
-          0, Format.sprintf "FAIL -- %s\n" test_dir
-      in
-      (* Print results to md, ps *)
-      let _ = 
-        output_string ps_chn msg;
-        output_string txt_chn msg
-      in
-      Sys.chdir cwd
-    ) suite;
-    (* Close channels *)
-    let _ =
-      flush ps_chn;
-      flush txt_chn; 
-      close_out txt_chn;
-      Unix.close_process_out ps_chn
-    in
-    (* Print results to CMS, close ps, txt *)
-    let _ = 
-      let comments = 
-        String.map (fun c -> if c = '"' then '\'' else c
-        ) (String.concat " \\n " (read_lines (open_in txt_fname)))
-      in
-      output_string cms_chn (Format.sprintf ",%d,\"%s\"\n" (!total_points) comments);
-    in
-    (* Reset accumulator *)
-    total_points := 0
-  ) targets;
-  flush cms_chn;
-  close_out cms_chn
-
 (** [smoke_compile_one ms d] compile each module in the list [ms] under the 
  * containing directory [d]. Generate emails and save the files for failures. *)
 let smoke_compile_one (targets : string list) (dir_name : string) : unit =
-  let _ = Format.printf "\n## Smoke target '%s' ##\n" (tag_of_path dir_name) in
+  let () = Format.printf "\n## Smoke target '%s' ##\n" (tag_of_path dir_name) in
   let failed_targets : string list ref = ref [] in
   let compile_and_record (target : string) : unit = 
     (* 2014-01-09: [build] directs compiler output to stdout/stderr.  *
