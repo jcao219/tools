@@ -195,49 +195,66 @@ let config_env () =
 
 (**** spreadsheet *********************************************************)
 
-module CMS : sig 
+module Grades_table : sig 
   type t
-  val add_row : t -> string -> int list -> string -> t
 
-  (* [close ()] prints and closes the spreadsheet *) 
-  val close : t -> unit
-  val init : string -> (string * string list) list -> t
+  val add_row : t -> string -> (string * int list) list -> t
+
+  val init : (string * string list) list -> t
   val init_from_file : string -> t
 
-  val row_append : t -> int list -> unit
-  val row_init : t -> string -> unit
-  (* Add comments and publish current proto-row *)
-  val row_close : t -> string -> t
+  (* [close ()] prints and closes the spreadsheet *) 
+  val write : t -> string -> unit
 
 end = struct 
 
-  exception State_error of string
-  exception Invalid_row of string
+  (* NetID, scores *)
+  type row = string * int list
 
-  (* NetID, scores, comments *)
-  type row = string * int list * string
-  (* Spreadsheet is name -> row, row is testname->result *)
   module S = Set.Make(struct 
     type t = row
-    let compare (id1,_,_) (id2,_,_) = Pervasives.compare id1 id2
+    let compare (id1,_) (id2,_) = Pervasives.compare id1 id2
   end)
-  (* NetID, scores-to-date *)
-  type proto_row = string * (int list)
-  (* CMS_spreadsheet is (filename, column names, data) *)
-  type t = { filename : string; 
-             test_names : string list; 
-             data : S.t; 
-             mutable current_row : proto_row option }
-      
-(* TODO TODO TODO debug the add/print *)
-  let add_row t netId results comments =
-    if not (List.length results = List.length t.test_names)
-    then raise (Invalid_row "Cannot add row -- too few results")
-    else { t with data = S.add (netId,results,comments) t.data }
 
-  let init fname names_by_file : t = 
-    let names = List.fold_right (fun (_,ns) acc -> ns @ acc) names_by_file [] in
-    { filename=fname; test_names=names; data=S.empty; current_row = None }
+  type t = { 
+    test_cases_by_file : (string * (string list)) list; 
+    data : S.t; 
+  }
+
+  let cSEPARATOR = ","
+
+  (* [add_row t netId scores_by_test] ALMOST adds data directly to the sheet.
+   * There is one preprocessing step: converted the bucketed [scores_by_test]
+   * to scores and totals *)
+  let add_row t netId scores_by_test =
+    (* Currently ignore name. We can improve this *)
+    let case_scores =
+      List.fold_right (fun (test_name,scores) all_scores ->
+        match scores with
+          | [] -> (* No compile *)
+            print_endline "HAHAHHAHAHAHAHAAHAHAHA";
+            (* Find the number of test cases *)
+            let cases = List.fold_left (fun acc (name, cases) ->
+              if test_name = name then cases else acc) [] t.test_cases_by_file
+            in
+            print_endline ("NUM CASES = " ^ string_of_int (List.length cases));
+            (* Padding *)
+            (List.fold_left (fun acc _ -> 0 :: acc) all_scores cases)
+          | h::t -> 
+            (scores @ all_scores)
+      ) scores_by_test []
+    in
+    { t with data = S.add (netId,case_scores) t.data }
+
+  (* [init fname names_by_file] create a new spreadsheet named [fname]
+   * columns are:
+   * - one for each test case
+   * - totals for each test file *)
+  let init names_by_file : t = 
+    {
+      test_cases_by_file = names_by_file;
+      data = S.empty;
+    }
 
   (* Parse exisiting spreadsheet for column names and values *)
   let init_from_file (fname : string) : t =
@@ -245,41 +262,33 @@ end = struct
     failwith "init from file NOT IMPLEMENTED"
 
   (* Print the spreadsheet *)
-  let close t =
-    print_endline "CLOSING SHEET";
-    let chn = open_out t.filename in
+  let write t filename =
+    let chn = open_out filename in
     (* Print header *)
     let () = output_string chn "NetID" in
-    let () = 
-      List.iter (fun name -> 
-        output_string chn (Format.sprintf ",%s" (String.capitalize name))
-      ) t.test_names
+    (* Print test case names *)
+    let () =
+      List.iter (fun (_,cases) -> 
+        List.iter (fun name ->
+          output_string chn (cSEPARATOR ^ name)
+        ) cases
+      ) t.test_cases_by_file
     in
-    let () = output_string chn ",Add Comments\n" in
+    (* Print totals. These are formatted for CMS *)
+    let () = 
+      List.iter (fun (test_name,_) ->
+        output_string chn (cSEPARATOR ^ (String.capitalize (fst (lsplit test_name '_'))))
+      ) t.test_cases_by_file
+    in
+    let () = output_string chn (cSEPARATOR ^ "Total\n") in
     (* Print data *)
     let () = 
-      S.iter (fun (id,rs,c) ->
-        print_endline "CLOSING ONE";
-        let results_str = String.concat "," (List.map string_of_int rs) in
-        output_string chn (Format.sprintf "%s,%s,%s\n" id results_str c)
+      S.iter (fun (id,rs) ->
+        let results_str = String.concat cSEPARATOR (List.map string_of_int rs) in
+        output_string chn ((String.concat cSEPARATOR [id; results_str]) ^ "\n")
       ) t.data
     in
     ignore (close_out chn)
-
-  let row_append t (rs : int list) : unit =
-    begin match t.current_row with
-      | None -> raise (State_error "Current row is `None`. Cannot append to empty row.")
-      | Some (id,results) -> t.current_row <- Some (id, results @ rs)
-    end
-
-  let row_init t (netid : string) : unit =
-    t.current_row <- Some (netid, [])
-
-  let row_close t str =
-    begin match t.current_row with
-      | None -> raise (State_error "Current row is `None`. Cannot close empty row.")
-      | Some (id,results) -> add_row t id results str
-    end
 
 end
 
@@ -536,7 +545,7 @@ let test (main_module : string) : int =
 
 (** [harness_collect_output rubric] Iterate over test results,
  * store pass/fail information in [sheet], return pretty-printed output *)
-let harness_collect_output (sheet : CMS.t) : string list =
+let harness_collect_output () : int list * string list =
   (* Make sure output was generated. 
    * Need to manipulate these files *)
   let () = assert_file_exists test_output in
@@ -555,9 +564,8 @@ let harness_collect_output (sheet : CMS.t) : string list =
     let name = test_name_of_line line in
     Hashtbl.add errors_by_name name line
   ) (read_lines (open_in fail_output)) in
-  (* Step 2: Collect pretty output. Simultaneously update [sheet]. *)
-  let scores, pretty_results = 
-    List.fold_right (fun line (ints,strs) ->
+  (* Step 2: Collect pretty output. Returns a TUPLE. *)
+  List.fold_right (fun line (ints,strs) ->
     let name = snd (rsplit line ':') in
     if Hashtbl.mem errors_by_name name then
       (* Failed *)
@@ -568,12 +576,7 @@ let harness_collect_output (sheet : CMS.t) : string list =
       (* Passed *)
       let msg = Format.sprintf "PASS -- %s" name in
       (1::ints, msg::strs)
-    ) (read_lines (open_in test_output)) ([],[])
-  in
-  (* ATM, scores are limited to {0,1} *)
-  (* TODO, qcheck tests should get partial credit *)
-  let () = CMS.row_append sheet scores in
-  pretty_results
+  ) (read_lines (open_in test_output)) ([],[])
 
 (** [harness_sanitize_fname str] Check whether the file named [str] contains
  * any unit tests. If so, prompt the user to edit the file. Re-prompt until
@@ -653,8 +656,8 @@ let harness (test_dir : string) (directories : string list) : unit =
   (* Initialize spreadsheet for CMS *)
   let sheet = 
     if Sys.file_exists cms_fname
-    then CMS.init_from_file cms_fname
-    else CMS.init cms_fname test_names_by_file
+    then Grades_table.init_from_file cms_fname
+    else Grades_table.init test_names_by_file
   in
   (* For each implementation to test, copy in the tests, build, and run. *)
   (* Pass around the spreadsheet *)
@@ -663,13 +666,12 @@ let harness (test_dir : string) (directories : string list) : unit =
     let netid = tag_of_path dir in
     let txt_fname = Format.sprintf "./%s/%s.md" output_dir netid in
     let txt_chn = open_out txt_fname in
-    (* Initialize CMS row, change into student dir for testing, print titles *)
-    let () = CMS.row_init sheet netid in
+    (* Change into student dir for testing, print titles *)
     let () = Sys.chdir dir in
     let () = Format.printf "\n## Running tests for '%s' ##\n%!" netid in
     let () = output_string txt_chn (Format.sprintf "## Automated test results for %s ##\n" netid) in
     (* Build and run *)
-    let () = List.iter (fun test_name ->
+    let scores_by_test = List.rev (List.fold_left (fun scores test_name ->
       (* Prepare postscript document *)
       let ps_chn =
         let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd output_dir netid test_name in
@@ -703,13 +705,13 @@ let harness (test_dir : string) (directories : string list) : unit =
       let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
       let exit_code = build test_name in
       (* collect output for printing *)
-      let output_by_line =
+      let part_scores, output_by_line =
         if exit_code <> 0 then 
-          ["NO COMPILE"]
+          [], ["NO COMPILE"]
         else begin
           (* Run tests, organize output *)
           let _ = test_logging_errors test_name in
-          harness_collect_output sheet
+          harness_collect_output ()
         end
       in
       (* Postscript title *)
@@ -744,21 +746,15 @@ let harness (test_dir : string) (directories : string list) : unit =
           ignore(Sys.command ("rm " ^ fail_output));
         ()
       in
-      ()
-    ) test_names in
+      (test_name, part_scores) :: scores
+    ) [] test_names) in
     (* Finished with one student. *)
-    let _ = 
-      close_out txt_chn;
-      Sys.chdir cwd 
-    in
-      (* Replace double quotes with single quotes *)
-    let comments = 
-      String.map (fun c -> if c = '"' then '\'' else c
-      ) (String.concat " \n " (read_lines (open_in txt_fname)))
-    in
-    CMS.row_close sheet comments
+    let () = close_out txt_chn in
+    let () = Sys.chdir cwd in
+    (* Carry new sheet onto next iteration *)
+    Grades_table.add_row sheet netid scores_by_test
   ) sheet directories in
-  CMS.close sheet
+  Grades_table.write sheet cms_fname
 
 (** [run file args] run the executable generated by [cs3110 compile file] *)
 let run (main_module : string) (args : string list) : int =
