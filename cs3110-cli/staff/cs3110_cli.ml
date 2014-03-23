@@ -372,6 +372,23 @@ end
 let clean () : unit =
   check_code (Sys.command "ocamlbuild -clean")
 
+let clean_cms () : unit =
+  check_code (Sys.command (Format.sprintf "rm -f %s" cms_dir))
+
+let clean_diff () : unit =
+  check_code (Sys.command (Format.sprintf "rm -f %s" diff_results))
+
+let clean_email () : unit =
+  check_code (Sys.command (Format.sprintf "rm -rf %s" email_dir))
+
+let clean_harness () : unit =
+  let _ = Sys.command (Format.sprintf "rm -rf %s" cms_dir) in
+  check_code (Sys.command (Format.sprintf "rm -rf %s" output_dir))
+
+let clean_smoke () : unit =
+  let _ = Sys.command (Format.sprintf "rm -rf %s" email_dir) in
+  check_code (Sys.command (Format.sprintf "rm -rf %s" nocompile_dir))
+
 (** [build] compile [m] into a bytecode executable. 
  * Relies on ocamlbuild. TODO quiet version? *) 
 let build (main_module : string) : int =
@@ -658,8 +675,8 @@ let harness_collect_output () : int list * string list =
 let harness_sanitize_src (fname : string) : unit =
   (* Use grep -q, which returns 0 if any matches are found *)
   let cmd = Format.sprintf "grep -q \"TEST\" %s" fname in
-  let clean = ref (Sys.command(cmd)) in
-  while (!clean = 0) do (
+  let is_clean = ref (Sys.command(cmd)) in
+  while (!is_clean = 0) do (
     Format.printf "\
 ********************************************************************************\n\
 *** WARNING : file '%s' contains the string TEST. This is probably BAD!         \n\
@@ -668,8 +685,8 @@ let harness_sanitize_src (fname : string) : unit =
 ********************************************************************************\n\
 " fname;
     if ("ACCEPT" = (read_line()))
-    then clean := 1
-    else clean := Sys.command(cmd);
+    then is_clean := 1
+    else is_clean := Sys.command(cmd);
   ()) done
 
 (* Search all directories for one that passes all tests *)
@@ -910,7 +927,7 @@ let smoke (directories : string list) : unit =
     then List.map strip_suffix (read_lines (open_in smoke_targets))
     else if Sys.file_exists tests_dir
     then Array.fold_right (fun f acc -> 
-      ((fst(rsplit f '_'))) :: acc) (Sys.readdir tests_dir) [] 
+      (fst(rsplit f '_')) :: acc) (Sys.readdir tests_dir) [] 
     else raise (File_not_found smoke_targets)
   in
   (* Compile the targets in one directory. Accumulate an email message  *
@@ -980,7 +997,9 @@ let help () =
   print_string "\
 Usage: cs3110-staff COMMMAND [args]
 
-  cs3110 clean                         Removes files created by 'cs3110 compile'
+  cs3110 clean                         Removes files created by 'cs3110 compile'. 
+                                        Add an argument to clean files generated 
+                                        by that command.
   cs3110 compile <file>                Compile file.ml.
   cs3110 diff <targets>                Compare supplied files with those stored
                                         as no compiles.
@@ -1007,6 +1026,12 @@ let () =
     match Array.to_list Sys.argv with
     | [ _; "help" ]  -> help ()
     | [ _; "clean" ] -> clean ()
+    | [ _; "clean"; "diff" ] -> clean_diff ()
+    | [ _; "clean"; "email" ] -> clean_email ()
+    | [ _; "clean"; "harness" ] -> clean_harness ()
+    | [ _; "clean"; "smoke" ] -> clean_smoke ()
+    | [ _; "clean"; "all" ] -> clean (); clean_diff (); clean_email (); clean_harness (); clean_smoke ()
+    | [ _; "clean"; _ ] -> ()
     | [ _; "compile"; target ] -> check_code (build (strip_suffix target))
     |  _ :: "diff" :: arg1 :: args -> 
       if arg1.[0] = '@'
