@@ -6,6 +6,7 @@ let cEMAIL_ADMINS = "_email_bcc.txt"
 
 let cCMS_DIR = "./_cms"
 let cCMS_FNAME = Format.sprintf "%s/spreadsheet.csv" cCMS_DIR
+let cCMS_FINAL = Format.sprintf "%s/CS3110_GRADES_TABLE.csv" cCMS_DIR
 let cDEPEND_FILE = "./.depend"
 let cDIFF_RESULTS = "_diff_results.csv"
 let cEMAIL_DIR = "./_email"

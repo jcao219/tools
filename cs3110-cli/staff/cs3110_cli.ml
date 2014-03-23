@@ -10,6 +10,8 @@ Usage: cs3110-staff COMMMAND [args]
                                         Add an argument to clean files generated 
                                         by that command.
   cs3110 compile <file>                Compile file.ml.
+  cs3110 cms <file>                    Convert spreadsheet [file] into a
+                                        CMS-ready grades table.
   cs3110 diff <targets>                Compare supplied files with those stored
                                         as no compiles.
   cs3110 doc <output_dir> [src_dir]    Generates the ocamldoc documentation for
@@ -44,6 +46,9 @@ let () =
       if arg1.[0] = '@'
       then Diff.run (directories_of_list arg1)
       else Diff.run (arg1 :: args)
+    | [ _; "cms"; sheet ] ->
+      let () = assert_file_exists sheet in
+      Cms.run sheet
     | [ _; "doc"; out_dir; src_dir] ->
       check_code (Doc.run ~src_dir:src_dir out_dir)
     | [ _; "doc"; out_dir] ->
