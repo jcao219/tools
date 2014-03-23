@@ -208,8 +208,8 @@ module Grades_table : sig
 
 end = struct 
 
-  (* NetID, scores *)
-  type row = string * int list
+  (* NetID, scores_by_test *)
+  type row = string * (string * int list) list
 
   module S = Set.Make(struct 
     type t = row
@@ -227,24 +227,22 @@ end = struct
    * There is one preprocessing step: converted the bucketed [scores_by_test]
    * to scores and totals *)
   let add_row t netId scores_by_test =
-    (* Currently ignore name. We can improve this *)
-    let case_scores =
-      List.fold_right (fun (test_name,scores) all_scores ->
+    (* Add padding to nocompiles *)
+    let scores_by_test =
+      List.fold_right (fun (test_name,scores) acc ->
         match scores with
           | [] -> (* No compile *)
-            print_endline "HAHAHHAHAHAHAHAAHAHAHA";
             (* Find the number of test cases *)
             let cases = List.fold_left (fun acc (name, cases) ->
               if test_name = name then cases else acc) [] t.test_cases_by_file
             in
-            print_endline ("NUM CASES = " ^ string_of_int (List.length cases));
             (* Padding *)
-            (List.fold_left (fun acc _ -> 0 :: acc) all_scores cases)
+            (test_name, (List.fold_left (fun acc _ -> 0 :: acc) [] cases)) :: acc
           | h::t -> 
-            (scores @ all_scores)
+            (test_name, scores) :: acc
       ) scores_by_test []
     in
-    { t with data = S.add (netId,case_scores) t.data }
+    { t with data = S.add (netId,scores_by_test) t.data }
 
   (* [init fname names_by_file] create a new spreadsheet named [fname]
    * columns are:
@@ -266,26 +264,30 @@ end = struct
     let chn = open_out filename in
     (* Print header *)
     let () = output_string chn "NetID" in
-    (* Print test case names *)
+    (* Print test case names. Add totals at end of section *)
     let () =
-      List.iter (fun (_,cases) -> 
-        List.iter (fun name ->
-          output_string chn (cSEPARATOR ^ name)
-        ) cases
-      ) t.test_cases_by_file
-    in
-    (* Print totals. These are formatted for CMS *)
-    let () = 
-      List.iter (fun (test_name,_) ->
+      List.iter (fun (test_name,cases) -> 
+        let () = 
+          List.iter (fun name ->
+            output_string chn (cSEPARATOR ^ name)
+          ) cases 
+        in 
         output_string chn (cSEPARATOR ^ (String.capitalize (fst (lsplit test_name '_'))))
       ) t.test_cases_by_file
     in
     let () = output_string chn (cSEPARATOR ^ "Total\n") in
     (* Print data *)
     let () = 
-      S.iter (fun (id,rs) ->
-        let results_str = String.concat cSEPARATOR (List.map string_of_int rs) in
-        output_string chn ((String.concat cSEPARATOR [id; results_str]) ^ "\n")
+      S.iter (fun (id,scores_by_test) ->
+        let () = output_string chn id in (* print name *)
+        let () = (* print scores *)
+          List.iter (fun (_,scores) ->
+            let () = output_string chn cSEPARATOR in (* empty space for test totals *)
+            let () = output_string chn (String.concat cSEPARATOR (List.map string_of_int scores)) in
+            output_string chn cSEPARATOR (* empty space for test totals *)
+          ) scores_by_test
+        in
+        output_string chn "\n" (* End line *)
       ) t.data
     in
     ignore (close_out chn)
