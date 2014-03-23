@@ -1,7 +1,7 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
-all: compile clean
+all: compile
 
 assertions:
 	ocamlfind ocamlc -package qcheck -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
@@ -9,13 +9,12 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	ocamlc -o cs3110-staff unix.cma cs3110_cli.ml
+	ocamlc -o cs3110-staff -I ./util -I ./format -I ./command unix.cma util/filepath_util.mli format/postscript.mli format/grades_table.mli command/harness.mli command/smoke.mli util/constants.ml util/io_util.ml util/filepath_util.ml util/process_util.ml format/postscript.ml format/grades_table.ml command/build.ml command/clean.ml command/doc.ml command/diff.ml command/email.ml command/test.ml command/harness.ml command/run.ml command/smoke.ml command/stat.ml cs3110_cli.ml
 
 clean:
-	rm -f cs3110_cli.cmi
-	rm -f cs3110_cli.cmo
+	find . -name '*.cm*' | xargs rm -f 
 
-install: assertions compile clean
+install: assertions compile link clean
 
 uninstall:
 	rm cs3110-staff
