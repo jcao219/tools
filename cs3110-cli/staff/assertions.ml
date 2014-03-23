@@ -123,7 +123,7 @@ let assert_qcheck cases test =
 match QCheck.check cases test with
   | QCheck.Ok     _ -> ()
   | QCheck.Failed [] -> 
-    raise (QCheck_failure "Quickcheck could not generate a failed instance.")
+    raise (QCheck_failure "qcheck says 'failed', but could not generate a failed instance.")
   | QCheck.Failed (h::_) -> 
     let msg = Printf.sprintf "Invalid output on instance '%s'\n" (Serializer.truncate h) in
     raise (QCheck_failure msg)
