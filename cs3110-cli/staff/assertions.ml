@@ -29,14 +29,16 @@ let assert_less v1 v2 =
       (Serializer.truncate v2)))
 
 exception Assert_equal of string
-let assert_equal v1 v2 = 
-  match (v1 = v2) with
+let assert_equal cmp v1 v2 = 
+  match (cmp v1 v2) with
   | true -> ()
   | false -> 
     raise (Assert_equal (Printf.sprintf 
       "%s is not equal to %s"
       (Serializer.truncate v1)
       (Serializer.truncate v2)))
+
+let (===) = assert_equal (=)
 
 exception Almost_equal of string
 let almost_equal v1 v2 =
