@@ -1,3 +1,5 @@
+open Constants
+
 exception Assert_true of string
 let assert_true = function
 | true -> ()
@@ -118,13 +120,16 @@ let timeout (time : int) (f : 'a -> 'b) (arg : 'a) =
    ignore (Unix.alarm time) ;
    let res = f arg in reset_sigalrm () ; res
 
-exception QCheck_failure of string
+exception QCheck_failure of int * string
 let assert_qcheck cases test = 
-match QCheck.check cases test with
-  | QCheck.Ok     _ -> ()
+  match QCheck.check ~rand:(Random.State.make [|4;2|]) ~n:cNUM_QCHECK cases test with
+  | QCheck.Ok _ -> ()
   | QCheck.Failed [] -> 
-    raise (QCheck_failure "qcheck says 'failed', but could not generate a failed instance.")
-  | QCheck.Failed (h::_) -> 
-    let msg = Printf.sprintf "Invalid output on instance '%s'\n" (Serializer.truncate h) in
-    raise (QCheck_failure msg)
+    let msg = "qcheck says 'failed', but could not generate a failed instance." in 
+    raise (QCheck_failure (-1, msg)) 
+  | QCheck.Failed (x::xs) -> 
+    let num_failed = 1 + List.length xs in
+    let msg = Printf.sprintf "Sample failing instance: '%s'\n" (Serializer.truncate x) in
+    raise (QCheck_failure (num_failed, msg))
   | QCheck.Error (_, e) -> raise e
+

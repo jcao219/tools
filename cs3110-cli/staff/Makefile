@@ -1,10 +1,10 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
-all: compile
+all: compile clean
 
 assertions:
-	ocamlfind ocamlc -package qcheck -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
+	ocamlfind ocamlc -package qcheck -I util -a -o assertions.cma serializer.mli util/constants.ml assertions.mli serializer.ml assertions.ml
 	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
 	rm serializer.cmi serializer.cmo
 
