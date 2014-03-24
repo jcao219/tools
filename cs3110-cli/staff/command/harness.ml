@@ -41,6 +41,22 @@ let find_all_test_names test_names impl =
   let () = Sys.chdir cwd in
   names
 
+(* Determine whether a string came from [Assertions.qcheck] *)
+let is_qcheck (msg : string) : bool =
+  let stripped = snd (rsplit (fst (rsplit msg '(')) 'A') in
+  stripped = "ssertions.QCheck_result" (* 'Qcheck_result' missing the Q *)
+
+(* Exract the number of test failures from a qcheck result string *)
+let parse_num_failed (msg : string) : int =
+  (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
+  int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
+
+let success_message (test_name : string) : string = 
+  Format.sprintf "PASS -- %s" test_name
+
+let failure_message (test_name : string) (error_message : string) : string =
+  Format.sprintf "FAIL -- %s : %s" test_name error_message
+
 (** [harness_collect_output rubric] Iterate over test results,
  * store pass/fail information in [sheet], return pretty-printed output *)
 let harness_collect_output () : int list * string list =
@@ -55,6 +71,10 @@ let harness_collect_output () : int list * string list =
    * The protocol is to 
    *   1. Iterate over [fail_output], organize errors by name
    *   2. Iterate over [test_output], record whether tests passed or failed in order, pretty-print result
+   * 2014-03-24: New complication! Quickcheck tests get partial credit.
+   * Scan the [fail_output] for instances of [Assertions.QCheck_result]. Scrape the integer
+   * argument from this constructor (it's always the first) -- that's the number of failed
+   * tests. Subtract that from the total for the proper part score.
    *)
   (* Step 1: Organize error messages *)
   let errors_by_name = Hashtbl.create 27 in
@@ -66,13 +86,24 @@ let harness_collect_output () : int list * string list =
   List.fold_right (fun line (ints,strs) ->
     let name = snd (rsplit line ':') in
     if Hashtbl.mem errors_by_name name then
-      (* Failed *)
+      (* Failed, or quickcheck *)
       let err_msg = Hashtbl.find errors_by_name name in
-      let msg = Format.sprintf "FAIL -- %s : %s" name err_msg in
-      (0::ints, msg::strs)
+      if is_qcheck err_msg then
+        (* Is qcheck. May be success. *)
+        let score = cNUM_QCHECK - parse_num_failed err_msg in
+        let msg =
+          if score = cNUM_QCHECK
+          then success_message name
+          else failure_message name err_msg
+        in
+        (score::ints, msg::strs)
+      else 
+        (* Is normal. A failure *)
+        let msg = failure_message name err_msg in
+        (0::ints, msg::strs)
     else 
       (* Passed *)
-      let msg = Format.sprintf "PASS -- %s" name in
+      let msg = success_message name in
       (1::ints, msg::strs)
   ) (read_lines (open_in cTEST_OUTPUT)) ([],[])
 
