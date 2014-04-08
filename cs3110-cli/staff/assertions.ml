@@ -31,8 +31,8 @@ let assert_less v1 v2 =
       (Serializer.truncate v2)))
 
 exception Assert_equal of string
-let assert_equal v1 v2 = 
-  match (v1 = v2) with
+let assert_equal cmp v1 v2 = 
+  match (cmp v1 v2) with
   | true -> ()
   | false -> 
     raise (Assert_equal (Printf.sprintf 
