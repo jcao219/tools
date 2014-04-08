@@ -138,7 +138,7 @@ let run (test_dir : string) (directories : string list) : unit =
     Array.fold_right (fun fname (a1,a2) -> 
       (* Check for dotfiles *)
       if String.length fname = 0 || fname.[0] = '.' then
-        let () = Format.printf "WARNING: skipping empty/dotfile file in test folder %s/%s\n%!" test_dir fname in
+        let () = Format.printf "WARNING: skipping empty/dotfile file in test folder '%s/%s'\n%!" test_dir fname in
         (a1, a2)
       else
         ((strip_suffix fname)::a1, (test_dir^"/"^fname)::a2)
