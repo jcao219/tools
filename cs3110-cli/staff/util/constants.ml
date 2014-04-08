@@ -21,3 +21,5 @@ let cTESTS_DIR = "./tests"
 
 let cTEST_OUTPUT = "inline_tests.log"
 let cFAIL_OUTPUT = "inline_test_failures.log"
+
+let cNUM_QCHECK = 100
