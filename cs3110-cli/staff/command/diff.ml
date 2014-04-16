@@ -1,4 +1,4 @@
-open Constants
+open Cli_constants
 open Filepath_util
 
 (** [diff ()] if any files under the [cNOCOMPILE_DIR] match a target,

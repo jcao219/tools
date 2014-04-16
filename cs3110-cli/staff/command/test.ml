@@ -1,4 +1,4 @@
-open Constants
+open Cli_constants
 open Filepath_util
 
 (* The general form of the test command *)

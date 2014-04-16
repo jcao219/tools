@@ -1,4 +1,4 @@
-open Constants
+open Cli_constants
 
 exception Assert_true of string
 let assert_true = function

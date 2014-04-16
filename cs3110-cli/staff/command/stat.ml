@@ -1,4 +1,4 @@
-open Constants
+open Cli_constants
 open Filepath_util
 
 (** [stat fname] read in the test results from [fname], create 
