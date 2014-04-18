@@ -6,6 +6,17 @@ let std_opam_packages = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]
 let opam_packages_file = "./.opam_packages"
 
 exception File_not_found of string
+exception Invalid_filepath of string
+
+(* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
+ * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
+let assert_ocamlbuild_friendly_filepath (path : string) : unit =
+  let is_relative =
+    try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
+    with Not_found -> false
+  in
+  if (String.contains path '~' || path.[0] = '/' || is_relative)
+  then raise (Invalid_filepath "Must call cs3110 from the project root. Absolute or relative paths are not allowed.")
 
 (* Remove the trailing '.ml' (or whatever else) from the filename *)
 let strip_suffix (filename : string) : string =
@@ -60,7 +71,8 @@ let clean () : unit =
 
 (* Uses the oUnit and cs3110 packages and the oUnit syntax extension. *)
 let build (main_module : string) : unit =
-  assert_file_exists (main_module ^ ".ml");
+  let () = assert_ocamlbuild_friendly_filepath main_module in
+  let () = assert_file_exists (main_module ^ ".ml") in
   let target = Format.sprintf "%s.d.byte" main_module in
   let _ = print_endline "Compiling..." in
   let dependencies = 

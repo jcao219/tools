@@ -3,9 +3,20 @@ open Io_util
 open Filepath_util
 open Process_util
 
+(* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
+ * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
+let assert_ocamlbuild_friendly_filepath (path : string) : unit =
+  let is_relative =
+    try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
+    with Not_found -> false
+  in 
+  if (String.contains path '~' || path.[0] = '/' || is_relative)
+  then raise (Invalid_filepath "Must call cs3110 from the project root. Absolute or relative paths are not allowed.")
+
 (** [build] compile [m] into a bytecode executable. 
  * Relies on ocamlbuild. TODO quiet version? *) 
 let run (main_module : string) : int =
+  let () = assert_ocamlbuild_friendly_filepath main_module in
   let () = assert_file_exists (main_module ^ ".ml") in
   let target = Format.sprintf "%s.d.byte" main_module in
   let _ = Format.printf "Compiling '%s.ml'\n%!" main_module in
