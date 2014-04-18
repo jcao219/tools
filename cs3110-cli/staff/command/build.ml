@@ -43,8 +43,9 @@ let run (main_module : string) : int =
     (* "-cflag"; "-w"; "-cflag"; "A-4-33-40-41-42-43-34-44"; (* Jane street's warnings as errors *) *)
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
-    "-tag-line"; "<*.d.byte> : " ^ opam_packages_str;
-    "-tag-line"; "<*.native> : " ^ opam_packages_str;
+    "-tag-line"; "<**/*.ml{,i}> : thread";
+    "-tag-line"; "<**/*.ml{,i}> : syntax(bin_prot), syntax(camlp4o), " ^ opam_packages_str;
+    "-tag-line"; "<**/*.d.byte> : thread, " ^ opam_packages_str;
+    "-tag-line"; "<**/*.native> : thread, " ^ opam_packages_str;
     target
   ])
