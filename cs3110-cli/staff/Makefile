@@ -23,7 +23,7 @@ uninstall:
 	rm ${STD_LIB}/assertions.cma
 
 link:
-	ln -s `pwd`/cs3110-staff $(LINK)
+	ln -sf `pwd`/cs3110-staff $(LINK)cs3110-staff
 
 unlink:
-	rm $(LINK)
+	rm $(LINK)cs3110-staff
