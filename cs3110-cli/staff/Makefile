@@ -4,7 +4,7 @@ STD_LIB=`ocamlc -where`
 all: compile
 
 assertions:
-	ocamlfind ocamlc -package qcheck -a -o assertions.cma serializer.mli assertions.mli serializer.ml assertions.ml
+	ocamlfind ocamlc -package qcheck -I util -a -o assertions.cma serializer.mli util/cli_constants.ml assertions.mli serializer.ml assertions.ml
 	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
 	rm serializer.cmi serializer.cmo
 
@@ -16,7 +16,7 @@ clean:
 	corebuild -clean
 	rm -rf _cms
 
-install: assertions compile clean
+install: assertions compile link clean
 
 uninstall:
 	rm cs3110-staff
@@ -25,7 +25,7 @@ uninstall:
 	rm ${STD_LIB}/assertions.cma
 
 link:
-	ln -s `pwd`/cs3110-staff $(LINK)
+	ln -sf `pwd`/cs3110-staff $(LINK)cs3110-staff
 
 unlink:
-	rm $(LINK)
+	rm $(LINK)cs3110-staff

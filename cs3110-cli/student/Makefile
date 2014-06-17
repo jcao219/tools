@@ -9,7 +9,7 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	ocamlc -o cs3110 unix.cma cs3110_cli.mli cs3110_cli.ml
+	ocamlc -o cs3110 str.cma unix.cma cs3110_cli.mli cs3110_cli.ml
 
 clean:
 	rm -f cs3110_cli.cmi
@@ -24,7 +24,7 @@ uninstall: unlink
 	rm ${STD_LIB}/assertions.cma
 
 link:
-	ln -sf `pwd`/cs3110 $(LINK)
+	ln -sf `pwd`/cs3110 $(LINK)cs3110
 
 unlink:
-	rm $(LINK)
+	rm $(LINK)cs3110

@@ -6,6 +6,17 @@ let std_opam_packages = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]
 let opam_packages_file = "./.opam_packages"
 
 exception File_not_found of string
+exception Invalid_filepath of string
+
+(* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
+ * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
+let assert_ocamlbuild_friendly_filepath (path : string) : unit =
+  let is_relative =
+    try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
+    with Not_found -> false
+  in
+  if (String.contains path '~' || path.[0] = '/' || is_relative)
+  then raise (Invalid_filepath "Must call cs3110 from the project root. Absolute or relative paths are not allowed.")
 
 (* Remove the trailing '.ml' (or whatever else) from the filename *)
 let strip_suffix (filename : string) : string =
@@ -60,7 +71,8 @@ let clean () : unit =
 
 (* Uses the oUnit and cs3110 packages and the oUnit syntax extension. *)
 let build (main_module : string) : unit =
-  assert_file_exists (main_module ^ ".ml");
+  let () = assert_ocamlbuild_friendly_filepath main_module in
+  let () = assert_file_exists (main_module ^ ".ml") in
   let target = Format.sprintf "%s.d.byte" main_module in
   let _ = print_endline "Compiling..." in
   let dependencies = 
@@ -83,11 +95,13 @@ let build (main_module : string) : unit =
       (List.map (fun p -> Format.sprintf "package(%s)" p) all_opam_packages))
   in
   check_code (run_process "ocamlbuild" (dependencies @ libraries @ [
+    (* "-cflag"; "-w"; "-cflag"; "A-4-33-40-41-42-43-34-44"; (* Jane street's warnings as errors *) *)
     "-cflag"; "-warn-error"; "-cflag"; "+a"; (* treat the default warnings as errors *)
     "-use-ocamlfind"; "-no-links"; 
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
-    "-tag-line"; "<*.d.byte> : " ^ opam_packages_str;
-    "-tag-line"; "<*.native> : " ^ opam_packages_str;
+    "-tag-line"; "<**/*.ml{,i}> : thread";
+    "-tag-line"; "<**/*.ml{,i}> : syntax(bin_prot), syntax(camlp4o), " ^ opam_packages_str;
+    "-tag-line"; "<**/*.d.byte> : thread, " ^ opam_packages_str;
+    "-tag-line"; "<**/*.native> : thread, " ^ opam_packages_str;
     target
   ]))
 

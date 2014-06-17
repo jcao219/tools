@@ -1,3 +1,5 @@
+open Cli_constants
+
 exception Assert_true of string
 let assert_true = function
 | true -> ()
@@ -29,14 +31,16 @@ let assert_less v1 v2 =
       (Serializer.truncate v2)))
 
 exception Assert_equal of string
-let assert_equal v1 v2 = 
-  match (v1 = v2) with
+let assert_equal cmp v1 v2 = 
+  match (cmp v1 v2) with
   | true -> ()
   | false -> 
     raise (Assert_equal (Printf.sprintf 
       "%s is not equal to %s"
       (Serializer.truncate v1)
       (Serializer.truncate v2)))
+
+let (===) v1 v2 = assert_equal (=) v1 v2
 
 exception Almost_equal of string
 let almost_equal v1 v2 =
@@ -118,13 +122,15 @@ let timeout (time : int) (f : 'a -> 'b) (arg : 'a) =
    ignore (Unix.alarm time) ;
    let res = f arg in reset_sigalrm () ; res
 
-exception QCheck_failure of string
-let assert_qcheck cases test = 
-match QCheck.check cases test with
-  | QCheck.Ok     _ -> ()
+exception QCheck_result of int * string
+let assert_qcheck cases test =
+  match QCheck.check ~rand:(Random.State.make [|4;2|]) ~n:cNUM_QCHECK cases test with
+  | QCheck.Ok _ -> raise (QCheck_result (0,"All qcheck passed!"))
   | QCheck.Failed [] -> 
-    raise (QCheck_failure "Quickcheck could not generate a failed instance.")
-  | QCheck.Failed (h::_) -> 
-    let msg = Printf.sprintf "Invalid output on instance '%s'\n" (Serializer.truncate h) in
-    raise (QCheck_failure msg)
+    let msg = "qcheck says 'failed', but could not generate a failed instance." in 
+    raise (QCheck_result (cNUM_QCHECK+1, msg)) 
+  | QCheck.Failed (x::xs) -> 
+    let num_failed = 1 + List.length xs in
+    let msg = Printf.sprintf "Sample failing instance '%s'" (Serializer.truncate x) in
+    raise (QCheck_result (num_failed, msg))
   | QCheck.Error (_, e) -> raise e
