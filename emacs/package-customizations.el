@@ -57,6 +57,7 @@
 ;;   M-x package-install <RET> zenburn-theme
 ;; Then add:
 ;;   (load 'zenburn-theme t)
+;;   (color-theme-zenburn)
 ;; to this file.
 
 ;; Starts up AucTeX mode
