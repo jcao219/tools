@@ -17,13 +17,10 @@ instructions:
 
 Run the following commands:
 
-```bash
-$ git clone git@github.com:cs3110/tools.git 3110-tools
-$ mv 3110-tools/emacs $HOME/.emacs.d
 ```
-
-If you don't need the `3110-tools` directory for anything else, feel
-free to remove it: `rm -rf 3110-tools`.
+$ git clone git@github.com:cs3110/tools.git 3110-tools
+$ cp -r 3110-tools/emacs $HOME/.emacs.d
+```
 
 ### Windows
 
@@ -33,6 +30,6 @@ environment variable is `C:\`. Then run
 
 ```
 > git clone git@github.com:cs3110/tools.git C:\3110-tools
-> move C:\3110-tools\emacs C:\.emacs.d
+> xcopy C:\3110-tools\emacs C:\.emacs.d
 ```
 
