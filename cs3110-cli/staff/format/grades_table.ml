@@ -45,7 +45,7 @@ let add_row t netId scores_by_test =
           in
             (* Padding *)
           (test_title, (List.fold_left (fun acc _ -> 0 :: acc) [] cases)) :: acc
-        | h::t -> 
+        | _::_ -> 
           (test_title, scores) :: acc
       end
     ) scores_by_test []
@@ -75,7 +75,7 @@ let rec init_read_header str acc_cases cases_by_name =
       begin match acc_cases with
         | [] -> (* Ignore this, probably NetId *)
           acc_cases, cases_by_name
-        | h::t ->
+        | _::_ ->
           [], (hd, (List.rev acc_cases)) :: cases_by_name
       end
     else (* Lowercase, it's a test case *)
