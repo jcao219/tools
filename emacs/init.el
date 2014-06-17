@@ -59,7 +59,11 @@
 
 ;; Accept 'y' and 'n' as answers to yes/no questions
 (defalias 'yes-or-no-p 'y-or-n-p)
+
+;; Case-insensitive tab-completion
 (setq dabbrev-case-distinction nil)
+
+;; Other settings
 (setq dabbrev-case-fold-search nil)
 (setq windmove-wrap-around t)
 (setq echo-keystrokes 0.1)
