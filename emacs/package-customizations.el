@@ -46,7 +46,7 @@
 
 ;; Sets the color theme
 (require 'color-theme)
-(color-theme-intitialize)
+(color-theme-initialize)
 ;; To view the available color themes type M-x color-theme <TAB>
 ;; To choose the color theme type M-x color-theme-<color-theme-name> <RET>
 ;; When you decide on a color theme that suits you, you can set it to the
