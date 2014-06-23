@@ -1,4 +1,6 @@
 _build
+cs3110-staff
+cs3110
 
 *.cmi
 *.cmo
