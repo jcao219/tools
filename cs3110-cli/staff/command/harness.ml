@@ -3,14 +3,14 @@ open Io_util
 open Filepath_util
 
 (* Search all directories for one that passes all tests *)
-let find_compiling_implementation test_suite dirs : string option = 
+let find_compiling_implementation test_suite dirs : string option =
   let cwd = Sys.getcwd () in
   List.fold_left (fun dir_opt new_dir ->
-    match dir_opt with 
+    match dir_opt with
       | Some _ -> dir_opt (* already found a good student, skip rest of directories *)
       | None -> (* Go to student's folder, copy in the tests, compile each, check output *)
         let () = Sys.chdir new_dir in
-          (* Copy the tests over, compile  each *) 
+          (* Copy the tests over, compile  each *)
         let all_compile = List.fold_left (fun acc test_name ->
           acc && (let _ = Sys.command (Format.sprintf "cp %s ." test_name) in
                   (* TODO build is failing *)
@@ -20,10 +20,10 @@ let find_compiling_implementation test_suite dirs : string option =
         if all_compile then Some new_dir else None
   ) None dirs
 
-(** [find_all_test_names t i] using compiling implementation [i], collect 
+(** [find_all_test_names t i] using compiling implementation [i], collect
  * the names of all tests in the suite [t] *)
 (* TODO does not work in isolation *)
-let find_all_test_names test_names impl = 
+let find_all_test_names test_names impl =
   let cwd = Sys.getcwd () in
   let () = Sys.chdir impl in
   let names = List.rev (List.fold_left (fun all_names test_file_full ->
@@ -51,7 +51,7 @@ let parse_num_failed (msg : string) : int =
   (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
   int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
 
-let success_message (test_name : string) : string = 
+let success_message (test_name : string) : string =
   Format.sprintf "PASS -- %s" test_name
 
 let failure_message (test_name : string) (error_message : string) : string =
@@ -60,15 +60,15 @@ let failure_message (test_name : string) (error_message : string) : string =
 (** [harness_collect_output rubric] Iterate over test results,
  * store pass/fail information in [sheet], return pretty-printed output *)
 let harness_collect_output () : int list * string list =
-  (* Make sure output was generated. 
+  (* Make sure output was generated.
    * Need to manipulate these files *)
   let () = assert_file_exists cTEST_OUTPUT in
   let () = assert_file_exists cFAIL_OUTPUT in
-  (* OKAY, things are a little confusing here. 
-   * There are 2 files of interest: 
-   *   [test_output], containing names of tests, and 
+  (* OKAY, things are a little confusing here.
+   * There are 2 files of interest:
+   *   [test_output], containing names of tests, and
    *   [fail_output], containing names of failed tests and error messages
-   * The protocol is to 
+   * The protocol is to
    *   1. Iterate over [fail_output], organize errors by name
    *   2. Iterate over [test_output], record whether tests passed or failed in order, pretty-print result
    * 2014-03-24: New complication! Quickcheck tests get partial credit.
@@ -78,7 +78,7 @@ let harness_collect_output () : int list * string list =
    *)
   (* Step 1: Organize error messages *)
   let errors_by_name = Hashtbl.create 27 in
-  let () = List.iter (fun line -> 
+  let () = List.iter (fun line ->
     let name = test_name_of_line line in
     Hashtbl.add errors_by_name name line
   ) (read_lines (open_in cFAIL_OUTPUT)) in
@@ -97,11 +97,11 @@ let harness_collect_output () : int list * string list =
           else failure_message name err_msg
         in
         (score::ints, msg::strs)
-      else 
+      else
         (* Is normal. A failure *)
         let msg = failure_message name err_msg in
         (0::ints, msg::strs)
-    else 
+    else
       (* Passed *)
       let msg = success_message name in
       (1::ints, msg::strs)
@@ -127,15 +127,15 @@ let harness_sanitize_src (fname : string) : unit =
     else is_clean := Sys.command(cmd);
   ()) done
 
-(** [harness tests targets] run each set of unit tests under [tests] 
+(** [harness tests targets] run each set of unit tests under [tests]
  * against [targets] *)
 let run (test_dir : string) (directories : string list) : unit =
   let cwd = Sys.getcwd () in
   let directories = strip_trailing_slash_all directories in
-  (* [test_suite] is a list of files containing tests. 
+  (* [test_suite] is a list of files containing tests.
    * 2014-03-22: Maybe someday this should be a module. *)
-  let test_names,test_abs_paths = 
-    Array.fold_right (fun fname (a1,a2) -> 
+  let test_names,test_abs_paths =
+    Array.fold_right (fun fname (a1,a2) ->
       (* Check for dotfiles *)
       if String.length fname = 0 || fname.[0] = '.' then
         let () = Format.printf "WARNING: skipping empty/dotfile file in test folder '%s/%s'\n%!" test_dir fname in
@@ -143,20 +143,20 @@ let run (test_dir : string) (directories : string list) : unit =
       else
         ((strip_suffix fname)::a1, (test_dir^"/"^fname)::a2)
     ) (Sys.readdir test_dir) ([],[]) in
-  let good_student = match find_compiling_implementation test_abs_paths directories with 
-    | Some dir -> dir 
+  let good_student = match find_compiling_implementation test_abs_paths directories with
+    | Some dir -> dir
     | None -> let () = Format.printf "Error: could not find compiling implementation. Cannot create spreadsheet (but I guess you don't need one).\nExiting...\n" in exit(1)
   in
   let test_names_by_file = find_all_test_names test_names good_student in
   (* Initialize spreadsheet for CMS *)
-  let sheet = 
+  let sheet =
     if Sys.file_exists cCMS_FNAME
     then Grades_table.init_from_file cCMS_FNAME
     else Grades_table.init test_names_by_file
   in
   (* For each implementation to test, copy in the tests, build, and run. *)
   (* Pass around the spreadsheet *)
-  let sheet = List.fold_left (fun sheet dir -> 
+  let sheet = List.fold_left (fun sheet dir ->
     (* Prepare for testing *)
     let netid = tag_of_path dir in
     let txt_fname = Format.sprintf "./%s/%s.md" cOUTPUT_DIR netid in
@@ -177,12 +177,12 @@ let run (test_dir : string) (directories : string list) : unit =
       let _ =
         Postscript.set_font ps_doc Postscript.Header;
         (* Copy source to postscript. Obtaining source is a hack, but it's not fatal if it fails *)
-        let _ = 
+        let _ =
           let src_fname = Format.sprintf "%s.ml" (fst (rsplit test_name '_')) in
           if not (Sys.file_exists src_fname) then
             Postscript.write ps_doc "SOURCE NOT FOUND\n"
           else begin
-            let () = 
+            let () =
               Sys.chdir cwd;
               harness_sanitize_src (dir^"/"^src_fname);
               Sys.chdir dir
@@ -200,7 +200,7 @@ let run (test_dir : string) (directories : string list) : unit =
       let exit_code = Build.run test_name in
       (* collect output for printing *)
       let part_scores, output_by_line =
-        if exit_code <> 0 then 
+        if exit_code <> 0 then
           [], ["NO COMPILE"]
         else begin
           (* Run tests, organize output *)
@@ -215,27 +215,27 @@ let run (test_dir : string) (directories : string list) : unit =
         Postscript.set_font ps_doc Postscript.Normal
       in
       (* Print results for each test case *)
-      let () = 
-        List.iter (fun msg -> 
-          print_endline msg; 
+      let () =
+        List.iter (fun msg ->
+          print_endline msg;
           output_string txt_chn "    "; output_string txt_chn msg; output_string txt_chn "\n";
           Postscript.write ps_doc msg; Postscript.write ps_doc "\n";
         ) output_by_line;
-        print_endline ""; 
+        print_endline "";
         Postscript.write ps_doc "\n"
       in
       (* Flush and close postscript *)
-      let _ = 
+      let _ =
         flush txt_chn;
         Postscript.close ps_doc
       in
       (* Remove generated files *)
-      let () = 
+      let () =
         (* 2014-01-19: Removing tests so they don't screw with reverse harness *)
         ignore(Sys.command (Format.sprintf "rm %s.ml" test_name));
-        if Sys.file_exists cTEST_OUTPUT then 
+        if Sys.file_exists cTEST_OUTPUT then
           ignore(Sys.command ("rm " ^ cTEST_OUTPUT));
-        if Sys.file_exists cFAIL_OUTPUT then 
+        if Sys.file_exists cFAIL_OUTPUT then
           ignore(Sys.command ("rm " ^ cFAIL_OUTPUT));
         ()
       in
