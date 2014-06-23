@@ -1,16 +1,17 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
+.PHONY: assertions
+
 all: compile
 
 assertions:
-	ocamlfind ocamlc -package qcheck -I util -a -o assertions.cma serializer.mli util/cli_constants.ml assertions.mli serializer.ml assertions.ml
-	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
-	rm serializer.cmi serializer.cmo
+	ocamlfind ocamlc -package qcheck -I assertions -I include -I util -a -o assertions/assertions.cma include/serializer.mli util/cli_constants.ml assertions/assertions.mli include/serializer.ml assertions/assertions.ml
+	mv assertions/assertions.cmi assertions/assertions.cmo assertions/assertions.cma ${STD_LIB}
+	rm include/serializer.cmi include/serializer.cmo
 
 compile:
-	corebuild -Is assertions,command,format,include,util main.native
-	mv main.native cs3110-staff
+	ocamlc -o cs3110-staff -I util -I format -I command str.cma unix.cma util/filepath_util.mli format/postscript.mli format/grades_table.mli command/cms.mli command/harness.mli command/smoke.mli util/cli_constants.ml util/io_util.ml util/filepath_util.ml util/process_util.ml format/postscript.ml format/grades_table.ml command/build.ml command/clean.ml command/cms.ml command/doc.ml command/diff.ml command/email.ml command/test.ml command/harness.ml command/run.ml command/smoke.ml command/stat.ml cs3110_cli.ml
 
 clean:
 	corebuild -clean
