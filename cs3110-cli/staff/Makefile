@@ -1,7 +1,7 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
-# wihtout the .PHONY, make thinks that the assertions target is built because an assertions folder exists
+# without the .PHONY, make thinks that the assertions target is built because an assertions folder exists
 .PHONY: assertions
 
 all: compile
