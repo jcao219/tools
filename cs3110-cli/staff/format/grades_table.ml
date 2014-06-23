@@ -26,24 +26,24 @@ type t = {
 
 let cSEPARATOR = ","
 
-  (* [make_title s] Convert [s] into something that'd go on to CMS *)
+(* [make_title s] Convert [s] into something that'd go on to CMS *)
 let make_title s = String.capitalize (fst (lsplit s '_'))
 
-  (* [add_row t netId scores_by_test] ALMOST adds data directly to the sheet.
-   * There is one preprocessing step: converted the bucketed [scores_by_test]
-   * to scores and totals *)
+(* [add_row t netId scores_by_test] ALMOST adds data directly to the sheet.
+ * There is one preprocessing step: converted the bucketed [scores_by_test]
+ * to scores and totals *)
 let add_row t netId scores_by_test =
-    (* Add padding to nocompiles *)
+  (* Add padding to nocompiles *)
   let scores_by_test =
     List.fold_right (fun (test_name,scores) acc ->
       let test_title = make_title test_name in
       begin match scores with
         | [] -> (* No compile *)
-            (* Find the number of test cases *)
+          (* Find the number of test cases *)
           let cases = List.fold_left (fun acc (name, cases) ->
             if test_title = name then cases else acc) [] t.test_cases_by_file
           in
-            (* Padding *)
+          (* Padding *)
           (test_title, (List.fold_left (fun acc _ -> 0 :: acc) [] cases)) :: acc
         | _::_ -> 
           (test_title, scores) :: acc
@@ -53,18 +53,18 @@ let add_row t netId scores_by_test =
   let v = (netId,scores_by_test) in
   { t with data = S.add v (S.remove v t.data) }
 
-  (* [init fname names_by_file] create a new spreadsheet named [fname]
-   * columns are:
-   * - one for each test case
-   * - totals for each test file *)
+(* [init fname names_by_file] create a new spreadsheet named [fname]
+ * columns are:
+ * - one for each test case
+ * - totals for each test file *)
 let init names_by_file : t = 
   {
     test_cases_by_file = List.map (fun (fname,cases) -> make_title fname, cases) names_by_file;
     data = S.empty;
   }
 
-  (** [init_read_header s cs] helper for initialization. Step through [s]
-      * by [cSEPARATOR], if capitalized, assume is test name. Otherwise assume is case *)
+(** [init_read_header s cs] helper for initialization. Step through [s]
+ * by [cSEPARATOR], if capitalized, assume is test name. Otherwise assume is case *)
 let rec init_read_header str acc_cases cases_by_name =
     (* Split the string *)
   let hd, tl = lsplit str cSEPARATOR.[0] in
@@ -81,34 +81,34 @@ let rec init_read_header str acc_cases cases_by_name =
     else (* Lowercase, it's a test case *)
       hd :: acc_cases, cases_by_name
   in
-    (* Choose whether to recurse or end *)
+  (* Choose whether to recurse or end *)
   if not (String.contains tl cSEPARATOR.[0])
   then cases' (* [acc_cases] should really be empty here *)
   else init_read_header tl acc' cases'
 
-  (* Parse exisiting spreadsheet for column names and values *)
+(* Parse exisiting spreadsheet for column names and values *)
 let init_from_file (fname : string) : t =
-    (* Open channel *)
+  (* Open channel *)
   let chn = open_in fname in
-    (* Read titles into a test-cases-by-file *)
+  (* Read titles into a test-cases-by-file *)
   let parsed_title = 
     try 
       List.rev (init_read_header (input_line chn) [] [])
     with End_of_file -> raise (Invalid_spreadsheet ("Error parsing spreadsheet. File is empty.\n"))
   in
   let parsed_lines =
-      (* Fold over lines *)
+    (* Fold over lines *)
     fold_in_channel (fun row_set line ->
       let netid, line = lsplit line cSEPARATOR.[0] in
-        (* Fold over test cases within line *)
+      (* Fold over test cases within line *)
       let scores_by_test = 
         List.rev (snd (List.fold_left (fun (line,acc) (name,cases) ->
-            (* Pull one score per case *)
+          (* Pull one score per case *)
           let line, scores =
             List.fold_left (fun (line, acc) _ ->
               let hd, tl = lsplit line cSEPARATOR.[0] in
               if hd = "" then
-                  (* Advance cursor *)
+                (* Advance cursor *)
                 tl, acc 
               else
                 try tl, (int_of_string hd) :: acc with Failure "int_of_string" -> 
@@ -130,12 +130,12 @@ let init_from_file (fname : string) : t =
     data = parsed_lines
   }
 
-  (* Print the spreadsheet *)
+(* Print the spreadsheet *)
 let write t filename =
   let chn = open_out filename in
-    (* Print header *)
+  (* Print header *)
   let () = output_string chn "NetID" in
-    (* Print test case names. Add totals at end of section *)
+  (* Print test case names. Add totals at end of section *)
   let () =
     List.iter (fun (test_name,cases) -> 
       let () = 
@@ -147,7 +147,7 @@ let write t filename =
     ) t.test_cases_by_file
   in
   let () = output_string chn (cSEPARATOR ^ "Total\n") in
-    (* Print data *)
+  (* Print data *)
   let () = 
     S.iter (fun (id,scores_by_test) ->
       let () = output_string chn id in (* print name *)

@@ -1,7 +1,7 @@
 open Cli_constants
 open Filepath_util
 
-(** [stat fname] read in the test results from [fname], create 
+(** Read in the test results from [fname], create 
  * a mapping of test names to #passes/#failures, print results
  * as a dump and as histograms *)
 let run (sheet_name : string) : unit =

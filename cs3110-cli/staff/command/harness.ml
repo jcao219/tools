@@ -46,7 +46,7 @@ let is_qcheck (msg : string) : bool =
   let stripped = snd (rsplit (fst (rsplit msg '(')) 'A') in
   stripped = "ssertions.QCheck_result" (* 'Qcheck_result' missing the Q *)
 
-(* Exract the number of test failures from a qcheck result string *)
+(* Extract the number of test failures from a qcheck result string *)
 let parse_num_failed (msg : string) : int =
   (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
   int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
