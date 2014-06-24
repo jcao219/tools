@@ -31,7 +31,7 @@ let get_comments (netid : string) : string =
 
 (** [run f] Parse the spreadsheet [f].
  * Save the columns denoted with capital letters (but not the overall total)
- * Add comments using [cOUTPUT_DIR]. *)
+ * Add comments using the files in [cOUTPUT_DIR]. *)
 let run (fname : string) : unit =
   let in_chn = open_in fname in
   let out_chn = open_out cCMS_FINAL in

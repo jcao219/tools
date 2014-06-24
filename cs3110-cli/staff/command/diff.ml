@@ -1,25 +1,37 @@
 open Cli_constants
 open Filepath_util
+  
+let diff_tmp = ".diff"
+let num_files_diffed = ref 0
 
-(** [diff ()] if any files under the [cNOCOMPILE_DIR] match a target,
- * perform a diff on the pre-and post submission. Record results in a csv file. *)
-let run (directories : string list) : unit =
-  let () = assert_file_exists cNOCOMPILE_DIR in
-  (* Space to store outputs *)
-  let diff_tmp = ".diff" in
-  (* maps netid -> dir, to make it easy to get new input from the 
-  * name of a previous no-compile *)
+let create_netid_map (directories : string list) =
   let netid_map = Hashtbl.create 27 in 
   let () = 
     List.iter (fun dir -> 
       Hashtbl.add netid_map (tag_of_path dir) dir
     ) (strip_trailing_slash_all directories) 
   in
-  let num_diffed = ref 0 in
+  netid_map
+
+(** [get_all_nocompiles ()] read the local directory of no compiles,
+ * [cNOCOMPILE_DIR], return all filenames in a sorted array. *)
+let get_all_nocompiles () : string array =
+  let arr = Sys.readdir cNOCOMPILE_DIR in
+  let () = Array.sort Pervasives.compare arr in
+  arr
+
+(** [diff ()] if any files under the [cNOCOMPILE_DIR] match a target,
+ * perform a diff on the pre-and post submission. Record results in a csv file. *)
+let run (directories : string list) : unit =
+  let () = assert_file_exists cNOCOMPILE_DIR in
+  let () = num_files_diffed := 0 in
+  (* Space to store outputs *)
+  (* maps netid -> dir, to make it easy to get new input from the 
+  * name of a previous no-compile *)
+  let netid_map = create_netid_map directories in
   let results_chn = open_out cDIFF_RESULTS in
   (* For each file in the nocompile folder, check if it has a match in [directories] *)
-  let all_nocompiles= Sys.readdir cNOCOMPILE_DIR in
-  let () = Array.sort Pervasives.compare all_nocompiles in
+  let all_nocompiles = get_all_nocompiles () in
   Array.iter (fun netid -> 
     if Hashtbl.mem netid_map netid then
       let dir = Hashtbl.find netid_map netid in
@@ -79,7 +91,7 @@ let run (directories : string list) : unit =
               (* done with repl *)
               let () = 
                 print_endline "Ok! ";
-                incr num_diffed
+                incr num_files_diffed
               in
               !user_input
           end
@@ -93,4 +105,4 @@ let run (directories : string list) : unit =
   (* Close up *)
   let () = ignore(Sys.command (Format.sprintf "rm -f %s" diff_tmp)) in
   let () = close_out results_chn in
-  Format.printf "Finished inputting decisions for %d files. See '%s' for results\n%!" (!num_diffed) cDIFF_RESULTS
+  Format.printf "Finished inputting decisions for %d files. See '%s' for results\n%!" (!num_files_diffed) cDIFF_RESULTS

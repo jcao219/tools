@@ -25,7 +25,7 @@ let smoke_compile_one (targets : string list) (dir_name : string) : unit =
   (* If there were failures, record an email message *)
   match !failed_targets with 
     | [] -> ()
-    | h::t -> 
+    | _::_ -> 
       let name = tag_of_path dir_name in 
       (* Write the email message *)
       (* 2014-01-09: Sorry, I'd love to save the email message at the *

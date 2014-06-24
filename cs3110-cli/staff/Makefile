@@ -1,24 +1,25 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
+# without the .PHONY, make thinks that the assertions target is built because an assertions folder exists
+.PHONY: assertions
+
 all: compile
 
 assertions:
-	ocamlfind ocamlc -package qcheck -I util -a -o assertions.cma serializer.mli util/cli_constants.ml assertions.mli serializer.ml assertions.ml
-	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
-	rm serializer.cmi serializer.cmo
+	corebuild -package qcheck -Is assertions,include,util assertions.cma
+	mv _build/assertions/assertions.cmi _build/assertions/assertions.cmo _build/assertions/assertions.cma ${STD_LIB}
 
 compile:
-	corebuild -Is assertions,command,format,include,util main.native
+	corebuild -Is command,format,include,util -libs str main.native
 	mv main.native cs3110-staff
 
 clean:
 	corebuild -clean
-	rm -rf _cms
 
 install: assertions compile link clean
 
-uninstall:
+uninstall: unlink
 	rm cs3110-staff
 	rm ${STD_LIB}/assertions.cmi
 	rm ${STD_LIB}/assertions.cmo
