@@ -9,7 +9,7 @@ assertions:
 	rm serializer.cmi serializer.cmo
 
 compile:
-	corebuild -Is command,include,assertions,util main.native
+	corebuild -Is util,assertions,format,include,command main.native
 	mv main.native cs3110-staff
 
 clean:
