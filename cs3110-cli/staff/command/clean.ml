@@ -16,7 +16,7 @@ let email () : unit =
 
 let harness () : unit =
   let _ = check_code (Sys.command (Format.sprintf "rm -rf %s" cCMS_DIR)) in
-  check_code (Sys.command (Format.sprintf "rm -rf %s" cOUTPUT_DIR))
+  check_code (Sys.command (Format.sprintf "rm -rf %s" cHARNESS_DIR))
 
 let smoke () : unit =
   let () = check_code (Sys.command (Format.sprintf "rm -rf %s" cEMAIL_DIR)) in
