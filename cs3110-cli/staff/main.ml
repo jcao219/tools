@@ -39,7 +39,7 @@ let () =
     | [ _; "clean"; "email" ] -> Clean.email ()
     | [ _; "clean"; "harness" ] -> Clean.harness ()
     | [ _; "clean"; "smoke" ] -> Clean.smoke ()
-    | [ _; "clean"; "all" ] -> Clean.all ()
+    | [ _; "clean"; "all" ] -> Clean.clean ()
     | [ _; "clean"; _ ] -> ()
     | [ _; "compile"; target ] -> check_code (Build.run (strip_suffix target))
     |  _ :: "diff" :: arg1 :: args ->
