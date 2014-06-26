@@ -19,7 +19,7 @@ let assert_ocamlbuild_friendly_filepath (path : string) : unit =
     raise (Invalid_filepath  err_msg)
 
 (** [build] compile [m] into a bytecode executable. Relies on ocamlbuild. *)
-let build run_quiet (main_module : string) (() : unit) : unit =
+let compile run_quiet (main_module : string) (() : unit) : unit =
   assert_ocamlbuild_friendly_filepath main_module;
   assert_file_exists (main_module ^ ".ml");
   let target = Format.sprintf "%s.d.byte" main_module in
@@ -56,7 +56,7 @@ let build run_quiet (main_module : string) (() : unit) : unit =
     libraries    @
     if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags))
 
-let build_command =
+let compile_command =
   Command.basic
     ~summary:"Compiles into a bytecode executable. Relies on ocamlbuild."
     ~readme:(fun () -> String.concat ~sep:"\n" [
@@ -70,7 +70,7 @@ let build_command =
       empty
       +> flag "-q" no_arg ~doc:"Run quietly."
       +> anon ("filename" %: file))
-    build
+    compile
 
-let run_build () =
-  Command.run ~version:"2.0" ~build_info:"Core" build_command
+let run_compile () =
+  Command.run ~version:"2.0" ~build_info:"Core" compile_command
