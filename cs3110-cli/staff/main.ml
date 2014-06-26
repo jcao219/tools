@@ -43,7 +43,10 @@ let () =
       Clean.clean ["build";"cms";"diff";"email";"harness";"smoke"] ()
     end
     | [ _; "clean"; _ ] -> ()
-    | [ _; "compile"; target ] -> check_code (Build.run (strip_suffix target))
+    | [ _; "compile"; target ] -> begin
+      (** Temporary fix to compile with the new interface *)
+      check_code (ignore (Build.build false (strip_suffix target) ()); 0)
+    end
     |  _ :: "diff" :: arg1 :: args ->
       if arg1.[0] = '@'
       then Diff.run (directories_of_list arg1)
