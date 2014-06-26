@@ -14,7 +14,7 @@ let find_compiling_implementation test_suite dirs : string option =
         let all_compile = List.fold_left (fun acc test_name ->
           acc && (let _ = Sys.command (Format.sprintf "cp %s ." test_name) in
                   (* TODO build is failing *)
-                  let exit_code = ignore (Build.build false (strip_suffix (snd (rsplit test_name '/')))); 0 in exit_code = 0)
+                  let exit_code = ignore (Compile.build false (strip_suffix (snd (rsplit test_name '/')))); 0 in exit_code = 0)
         ) true test_suite in
         let () = Sys.chdir cwd in
         if all_compile then Some new_dir else None
@@ -198,7 +198,7 @@ let run (test_dir : string) (directories : string list) : unit =
       in
       let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
       (** Temporary patch to comply with the new build interface *)
-      let exit_code = ignore (Build.build false test_name); 0 in
+      let exit_code = ignore (Compile.build false test_name); 0 in
       (* collect output for printing *)
       let part_scores, output_by_line =
         if exit_code <> 0 then

@@ -45,7 +45,7 @@ let () =
     | [ _; "clean"; _ ] -> ()
     | [ _; "compile"; target ] -> begin
       (** Temporary fix to compile with the new interface *)
-      check_code (ignore (Build.build false (strip_suffix target) ()); 0)
+      check_code (ignore (Compile.build false (strip_suffix target) ()); 0)
     end
     |  _ :: "diff" :: arg1 :: args ->
       if arg1.[0] = '@'
