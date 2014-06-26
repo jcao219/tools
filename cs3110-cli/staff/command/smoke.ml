@@ -16,7 +16,7 @@ let smoke_compile_one (targets : string list) (dir_name : string) : unit =
       let _ = Format.printf "'%s' not found\n%!" fname in
       failed_targets := target :: !failed_targets
     (** Temporary patch *)
-    else if (ignore (Compile.build false target); 0) <> 0 then
+    else if (ignore (Compile.compile false target); 0) <> 0 then
       failed_targets := target :: !failed_targets
   in
   let cwd = Sys.getcwd () in
