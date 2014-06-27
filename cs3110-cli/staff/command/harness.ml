@@ -11,6 +11,10 @@ let is_valid_test_file (fname : string) : bool =
   fname.[0] <> '.' &&
   is_suffix fname "_test.ml"
 
+(** [test_suite_of_directory dir] parse the directory [dir] for test files.
+ * It should only contain files with names like 'part1_test.ml'.
+ * Print a warning if any file has an unexpected name and ignores that file.
+ * Returns a [test_suite] of all valid test files. *)
 let test_suite_of_directory (test_dir : string) : test_suite =
   Array.fold_right (fun fname suite ->
     (* Check for dotfiles *)
