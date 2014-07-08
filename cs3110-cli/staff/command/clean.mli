@@ -1,4 +1,4 @@
-val build : unit -> unit
+val compile : unit -> unit
 val diff : unit -> unit
 val email : unit -> unit
 val harness : unit -> unit

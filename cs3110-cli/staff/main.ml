@@ -36,7 +36,7 @@ let () =
     | [ _; "help" ]  -> help ()
     | [ _; "clean"; ]
     | [ _; "clean"; "all" ] -> begin
-      Clean.clean ["build";"cms";"diff";"email";"harness";"smoke"] ()
+      Clean.clean ["compile";"cms";"diff";"email";"harness";"smoke"] ()
     end
     | _ :: "clean" :: args -> Clean.clean args ()
     | [ _; "clean"; _ ] -> ()
