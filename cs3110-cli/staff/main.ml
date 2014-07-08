@@ -34,12 +34,11 @@ let () =
   try
     match Array.to_list Sys.argv with
     | [ _; "help" ]  -> help ()
-    | [ _; "clean"; ]
+    | [ _; "clean"; ] -> Clean.clean ["compile"] ()
     | [ _; "clean"; "all" ] -> begin
       Clean.clean ["compile";"cms";"diff";"email";"harness";"smoke"] ()
     end
     | _ :: "clean" :: args -> Clean.clean args ()
-    | [ _; "clean"; _ ] -> ()
     | [ _; "compile"; target ] -> check_code (Build.run (strip_suffix target))
     |  _ :: "diff" :: arg1 :: args ->
       if arg1.[0] = '@'
