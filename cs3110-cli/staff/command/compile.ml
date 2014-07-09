@@ -11,15 +11,16 @@ let assert_ocamlbuild_friendly_filepath (path : string) : unit =
     try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
     with Not_found -> false in
   if (String.contains path '~' || path.[0] = '/' || is_relative)
-  then
+  then begin
     let err_msg = String.concat ~sep:" " [
-                                  "Must call cs3110 from the project root.";
-                                  "Absolute or relative paths are not allowed.";
-                                ] in
+      "Must call cs3110 from the project root.";
+      "Absolute or relative paths are not allowed.";
+    ] in
     raise (Invalid_filepath  err_msg)
+  end
 
 (** [build] compile [m] into a bytecode executable. Relies on ocamlbuild. *)
-let compile run_quiet (main_module : string) (() : unit) : unit =
+let compile run_quiet (main_module : string) : unit =
   assert_ocamlbuild_friendly_filepath main_module;
   assert_file_exists (main_module ^ ".ml");
   let target = Format.sprintf "%s.d.byte" main_module in
@@ -56,21 +57,19 @@ let compile run_quiet (main_module : string) (() : unit) : unit =
     libraries    @
     if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags))
 
-let compile_command =
+let command =
   Command.basic
     ~summary:"Compiles into a bytecode executable. Relies on ocamlbuild."
     ~readme:(fun () -> String.concat ~sep:"\n" [
-      "The build command is a wrapper for the ocamlbuild tool. It takes the";
-      "input file, resolves it's dependencies and compiles to a bytecode";
+      "The compile command is a wrapper for the ocamlbuild tool. It takes the";
+      "input file, resolves dependencies, and compiles to a bytecode";
       "executable file. The object files produced during compilation are placed";
-      "in a directory [_build], which will be created, if not already present,";
+      "in a directory [_build], which will be created (if not already present)";
       "in the current working directory."
     ])
     Command.Spec.(
       empty
       +> flag "-q" no_arg ~doc:"Run quietly."
-      +> anon ("filename" %: file))
-    compile
+      +> anon ("filename" %: string))
+    (fun target () -> compile target)
 
-let run_compile () =
-  Command.run ~version:"2.0" ~build_info:"Core" compile_command
