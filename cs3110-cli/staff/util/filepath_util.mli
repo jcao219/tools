@@ -19,6 +19,8 @@ val rsplit : string -> char -> string * string
 
 val starts_with : string -> string -> bool
 
+val is_suffix : string -> string -> bool
+
 val strip_suffix : string -> string
 
 val strip_trailing_slash : string -> string

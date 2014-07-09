@@ -2,8 +2,32 @@ open Cli_constants
 open Io_util
 open Filepath_util
 
+type test = { name : string; absolute_path : string }
+type test_suite = test list
+
+(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  String.length fname <> 0 &&
+  fname.[0] <> '.' &&
+  is_suffix fname "_test.ml"
+
+(** [test_suite_of_directory dir] parse the directory [dir] for test files.
+ * It should only contain files with names like 'part1_test.ml'.
+ * Print a warning if any file has an unexpected name and ignores that file.
+ * Returns a [test_suite] of all valid test files. *)
+let test_suite_of_directory (test_dir : string) : test_suite =
+  Array.fold_right (fun fname suite ->
+    (* Check for dotfiles *)
+    if is_valid_test_file fname then
+      let t = { name=strip_suffix fname; absolute_path=test_dir^"/"^fname } in
+      t :: suite
+    else
+      let () = Format.printf "WARNING: skipping invalid test file '%s' in test folder '%s/'\n%!" fname test_dir in
+      suite
+  ) (Sys.readdir test_dir) []
+
 (* Search all directories for one that passes all tests *)
-let find_compiling_implementation test_suite dirs : string option =
+let find_compiling_implementation (ts : test_suite) dirs : string option =
   let cwd = Sys.getcwd () in
   List.fold_left (fun dir_opt new_dir ->
     match dir_opt with
@@ -11,11 +35,10 @@ let find_compiling_implementation test_suite dirs : string option =
       | None -> (* Go to student's folder, copy in the tests, compile each, check output *)
         let () = Sys.chdir new_dir in
           (* Copy the tests over, compile  each *)
-        let all_compile = List.fold_left (fun acc test_name ->
-          acc && (let _ = Sys.command (Format.sprintf "cp %s ." test_name) in
-                  (* TODO build is failing *)
-                  let exit_code = ignore (Compile.compile false (strip_suffix (snd (rsplit test_name '/')))); 0 in exit_code = 0)
-        ) true test_suite in
+        let all_compile = List.fold_left (fun acc test ->
+          acc && (let _ = Sys.command (Format.sprintf "cp %s ." test.absolute_path) in
+                  let exit_code = Build.run test.name in exit_code = 0)
+        ) true ts in
         let () = Sys.chdir cwd in
         if all_compile then Some new_dir else None
   ) None dirs
@@ -23,21 +46,20 @@ let find_compiling_implementation test_suite dirs : string option =
 (** [find_all_test_names t i] using compiling implementation [i], collect
  * the names of all tests in the suite [t] *)
 (* TODO does not work in isolation *)
-let find_all_test_names test_names impl =
+let find_all_test_names (ts : test_suite) impl =
   let cwd = Sys.getcwd () in
   let () = Sys.chdir impl in
-  let names = List.rev (List.fold_left (fun all_names test_file_full ->
-    let test_file = strip_suffix test_file_full in
+  let names = List.rev (List.fold_left (fun all_names test ->
     (* Run the test to print names *)
-    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test_file cTEST_OUTPUT in
+    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test.name cTEST_OUTPUT in
     let _ = Sys.command cmd in
     (* Generated file contains one line per unit test *)
     let names = List.rev (List.fold_left (fun acc line ->
       let name = test_name_of_line line in
       name :: acc
     ) [] (read_lines (open_in cTEST_OUTPUT))) in
-    (test_file , names) :: all_names
-  ) [] test_names) in
+    (test.name , names) :: all_names
+  ) [] ts) in
   let () = Sys.chdir cwd in
   names
 
@@ -46,7 +68,7 @@ let is_qcheck (msg : string) : bool =
   let stripped = snd (rsplit (fst (rsplit msg '(')) 'A') in
   stripped = "ssertions.QCheck_result" (* 'Qcheck_result' missing the Q *)
 
-(* Exract the number of test failures from a qcheck result string *)
+(* Extract the number of test failures from a qcheck result string *)
 let parse_num_failed (msg : string) : int =
   (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
   int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
@@ -132,22 +154,13 @@ let harness_sanitize_src (fname : string) : unit =
 let run (test_dir : string) (directories : string list) : unit =
   let cwd = Sys.getcwd () in
   let directories = strip_trailing_slash_all directories in
-  (* [test_suite] is a list of files containing tests.
-   * 2014-03-22: Maybe someday this should be a module. *)
-  let test_names,test_abs_paths =
-    Array.fold_right (fun fname (a1,a2) ->
-      (* Check for dotfiles *)
-      if String.length fname = 0 || fname.[0] = '.' then
-        let () = Format.printf "WARNING: skipping empty/dotfile file in test folder '%s/%s'\n%!" test_dir fname in
-        (a1, a2)
-      else
-        ((strip_suffix fname)::a1, (test_dir^"/"^fname)::a2)
-    ) (Sys.readdir test_dir) ([],[]) in
-  let good_student = match find_compiling_implementation test_abs_paths directories with
+  let test_suite = test_suite_of_directory test_dir in
+  let good_student = match find_compiling_implementation test_suite directories with
     | Some dir -> dir
     | None -> let () = Format.printf "Error: could not find compiling implementation. Cannot create spreadsheet (but I guess you don't need one).\nExiting...\n" in exit(1)
   in
-  let test_names_by_file = find_all_test_names test_names good_student in
+  (* collect the names of every unit test in every file *)
+  let test_names_by_file = find_all_test_names test_suite good_student in
   (* Initialize spreadsheet for CMS *)
   let sheet =
     if Sys.file_exists cCMS_FNAME
@@ -166,11 +179,11 @@ let run (test_dir : string) (directories : string list) : unit =
     let () = Format.printf "\n## Running tests for '%s' ##\n%!" netid in
     let () = output_string txt_chn (Format.sprintf "## Automated test results for %s ##\n" netid) in
     (* Build and run *)
-    let scores_by_test = List.rev (List.fold_left (fun scores test_name ->
+    let scores_by_test = List.rev (List.fold_left (fun scores test ->
       (* Prepare postscript document *)
       let ps_doc =
-        let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd cOUTPUT_DIR netid test_name in
-        let title = Format.sprintf "%s\t\t%s.ml" netid test_name in
+        let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd cOUTPUT_DIR netid test.name in
+        let title = Format.sprintf "%s\t\t%s.ml" netid test.name in
         Postscript.init fname title
       in
       (* copy source file, print header in ps stream *)
@@ -178,7 +191,7 @@ let run (test_dir : string) (directories : string list) : unit =
         Postscript.set_font ps_doc Postscript.Header;
         (* Copy source to postscript. Obtaining source is a hack, but it's not fatal if it fails *)
         let _ =
-          let src_fname = Format.sprintf "%s.ml" (fst (rsplit test_name '_')) in
+          let src_fname = Format.sprintf "%s.ml" (fst (rsplit test.name '_')) in
           if not (Sys.file_exists src_fname) then
             Postscript.write ps_doc "SOURCE NOT FOUND\n"
           else begin
@@ -194,18 +207,17 @@ let run (test_dir : string) (directories : string list) : unit =
             ) (read_lines (open_in src_fname))
           end
         in
-        output_string txt_chn (Format.sprintf "### %s ###\n" test_name)
+        output_string txt_chn (Format.sprintf "### %s ###\n" test.name)
       in
-      let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test_name) in
-      (** Temporary patch to comply with the new build interface *)
-      let exit_code = ignore (Compile.compile false test_name); 0 in
+      let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test.name) in
+      let exit_code = Build.run test.name in
       (* collect output for printing *)
       let part_scores, output_by_line =
         if exit_code <> 0 then
           [], ["NO COMPILE"]
         else begin
           (* Run tests, organize output *)
-          let _ = Test.test_logging_errors test_name in
+          let _ = Test.test_logging_errors test.name in
           harness_collect_output ()
         end
       in
@@ -233,15 +245,15 @@ let run (test_dir : string) (directories : string list) : unit =
       (* Remove generated files *)
       let () =
         (* 2014-01-19: Removing tests so they don't screw with reverse harness *)
-        ignore(Sys.command (Format.sprintf "rm %s.ml" test_name));
+        ignore(Sys.command (Format.sprintf "rm %s.ml" test.name));
         if Sys.file_exists cTEST_OUTPUT then
           ignore(Sys.command ("rm " ^ cTEST_OUTPUT));
         if Sys.file_exists cFAIL_OUTPUT then
           ignore(Sys.command ("rm " ^ cFAIL_OUTPUT));
         ()
       in
-      (test_name, part_scores) :: scores
-    ) [] test_names) in
+      (test.name, part_scores) :: scores
+    ) [] test_suite) in
     (* Finished with one student. *)
     let () = close_out txt_chn in
     let () = Sys.chdir cwd in
