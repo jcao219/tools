@@ -15,6 +15,8 @@ let cLIB_FILE = "./.libs"
 let cNOCOMPILE_DIR = "./_nocompile"
 let cOPAM_PACKAGES_FILE = "./.opam_packages"
 let cOUTPUT_DIR = "./_output"
+(** Alias for [cOUTPUT_DIR] used in clean. *)
+let cHARNESS_DIR = cOUTPUT_DIR
 let cSMOKE_TARGETS = "./smoke_test"
 (* std_opam_packages may NOT be empty! Need pa_ounit, at least, to compile *)
 let cSTD_OPAM_PACKAGES = ["pa_ounit.syntax"; "oUnit"; "pa_ounit"; "qcheck"]

@@ -11,7 +11,7 @@ assertions:
 	mv _build/assertions/assertions.cmi _build/assertions/assertions.cmo _build/assertions/assertions.cma ${STD_LIB}
 
 compile:
-	corebuild -Is command,format,include,util -libs str main.native
+	corebuild -lib str -Is util,format,command main.native
 	mv main.native cs3110-staff
 
 clean:
