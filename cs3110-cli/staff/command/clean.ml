@@ -49,9 +49,10 @@ let command =
     ~summary:"Removes all of the files generated during compilation."
     ~readme:(fun () -> String.concat ~sep:"\n" [
       "The clean command removes all of the automatically generated files and";
-      "directories of the cs3110 tool. You can pass a sequence of targets for";
-      "cleaning.";
+      "directories of the cs3110 tool.";
       targets_readme
     ])
-    Command.Spec.(empty +> anon (maybe_with_default "compile" ("<target>" %: string)))
+    Command.Spec.(
+      empty +>
+      anon (maybe_with_default "compile" ("<target>" %: string)))
     (fun target () -> clean target)
