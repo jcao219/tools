@@ -9,36 +9,44 @@ open Process_util
 let assert_ocamlbuild_friendly_filepath (path : string) : unit =
   let is_relative =
     try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
-    with Not_found -> false in
-  if (String.contains path '~' || path.[0] = '/' || is_relative)
-  then begin
-    let err_msg = String.concat ~sep:" " [
-      "Must call cs3110 from the project root.";
-      "Absolute or relative paths are not allowed.";
-    ] in
-    raise (Invalid_filepath  err_msg)
+    with Not_found -> false
+  in
+  let is_absolute = String.contains path '~' || path.[0] = '/' in
+  if (is_absolute || is_relative)
+  then raise (Invalid_filepath "Must call cs3110 from the project root. Absolute or relative paths are not allowed.")
+
+(* TODO change these constants *)
+let get_dependencies () : string list =
+  begin match Sys.file_exists cDEPEND_FILE with
+    | `No  | `Unknown -> []
+    | `Yes            -> ["-Is"; csv_of_file cDEPEND_FILE]
+  end
+
+let get_libraries () : string list =
+  begin match Sys.file_exists cLIB_FILE with
+    | `No  | `Unknown -> ["-libs"; "assertions"]
+    | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE]
+  end
+
+let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
+  begin match Sys.file_exists cOPAM_PACKAGES_FILE with
+    | `No  | `Unknown -> []
+    | `Yes            -> read_lines (open_in cOPAM_PACKAGES_FILE)
   end
 
 (** [build] compile [m] into a bytecode executable. Relies on ocamlbuild. *)
-let compile run_quiet (main_module : string) : unit =
-  assert_ocamlbuild_friendly_filepath main_module;
-  assert_file_exists (main_module ^ ".ml");
-  let target = Format.sprintf "%s.d.byte" main_module in
-  let () = Format.printf "Compiling '%s.ml'\n%!" main_module in
-  let dependencies = match Sys.file_exists cDEPEND_FILE with
-    | `No  | `Unknown -> []
-    | `Yes            -> ["-Is"; csv_of_file cDEPEND_FILE] in
-  let libraries = match Sys.file_exists cLIB_FILE with
-    | `No  | `Unknown -> ["-libs"; "assertions"]
-    | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE] in
-  let all_opam_packages = cSTD_OPAM_PACKAGES @
-    match Sys.file_exists cOPAM_PACKAGES_FILE with
-    | `No  | `Unknown -> []
-    | `Yes            -> read_lines (open_in cOPAM_PACKAGES_FILE) in
+let compile (run_quiet:bool) (main_module : string) : unit =
+  let () =
+    assert_ocamlbuild_friendly_filepath main_module;
+    assert_file_exists (main_module ^ ".ml");
+    Format.printf "Compiling '%s.ml'\n%!" main_module
+  in
   let opam_packages_str =
     String.concat ~sep:", "
-                  (List.map all_opam_packages
-                            ~f:(Format.sprintf "package(%s)")) in
+                  (List.map (get_opam_packages ())
+                            ~f:(Format.sprintf "package(%s)"))
+  in
+  let target = Format.sprintf "%s.d.byte" main_module in
   let ocamlbuild_flags =  [
     "-cflag";
     "-warn-error";
@@ -53,8 +61,8 @@ let compile run_quiet (main_module : string) : unit =
     target
   ] in
   check_code (run_process "ocamlbuild" (
-    dependencies @
-    libraries    @
+    (get_dependencies ()) @
+    (get_libraries ())    @
     if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags))
 
 let command =
@@ -71,5 +79,4 @@ let command =
       empty
       +> flag "-q" no_arg ~doc:"Run quietly."
       +> anon ("filename" %: string))
-    (fun target () -> compile target)
-
+    (fun quiet target () -> compile quiet target)
