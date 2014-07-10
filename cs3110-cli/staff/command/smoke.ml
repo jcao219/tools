@@ -16,7 +16,7 @@ let smoke_compile_one (targets : string list) (dir_name : string) : unit =
       let _ = Format.printf "'%s' not found\n%!" fname in
       failed_targets := target :: !failed_targets
     (** Temporary patch *)
-    else if (ignore (Compile.compile false target); 0) <> 0 then
+    else if (Compile.compile false target) <> 0 then
       failed_targets := target :: !failed_targets
   in
   let cwd = Sys.getcwd () in
@@ -29,8 +29,9 @@ let smoke_compile_one (targets : string list) (dir_name : string) : unit =
     | _::_ -> 
       let name = tag_of_path dir_name in 
       (* Write the email message *)
-      (* 2014-01-09: Sorry, I'd love to save the email message at the *
-       * top of this file, but that's not allowed for format strings. *)
+      (* 2014-01-09: Sorry, I'd love to save the email message at the
+       * top of this file, but that's not allowed for format strings. 
+       * 2014-07-10: Hey Ben, you're dumb. Ever heard of functions? *)
       let message = Format.sprintf "Dear %s, \n\
 \n\
 The following files from your CMS submission were either missing or failed to compile via `cs3110 compile` \n\

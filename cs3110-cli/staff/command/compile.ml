@@ -35,7 +35,7 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
   end
 
 (** [build] compile [m] into a bytecode executable. Relies on ocamlbuild. *)
-let compile (run_quiet:bool) (main_module : string) : unit =
+let compile (run_quiet:bool) (main_module : string) : int =
   let () =
     assert_ocamlbuild_friendly_filepath main_module;
     assert_file_exists (main_module);
@@ -63,10 +63,10 @@ let compile (run_quiet:bool) (main_module : string) : unit =
     "-tag-line"; "<*.native> : " ^ opam_packages_str;
     target
   ] in
-  check_code (run_process "ocamlbuild" (
+  run_process "ocamlbuild" (
     (get_dependencies ()) @
     (get_libraries ())    @
-    if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags))
+    if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags)
 
 let command =
   Command.basic
@@ -82,4 +82,4 @@ let command =
       empty
       +> flag "-q" no_arg ~doc:"Run quietly."
       +> anon ("filename" %: string))
-    (fun quiet target () -> compile quiet target)
+    (fun quiet target () -> check_code (compile quiet target))
