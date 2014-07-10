@@ -38,20 +38,23 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
 let compile (run_quiet:bool) (main_module : string) : unit =
   let () =
     assert_ocamlbuild_friendly_filepath main_module;
-    assert_file_exists (main_module ^ ".ml");
-    Format.printf "Compiling '%s.ml'\n%!" main_module
+    assert_file_exists (main_module);
+    Format.printf "Compiling '%s'\n%!" main_module
   in
   let opam_packages_str =
     String.concat ~sep:", "
                   (List.map (get_opam_packages ())
                             ~f:(Format.sprintf "package(%s)"))
   in
-  let target = Format.sprintf "%s.d.byte" main_module in
+  let target = Format.sprintf "%s.d.byte" (strip_suffix main_module) in
   let ocamlbuild_flags =  [
     "-cflag";
     "-warn-error";
     "-cflag";
     "+a";                       (* treat the default warnings as errors *)
+    "-cflag";
+    "-w";
+    "-cflag";
     "A-4-33-40-41-42-43-34-44"; (* Jane street's warnings as errors *)
     "-use-ocamlfind";
     "-no-links";
