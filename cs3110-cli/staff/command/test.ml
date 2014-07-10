@@ -1,5 +1,6 @@
-open Cli_constants
 open Filepath_util
+
+let cfg = Config.init ()
 
 (* The general form of the test command *)
 let test_parameterized (main_module : string) (output : string) : int =
@@ -8,11 +9,11 @@ let test_parameterized (main_module : string) (output : string) : int =
   let cmd = Format.sprintf "%s inline-test-runner dummy -log %s" exec output in
   Sys.command cmd
 
-(* Redirects stderr to stdout's destination, changes stdout's 
+(* Redirects stderr to stdout's destination, changes stdout's
  * destination to null, saves the error messages to a file *)
 let test_logging_errors (main_module :string) : int =
   (* 2014-01-11: Steals only the first line of output for each error *)
-  let dest = "2>& 1>/dev/null | grep '^File' > " ^ cFAIL_OUTPUT in
+  let dest = "2>& 1>/dev/null | grep '^File' > " ^ cfg.harness.temporary_failures_file in
   test_parameterized main_module dest
 
 let test_quiet (main_module : string) =
@@ -24,4 +25,3 @@ let test_quiet (main_module : string) =
  * This is the default and preferred way of running test. *)
 let test (main_module : string) : int =
   test_quiet main_module
-

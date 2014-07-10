@@ -1,4 +1,3 @@
-open Cli_constants
 open Core.Std
 open Process_util
 
@@ -13,17 +12,19 @@ let targets_readme = String.concat ~sep:"\n" [
   "  smoke    removes [_email] and [_nocompile] directories";
   ]
 
-let compile_cmd : string = "ocamlbuild -clean"
+let cfg = Config.init ()
 
-let cms_cmd : string = Format.sprintf "rm -f %s" cCMS_DIR
+let compile_cmd : string = Format.sprintf "ocamlbuild -build-dir %s -clean" cfg.compile.output_directory
 
-let diff_cmd : string = Format.sprintf "rm -f %s" cDIFF_RESULTS
+let cms_cmd : string = Format.sprintf "rm -f %s" cfg.cms.output_directory
 
-let email_cmd : string = Format.sprintf "rm -rf %s" cEMAIL_DIR
+let diff_cmd : string = Format.sprintf "rm -f %s" cfg.diff.output_directory
 
-let harness_cmd : string = Format.sprintf "%s; rm -rf %s" cms_cmd cHARNESS_DIR
+let email_cmd : string = Format.sprintf "rm -rf %s" cfg.email.output_directory
 
-let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cNOCOMPILE_DIR
+let harness_cmd : string = Format.sprintf "%s; rm -rf %s" cms_cmd cfg.harness.output_directory
+
+let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cfg.smoke.nocompile_directory
 
 let command_not_found (target : string) : string =
   let () = Printf.printf "Invalid option: %s\n%s\n" target targets_readme in

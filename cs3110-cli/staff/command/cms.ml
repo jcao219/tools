@@ -1,40 +1,41 @@
-open Cli_constants
 open Filepath_util
 open Io_util
 
 exception Invalid_spreadsheet of string
 
-(* [get_columns s] Collect the capitalized columns from the string [s]. 
+let cfg = Config.init ()
+
+(* [get_columns s] Collect the capitalized columns from the string [s].
  * Ignore the CMS-specific [Totals] column. *)
 let get_columns (s : string) : string list * int list =
   (* Split line by comma, fold over titles *)
   begin match Str.split (Str.regexp ",") s with
     | [] -> raise (Invalid_spreadsheet "Cannot generate grades table from empty sheet.")
     | "NetID"::tail ->
-      let titles, indices, _ = 
+      let titles, indices, _ =
         List.fold_left (fun (ts,is,i) title ->
           let t_code = Char.code title.[0] in
           if (Char.code 'A' <= t_code) && (t_code <= Char.code 'Z') && (title <> "Total")
           then (title :: ts, i::is, i+1)
           else (ts,is,i+1)
-        ) (["NetID"],[],1) tail 
+        ) (["NetID"],[],1) tail
       in
       (List.rev ("Add Comments" :: titles)), List.rev indices
     | _::_ -> raise (Invalid_spreadsheet "First column MUST be 'NetID'")
   end
 
 let get_comments (netid : string) : string =
-  let fname = Format.sprintf "%s/%s.md" cOUTPUT_DIR netid in
+  let fname = Format.sprintf "%s/%s.md" cfg.harness.output_directory netid in
   if (Sys.file_exists fname)
   then (",\"" ^ (String.concat " \n " (read_lines (open_in fname))) ^ "\"")
   else ","
 
 (** [run f] Parse the spreadsheet [f].
  * Save the columns denoted with capital letters (but not the overall total)
- * Add comments using the files in [cOUTPUT_DIR]. *)
+ * Add comments using the files in the harness's output directory. *)
 let run (fname : string) : unit =
   let in_chn = open_in fname in
-  let out_chn = open_out cCMS_FINAL in
+  let out_chn = open_out cfg.cms.output_spreadsheet in
   (* Get titles from first line *)
   let columns, indices = get_columns (input_line in_chn) in
   Format.printf "INDICES = [%s]\n" (String.concat "; " (List.map string_of_int indices));
@@ -62,4 +63,4 @@ let run (fname : string) : unit =
     in
     let () = output_string out_chn (get_comments netid) in
     output_string out_chn "\n"
-  ) () in_chn 
+  ) () in_chn

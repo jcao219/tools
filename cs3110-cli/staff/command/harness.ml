@@ -5,6 +5,8 @@ open Filepath_util
 type test = { name : string; absolute_path : string }
 type test_suite = test list
 
+let cfg = Config.init ()
+
 (** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
 let is_valid_test_file (fname : string) : bool =
   String.length fname <> 0 &&
@@ -51,13 +53,13 @@ let find_all_test_names (ts : test_suite) impl =
   let () = Sys.chdir impl in
   let names = List.rev (List.fold_left (fun all_names test ->
     (* Run the test to print names *)
-    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test.name cTEST_OUTPUT in
+    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test.name cfg.harness.temporary_results_file in
     let _ = Sys.command cmd in
     (* Generated file contains one line per unit test *)
     let names = List.rev (List.fold_left (fun acc line ->
       let name = test_name_of_line line in
       name :: acc
-    ) [] (read_lines (open_in cTEST_OUTPUT))) in
+    ) [] (read_lines (open_in cfg.harness.temporary_results_file))) in
     (test.name , names) :: all_names
   ) [] ts) in
   let () = Sys.chdir cwd in
@@ -84,8 +86,8 @@ let failure_message (test_name : string) (error_message : string) : string =
 let harness_collect_output () : int list * string list =
   (* Make sure output was generated.
    * Need to manipulate these files *)
-  let () = assert_file_exists cTEST_OUTPUT in
-  let () = assert_file_exists cFAIL_OUTPUT in
+  let () = assert_file_exists cfg.harness.temporary_results_file in
+  let () = assert_file_exists cfg.harness.temporary_failures_file in
   (* OKAY, things are a little confusing here.
    * There are 2 files of interest:
    *   [test_output], containing names of tests, and
@@ -103,7 +105,7 @@ let harness_collect_output () : int list * string list =
   let () = List.iter (fun line ->
     let name = test_name_of_line line in
     Hashtbl.add errors_by_name name line
-  ) (read_lines (open_in cFAIL_OUTPUT)) in
+  ) (read_lines (open_in cfg.harness.temporary_failures_file)) in
   (* Step 2: Collect pretty output. Returns a TUPLE. *)
   List.fold_right (fun line (ints,strs) ->
     let name = snd (rsplit line ':') in
@@ -112,9 +114,9 @@ let harness_collect_output () : int list * string list =
       let err_msg = Hashtbl.find errors_by_name name in
       if is_qcheck err_msg then
         (* Is qcheck. May be success. *)
-        let score = cNUM_QCHECK - parse_num_failed err_msg in
+        let score = cfg.harness.quickcheck_count - parse_num_failed err_msg in
         let msg =
-          if score = cNUM_QCHECK
+          if score = cfg.harness.quickcheck_count
           then success_message name
           else failure_message name err_msg
         in
@@ -127,7 +129,7 @@ let harness_collect_output () : int list * string list =
       (* Passed *)
       let msg = success_message name in
       (1::ints, msg::strs)
-  ) (read_lines (open_in cTEST_OUTPUT)) ([],[])
+  ) (read_lines (open_in cfg.harness.temporary_results_file)) ([],[])
 
 (** [harness_sanitize_fname str] Check whether the file named [str] contains
  * any unit tests. If so, prompt the user to edit the file. Re-prompt until
@@ -163,8 +165,8 @@ let run (test_dir : string) (directories : string list) : unit =
   let test_names_by_file = find_all_test_names test_suite good_student in
   (* Initialize spreadsheet for CMS *)
   let sheet =
-    if Sys.file_exists cCMS_FNAME
-    then Grades_table.init_from_file cCMS_FNAME
+    if Sys.file_exists cfg.harness.output_spreadsheet
+    then Grades_table.init_from_file cfg.harness.output_spreadsheet
     else Grades_table.init test_names_by_file
   in
   (* For each implementation to test, copy in the tests, build, and run. *)
@@ -172,7 +174,7 @@ let run (test_dir : string) (directories : string list) : unit =
   let sheet = List.fold_left (fun sheet dir ->
     (* Prepare for testing *)
     let netid = tag_of_path dir in
-    let txt_fname = Format.sprintf "./%s/%s.md" cOUTPUT_DIR netid in
+    let txt_fname = Format.sprintf "./%s/%s.md" cfg.harness.output_comments_directory netid in
     let txt_chn = open_out txt_fname in
     (* Change into student dir for testing, print titles *)
     let () = Sys.chdir dir in
@@ -182,7 +184,7 @@ let run (test_dir : string) (directories : string list) : unit =
     let scores_by_test = List.rev (List.fold_left (fun scores test ->
       (* Prepare postscript document *)
       let ps_doc =
-        let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd cOUTPUT_DIR netid test.name in
+        let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd cfg.harness.output_comments_directory netid test.name in
         let title = Format.sprintf "%s\t\t%s.ml" netid test.name in
         Postscript.init fname title
       in
@@ -246,10 +248,10 @@ let run (test_dir : string) (directories : string list) : unit =
       let () =
         (* 2014-01-19: Removing tests so they don't screw with reverse harness *)
         ignore(Sys.command (Format.sprintf "rm %s.ml" test.name));
-        if Sys.file_exists cTEST_OUTPUT then
-          ignore(Sys.command ("rm " ^ cTEST_OUTPUT));
-        if Sys.file_exists cFAIL_OUTPUT then
-          ignore(Sys.command ("rm " ^ cFAIL_OUTPUT));
+        if Sys.file_exists cfg.harness.temporary_results_file then
+          ignore(Sys.command ("rm " ^ cfg.harness.temporary_results_file));
+        if Sys.file_exists cfg.harness.temporary_failures_file then
+          ignore(Sys.command ("rm " ^ cfg.harness.temporary_failures_file));
         ()
       in
       (test.name, part_scores) :: scores
@@ -260,4 +262,4 @@ let run (test_dir : string) (directories : string list) : unit =
     (* Carry new sheet onto next iteration *)
     Grades_table.add_row sheet netid scores_by_test
   ) sheet directories in
-  Grades_table.write sheet cCMS_FNAME
+  Grades_table.write sheet cfg.harness.output_spreadsheet
