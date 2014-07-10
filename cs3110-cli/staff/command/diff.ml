@@ -1,4 +1,3 @@
-open Cli_constants
 open Filepath_util
 
 let cfg = Config.init ()

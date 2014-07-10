@@ -1,4 +1,3 @@
-open Cli_constants
 open Filepath_util
 
 (** Read in the test results from [fname], create 

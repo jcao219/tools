@@ -1,4 +1,3 @@
-open Cli_constants
 open Io_util
 
 exception File_not_found of string
