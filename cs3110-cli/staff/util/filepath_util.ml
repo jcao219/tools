@@ -1,6 +1,9 @@
 open Cli_constants
 open Io_util
 
+exception File_not_found of string
+exception Invalid_filepath of string
+
 (** [absolute_path f] Prepend the current working directory to
  * the filepath [f] *)
 let absolute_path (f : string) =

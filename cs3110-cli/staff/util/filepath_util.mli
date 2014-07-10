@@ -1,3 +1,6 @@
+exception File_not_found of string
+exception Invalid_filepath of string
+
 val absolute_path : string -> string
 
 val assert_file_exists : string -> unit
