@@ -16,26 +16,32 @@ let assert_ocamlbuild_friendly_filepath (path : string) : unit =
   then raise (Invalid_filepath "Must call cs3110 from the project root. Absolute or relative paths are not allowed.")
 
 (* TODO change these constants *)
+(** [get_dependencies ()] read in config file,
+    return list of folders to search recursively during compilation. *)
 let get_dependencies () : string list =
   begin match Sys.file_exists cDEPEND_FILE with
     | `No  | `Unknown -> []
     | `Yes            -> ["-Is"; csv_of_file cDEPEND_FILE]
   end
-
+(** [get_libraries ()] read config file,
+    return list of OCaml libraries to include during compilation. *)
 let get_libraries () : string list =
   begin match Sys.file_exists cLIB_FILE with
     | `No  | `Unknown -> ["-libs"; "assertions"]
     | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE]
   end
 
+(** [get_opam_packages ()] read config file,
+    return list of opam packages to include during compilation. *)
 let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
   begin match Sys.file_exists cOPAM_PACKAGES_FILE with
     | `No  | `Unknown -> []
     | `Yes            -> read_lines (open_in cOPAM_PACKAGES_FILE)
   end
 
-(** [build] compile [m] into a bytecode executable. Relies on ocamlbuild. *)
-let compile (run_quiet:bool) (main_module : string) : int =
+(** [compile args main] compile [main] into a bytecode executable.
+    Relies on ocamlbuild. *)
+let compile (run_quiet:bool) (main_module : string) : unit =
   let () =
     assert_ocamlbuild_friendly_filepath main_module;
     assert_file_exists (main_module);
@@ -63,10 +69,10 @@ let compile (run_quiet:bool) (main_module : string) : int =
     "-tag-line"; "<*.native> : " ^ opam_packages_str;
     target
   ] in
-  run_process "ocamlbuild" (
+  check_code (run_process "ocamlbuild" (
     (get_dependencies ()) @
     (get_libraries ())    @
-    if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags)
+    if run_quiet then "-quiet"::ocamlbuild_flags else ocamlbuild_flags))
 
 let command =
   Command.basic
@@ -82,4 +88,4 @@ let command =
       empty
       +> flag "-q" no_arg ~doc:"Run quietly."
       +> anon ("filename" %: string))
-    (fun quiet target () -> check_code (compile quiet target))
+    (fun quiet target () -> compile quiet target)
