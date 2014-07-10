@@ -108,7 +108,7 @@ let assert_raises ex_opt f arg : unit =
     end 
   with 
     | Assert_raises _ as e -> raise e
-    | e when ex_opt = None -> ()
+    | _ when ex_opt = None -> ()
     | e when ex_opt = Some e -> ()
     | e -> raise (Assert_raises (Printf.sprintf 
       "Forcing the expression raised unexpected exception %s" (Printexc.to_string e)))
