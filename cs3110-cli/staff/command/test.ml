@@ -4,12 +4,14 @@ open Filepath_util
 let test ?(quiet=false) ?output (main_module : string) : int =
   let build_dir = "_build" in (* TODO abstract this *)
   let main_module = strip_suffix main_module in
-  (* TODO clean this the fuck up *)
+  (* TODO clean this all up *)
   let exec = Format.sprintf "%s/%s.d.byte" build_dir main_module in
-  let base_cmd = [exec; "inline-test-runner"; "dummy"] in
+  (* -log required by harness, nice to have in general, but
+     destination './inline_tests.log' is hardcoded *)
+  let base_cmd = [exec; "inline-test-runner"; "dummy"; "-log"] in
   let cmd = begin match output with
     | Some dest ->
-      if quiet
+      if quiet 
       then base_cmd @ ["2>& 1>/dev/null | grep '^File' >"; dest]
       else base_cmd @ ["&>"; dest]
     | None      ->
