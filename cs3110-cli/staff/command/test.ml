@@ -19,7 +19,8 @@ let test ?(quiet=false) ?output (main_module : string) : int =
       then base_cmd @ [">"; "/dev/null"]
       else base_cmd
   end in
-  (* TODO print message if all pass *)
+  (* TODO print message if all pass... somehow. pa_ounit doesn't give an exit
+   * code.  OH also, don't print "all pass" if we're using the harness. *)
   Sys.command (String.concat ~sep:" " cmd)
 
 let command =
