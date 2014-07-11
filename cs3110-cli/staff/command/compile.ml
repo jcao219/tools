@@ -113,6 +113,6 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag "-q" no_arg ~doc:"Run quietly."
-      +> anon ("filename" %: string))
+      +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly."
+      +> anon ("target" %: string))
     (fun quiet target () -> check_code (compile quiet target))
