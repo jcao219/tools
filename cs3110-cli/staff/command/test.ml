@@ -29,9 +29,9 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-r"] "--recompile" no_arg ~doc:"Compile target before testing."
-      +> flag ~aliases:["-q"] "--quiet" no_arg ~doc:"Run quietly. Do not print debug statements."
-      +> flag ~aliases:["-o"] "--output" (optional string) ~doc:"Save test output to a file."
+      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
+      +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly. Do not print debug statements."
+      +> flag ~aliases:["-o"] "-output" (optional string) ~doc:" Save test output to a file."
       +> anon ("target" %: string)
     )
     (fun recompile quiet output main () ->
