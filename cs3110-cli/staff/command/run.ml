@@ -17,8 +17,8 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-r"] "--recompile" no_arg ~doc:"Compile target before running"
-      +> anon ("filename" %: string)
+      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before running"
+      +> anon ("target" %: string)
       +> anon (sequence ("args" %: string))
     )
     (fun recompile main args () ->
