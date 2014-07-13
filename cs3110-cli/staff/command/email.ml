@@ -4,8 +4,9 @@ open Io_util
 open Filepath_util
 
 type options = {
-  bccs    : string list;
-  verbose : bool
+  bccs      : string list;
+  directory : string;
+  verbose   : bool
 }
 
 (** [get_bcc f] read the list of email addresses stored in the file [f]. *)
@@ -61,7 +62,7 @@ let send_one_email (opts : options) (msg_file : string) : bool =
     cEMAIL_SUBJECT
     (format_bcc opts.bccs)
     recipient
-    cEMAIL_DIR
+    opts.directory
     msg_file
   in
   let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
@@ -83,14 +84,16 @@ let send_all_emails (opts : options) (message_files : string array) : unit =
   in
   print_results num_success num_failure
 
-let email (verbose : bool) (bccs : string list) () : unit =
+let email (verbose : bool) (bccs : string list) (dir : string option) () : unit =
   (* TODO use config file *)
-  let () = assert_file_exists cEMAIL_DIR in
+  let dir = match dir with Some f -> f | None -> cEMAIL_DIR in
+  let () = assert_file_exists dir in
   let options = {
-    bccs    = parse_bccs bccs;
-    verbose = verbose
+    bccs      = parse_bccs bccs;
+    directory = dir;
+    verbose   = verbose
   } in
-  send_all_emails options (Sys.readdir cEMAIL_DIR)
+  send_all_emails options (Sys.readdir dir)
 
 let command =
   Command.basic
@@ -104,5 +107,6 @@ let command =
     Command.Spec.(
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
-      +> flag ~aliases:["-b"] "-bcc" (listed string) ~doc:"addr Include client [addr] as a bcc on all emails.")
+      +> flag ~aliases:["-b"] "-bcc" (listed string) ~doc:"addr Include client [addr] as a bcc on all emails."
+      +> flag ~aliases:["-d"] "-dir" (optional string) ~doc:"d Search directory [d] for emails instead of the default.")
     email
