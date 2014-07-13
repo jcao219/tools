@@ -3,25 +3,44 @@ open Cli_constants
 open Io_util
 open Filepath_util
 
-type options = { verbose : bool }
+type options = {
+  bccs    : string list;
+  verbose : bool
+}
 
-(** [get_bcc ()] find the addresses to bcc on all emails,
-    format them for the email script. For [mutt], each bcc is set
-    by the flag [-b 'address']. Multiple bcc's require multiple [-b]
-    flags. *)
-let get_bcc () : string =
-  begin match Sys.file_exists cEMAIL_ADMINS with
-    | `Yes ->
-       Format.sprintf "-b '%s'" (String.concat ~sep:" -b "
-         (In_channel.with_file cEMAIL_ADMINS ~f:In_channel.input_lines))
-    | `No | `Unknown -> ""
+(** [get_bcc f] read the list of email addresses stored in the file [f]. *)
+let bcc_of_file (fname : string) : string list =
+  begin match Sys.file_exists fname with
+    | `Yes -> In_channel.with_file fname ~f:In_channel.input_lines
+    | `No | `Unknown -> []
   end
+
+(** [format_bcc bccs] convert a list of email addresses into
+    command-line option format for the [mutt] utility. *)
+let format_bcc (bccs : string list) : string =
+  Format.sprintf "-b '%s'" (String.concat ~sep:"' -b '" bccs)
 
 (** [get_recipient fname] generate an email address from a message file. *)
 let get_recipient (msg_file : string) : string =
   (* Filenames should be [netid.txt], where [netid] is a
      valid Cornell net id *)
   (strip_suffix msg_file) ^ "@cornell.edu"
+
+(** [is_email s] check if the string [s] looks like an email address. *)
+let is_email (str : string) : bool =
+  (* minimal email address would look like 'a@a.a' or '@.aaa' *)
+  String.contains str '@' && String.contains str '.' && (4 < String.length str)
+
+(** [parse_bccs addrs] parse a list of email addresses from a list of strings.
+    If a string doesn't look like an email address, try reading it as a file. *)
+let parse_bccs (addrs : string list) : string list =
+  List.fold
+    addrs
+    ~init:[]
+    ~f:(fun acc x ->
+        if is_email x
+        then x :: acc
+        else (bcc_of_file x) @ acc)
 
 (** [print_results pass fail] pretty-print details on the number
     of emails sent. *)
@@ -33,14 +52,14 @@ let print_results (num_success:int) (num_failure:int) =
      - %d failed to send.\n"
     total num_success num_failure
 
-(** [send_one_email o f b] Send the email message in file [f]
-    to the recipient determined by [f] and with bcc's [b].
+(** [send_one_email o f] Send the email message in file [f]
+    to the recipient determined by [f].
     The options [o] change behavior a little. See the command readme. *)
-let send_one_email (opts : options) (msg_file : string) (bcc : string) : bool =
+let send_one_email (opts : options) (msg_file : string) : bool =
   let recipient = get_recipient msg_file in
   let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
     cEMAIL_SUBJECT
-    bcc
+    (format_bcc opts.bccs)
     recipient
     cEMAIL_DIR
     msg_file
@@ -50,27 +69,28 @@ let send_one_email (opts : options) (msg_file : string) (bcc : string) : bool =
   ((Sys.command cmd) = 0) ||
     (Format.printf "Failed to send message to: '%s'\n" recipient; false)
 
-(** [send_all_emails b ms] Send all messages in the collection [ms]
-    with bcc's [b]. *)
-let send_all_emails (opts : options) (bcc : string) (message_files : string array) : unit =
+(** [send_all_emails o ms] Send all messages in the collection [ms].
+    See the command readme for available options [o]. *)
+let send_all_emails (opts : options) (message_files : string array) : unit =
   let num_success, num_failure =
     Array.fold
       message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
-       if send_one_email opts msg_file bcc
+       if send_one_email opts msg_file
        then num_success+1 , num_failure
        else num_success   , num_failure+1)
   in
   print_results num_success num_failure
 
-let email (verbose:bool) () : unit =
+let email (verbose : bool) (bccs : string list) () : unit =
   (* TODO use config file *)
   let () = assert_file_exists cEMAIL_DIR in
   let options = {
+    bccs    = parse_bccs bccs;
     verbose = verbose
   } in
-  send_all_emails options (get_bcc ()) (Sys.readdir cEMAIL_DIR)
+  send_all_emails options (Sys.readdir cEMAIL_DIR)
 
 let command =
   Command.basic
@@ -83,5 +103,6 @@ let command =
      ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information.")
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-b"] "-bcc" (listed string) ~doc:"addr Include client [addr] as a bcc on all emails.")
     email
