@@ -3,6 +3,8 @@ open Cli_constants
 open Io_util
 open Filepath_util
 
+type options = { verbose : bool }
+
 (** [get_bcc ()] find the addresses to bcc on all emails,
     format them for the email script. For [mutt], each bcc is set
     by the flag [-b 'address']. Multiple bcc's require multiple [-b]
@@ -31,9 +33,10 @@ let print_results (num_success:int) (num_failure:int) =
      - %d failed to send.\n"
     total num_success num_failure
 
-(** [send_one_email f b] Send the email message in file [f]
-    to the recipient determined by [f] and with bcc's [b] *)
-let send_one_email (msg_file : string) (bcc : string) : bool =
+(** [send_one_email o f b] Send the email message in file [f]
+    to the recipient determined by [f] and with bcc's [b].
+    The options [o] change behavior a little. See the command readme. *)
+let send_one_email (opts : options) (msg_file : string) (bcc : string) : bool =
   let recipient = get_recipient msg_file in
   let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
     cEMAIL_SUBJECT
@@ -42,29 +45,32 @@ let send_one_email (msg_file : string) (bcc : string) : bool =
     cEMAIL_DIR
     msg_file
   in
-  let () = Format.printf "### Executing '%s'\n%!" cmd in
+  let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
   (* Print a message if command failed *)
   ((Sys.command cmd) = 0) ||
     (Format.printf "Failed to send message to: '%s'\n" recipient; false)
 
 (** [send_all_emails b ms] Send all messages in the collection [ms]
     with bcc's [b]. *)
-let send_all_emails (bcc : string) (message_files : string array) : unit =
+let send_all_emails (opts : options) (bcc : string) (message_files : string array) : unit =
   let num_success, num_failure =
     Array.fold
       message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
-       if send_one_email msg_file bcc
+       if send_one_email opts msg_file bcc
        then num_success+1 , num_failure
        else num_success   , num_failure+1)
   in
   print_results num_success num_failure
 
-let email () : unit =
+let email (verbose:bool) () : unit =
   (* TODO use config file *)
   let () = assert_file_exists cEMAIL_DIR in
-  send_all_emails (get_bcc ()) (Sys.readdir cEMAIL_DIR)
+  let options = {
+    verbose = verbose
+  } in
+  send_all_emails options (get_bcc ()) (Sys.readdir cEMAIL_DIR)
 
 let command =
   Command.basic
@@ -75,5 +81,7 @@ let command =
        "Prints a warning if a message fails to send and records the total";
        "number of messages sent."
      ])
-    Command.Spec.empty
+    Command.Spec.(
+      empty
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information.")
     email
