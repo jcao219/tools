@@ -89,6 +89,7 @@ let email (verbose : bool) (bccs : string list) (subject : string option) (dir :
   (* TODO use config file *)
   let dir = match dir with Some f -> f | None -> cEMAIL_DIR in
   let () = assert_file_exists dir in
+  let () = assert_installed "mutt" in
   let options = {
     bccs      = parse_bccs bccs;
     directory = dir;
