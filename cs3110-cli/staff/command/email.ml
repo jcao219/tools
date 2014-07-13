@@ -6,6 +6,7 @@ open Filepath_util
 type options = {
   bccs      : string list;
   directory : string;
+  subject   : string;
   verbose   : bool
 }
 
@@ -59,7 +60,7 @@ let print_results (num_success:int) (num_failure:int) =
 let send_one_email (opts : options) (msg_file : string) : bool =
   let recipient = get_recipient msg_file in
   let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
-    cEMAIL_SUBJECT
+    opts.subject
     (format_bcc opts.bccs)
     recipient
     opts.directory
@@ -84,13 +85,14 @@ let send_all_emails (opts : options) (message_files : string array) : unit =
   in
   print_results num_success num_failure
 
-let email (verbose : bool) (bccs : string list) (dir : string option) () : unit =
+let email (verbose : bool) (bccs : string list) (subject : string option) (dir : string option) () : unit =
   (* TODO use config file *)
   let dir = match dir with Some f -> f | None -> cEMAIL_DIR in
   let () = assert_file_exists dir in
   let options = {
     bccs      = parse_bccs bccs;
     directory = dir;
+    subject   = (match subject with Some s -> s | None -> cEMAIL_SUBJECT);
     verbose   = verbose
   } in
   send_all_emails options (Sys.readdir dir)
@@ -108,5 +110,6 @@ let command =
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
       +> flag ~aliases:["-b"] "-bcc" (listed string) ~doc:"addr Include client [addr] as a bcc on all emails."
+      +> flag ~aliases:["-s"] "-subject" (optional string) ~doc:"s Use [s] instead of the default subject."
       +> flag ~aliases:["-d"] "-dir" (optional string) ~doc:"d Search directory [d] for emails instead of the default.")
     email
