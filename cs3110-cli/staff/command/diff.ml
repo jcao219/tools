@@ -15,14 +15,14 @@ let create_netid_map (directories : string list) =
 (** [get_all_nocompiles ()] read the local directory of no compiles,
  * [cNOCOMPILE_DIR], return all filenames in a sorted array. *)
 let get_all_nocompiles () : string array =
-  let arr = Sys.readdir cfg.smoke.nocompile_directory in
+  let arr = Sys.readdir cfg.smoke.output_directory in
   let () = Array.sort Pervasives.compare arr in
   arr
 
 (** [diff ()] if any files under the [cNOCOMPILE_DIR] match a target,
  * perform a diff on the pre-and post submission. Record results in a csv file. *)
 let run (directories : string list) : unit =
-  let () = assert_file_exists cfg.smoke.nocompile_directory in
+  let () = assert_file_exists cfg.smoke.output_directory in
   let () = num_files_diffed := 0 in
   (* Space to store outputs *)
   (* maps netid -> dir, to make it easy to get new input from the
@@ -45,7 +45,7 @@ let run (directories : string list) : unit =
           (* Run a diff, ask user for judgment.
            * Automatically handles missing files and 'no difference' resubmits *)
           let new_file = Format.sprintf "%s/%s" dir fname in
-          let old_file = Format.sprintf "%s/%s/%s" cfg.smoke.nocompile_directory netid fname in
+          let old_file = Format.sprintf "%s/%s/%s" cfg.smoke.output_directory netid fname in
           let simple_cmd = Format.sprintf "diff -q %s %s" old_file new_file in
           let pretty_cmd =
             let diff_cmd = if (Sys.command "which colordiff > /dev/null" = 0)
@@ -97,7 +97,7 @@ let run (directories : string list) : unit =
         end
       (* initial accumulator for the fold is 1 because of the guard on 0
        * If [acc = 0], we stop doing diffs for the student. *)
-      ) 1 (Sys.readdir (Format.sprintf "%s/%s" cfg.smoke.nocompile_directory netid)) in
+      ) 1 (Sys.readdir (Format.sprintf "%s/%s" cfg.smoke.output_directory netid)) in
       (* Save the results to the .csv *)
       output_string results_chn (Format.sprintf "%s,%d\n" netid result)
   ) all_nocompiles;

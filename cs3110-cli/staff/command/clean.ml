@@ -24,7 +24,7 @@ let email_cmd : string = Format.sprintf "rm -rf %s" cfg.email.output_directory
 
 let harness_cmd : string = Format.sprintf "%s; rm -rf %s" cms_cmd cfg.harness.output_directory
 
-let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cfg.smoke.nocompile_directory
+let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cfg.smoke.output_directory
 
 let command_not_found (target : string) : string =
   let () = Printf.printf "Invalid option: %s\n%s\n" target targets_readme in

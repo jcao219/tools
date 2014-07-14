@@ -1,7 +1,6 @@
+(** Config: utilities for parsing and getting data from .cs3110 files *)
 open Core.Std
 
-(** Config: utilities for parsing and getting data from .cs3110 files *)
-(* type clean_command_options = {} *)
 type cms_command_options = {
   output_directory   : string;
   output_spreadsheet : string
@@ -11,7 +10,7 @@ type compile_command_options = {
   include_directories : string list;
   opam_packages       : string list;
   ocaml_libraries     : string list;
-  output_directory    : string       (* replaces _build *)
+  output_directory    : string
 }
 type diff_command_options = {
   temporary_file     : string; (* necessary? *)
@@ -34,88 +33,66 @@ type harness_command_options = {
   tests_to_run              : string list;
 }
 type smoke_command_options = {
-  nocompile_directory : string;
+  output_directory : string;
   compilation_targets : string list;
 }
-(* type test_command_options = {} *)
-(* type run_command_options = {} *)
 
 type t = {
-  (* clean   : clean_command_options; *)
   cms     : cms_command_options;
   compile : compile_command_options;
   email   : email_command_options;
   diff    : diff_command_options;
   harness : harness_command_options;
   smoke   : smoke_command_options;
-  (* test    : test_command_options; *)
-  (* run     : run_command_options; *)
 }
 
 let cLOCAL_CONFIG = "./.cs3110"
 let cGLOBAL_CONFIG = "~/.cs3110"
-
 let cOUTPUT_DIRECTORY = "./_cs3110"
-let cDEFAULT_CMS_DIRECTORY = Format.sprintf "%s/_cms" cOUTPUT_DIRECTORY
-let cDEFAULT_COMPILE_DIRECTORY = "_build"
-let cDEFAULT_EMAIL_DIRECTORY = Format.sprintf "%s/_email" cOUTPUT_DIRECTORY
-let cDEFAULT_DIFF_DIRECTORY = Format.sprintf "%s/_diff" cOUTPUT_DIRECTORY
-let cDEFAULT_HARNESS_DIRECTORY = Format.sprintf "%s/_harness" cOUTPUT_DIRECTORY
-let cDEFAULT_SMOKE_DIRECTORY = Format.sprintf "%s/_smoke" cOUTPUT_DIRECTORY
-
-let cDEFAULT_COMPILER_FLAGS = [
-  "-w";
-  "+a"
-]
 let cREQUIRED_OPAM_PACKAGES = [
   "pa_ounit.syntax";
   "oUnit";
   "pa_ounit";
   "qcheck"
 ]
-
 let cPA_OUNIT_LOGFILE = "inline_tests.log"
 
 let default_config = {
-  (* clean   = {}; *)
   cms     = {
-    output_directory   = cDEFAULT_CMS_DIRECTORY;
-    output_spreadsheet  = Format.sprintf "%s/CS3110_GRADES_TABLE.csv" cDEFAULT_CMS_DIRECTORY;
+    output_directory   = Format.sprintf "./%s/_cms" cOUTPUT_DIRECTORY;
+    output_spreadsheet = Format.sprintf "%s/_cms/CS3110_GRADES_TABLE.csv" cOUTPUT_DIRECTORY;
   };
   compile = {
-    compiler_options    = cDEFAULT_COMPILER_FLAGS;
+    compiler_options    = ["-w"; "+a"];
     include_directories = [];
     opam_packages       = cREQUIRED_OPAM_PACKAGES;
     ocaml_libraries     = [];
-    output_directory    = cDEFAULT_COMPILE_DIRECTORY
+    output_directory    = "./_build"
   };
   diff    = {
-    temporary_file     = Format.sprintf "%s/diff.log" cDEFAULT_DIFF_DIRECTORY;
-    output_directory   = cDEFAULT_DIFF_DIRECTORY;
-    output_spreadsheet = Format.sprintf "%s/diff_results.csv" cDEFAULT_DIFF_DIRECTORY
+    temporary_file     = "diff.log"; (* can we delete this? *)
+    output_directory   = Format.sprintf "%s/_diff" cOUTPUT_DIRECTORY;
+    output_spreadsheet = Format.sprintf "%s/_diff/diff_results.csv" cOUTPUT_DIRECTORY
   };
   email   = {
-    admins     = [];  (* Fill in course instructors *)
+    admins     = [];
     subject    = "[CS 3110 test harness] compile error";
-    output_directory = cDEFAULT_EMAIL_DIRECTORY;
+    output_directory = Format.sprintf "%s/_email" cOUTPUT_DIRECTORY;
   };
   harness = {
     quickcheck_count          = 100;
-    output_directory          = cDEFAULT_HARNESS_DIRECTORY;
-    output_comments_directory = Format.sprintf "%s/comments" cDEFAULT_HARNESS_DIRECTORY;
-    output_spreadsheet        = Format.sprintf "%s/test-results.csv" cDEFAULT_HARNESS_DIRECTORY;
+    output_directory          = Format.sprintf "%s/_harness" cOUTPUT_DIRECTORY;
+    output_comments_directory = Format.sprintf "%s/_harness/comments" cOUTPUT_DIRECTORY;
+    output_spreadsheet        = Format.sprintf "%s/_harness/test-results.csv" cOUTPUT_DIRECTORY;
     temporary_failures_file   = "inline_test_failures.log";
     temporary_results_file    = cPA_OUNIT_LOGFILE;
     tests_directory           = "./tests";
     tests_to_run              = []
   };
   smoke   = {
-    (* TODO rename to [output_directory] *)
-    nocompile_directory = Format.sprintf "%s/nocompile" cOUTPUT_DIRECTORY;
-    compilation_targets = []
+    compilation_targets = [];
+    output_directory = Format.sprintf "%s/_nocompile" cOUTPUT_DIRECTORY;
   };
-  (* test    = {}; *)
-  (* run     = {}; *)
 }
 
 module Parser : sig
@@ -209,8 +186,7 @@ end = struct
            compile = {
              compiler_options    = (parse_string_list m ~key:"compile.compiler_options" %> default.compile.compiler_options);
              include_directories = (parse_string_list m ~key:"compile.include_directories" %> default.compile.include_directories);
-             (* TODO this will append multiple times. Does that cause problems? Anyway, should append in [Compile] *)
-             opam_packages       = (cREQUIRED_OPAM_PACKAGES @ (parse_string_list m ~key:"compile.opam_packages" %> default.compile.opam_packages));
+             opam_packages       = (List.dedup (cREQUIRED_OPAM_PACKAGES @ (parse_string_list m ~key:"compile.opam_packages" %> default.compile.opam_packages)));
              ocaml_libraries     = (parse_string_list m ~key:"compile.opam_packages" %> default.compile.ocaml_libraries);
              output_directory    = (parse_string m ~key:"compile.output_directory" %> default.compile.output_directory);
            };
@@ -236,7 +212,7 @@ end = struct
            };
            smoke   = {
              (* TODO rename to [output_directory] *)
-             nocompile_directory = (parse_string m ~key:"smoke.nocompile_directory" %> default.smoke.nocompile_directory);
+             output_directory = (parse_string m ~key:"smoke.output_directory" %> default.smoke.output_directory);
              compilation_targets = (parse_string_list m ~key:"smoke.compilation_targets" %> default.smoke.compilation_targets);
            };
          }

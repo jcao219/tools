@@ -44,7 +44,7 @@ Good luck!\n\
       let () = output_string email_chn message in
       let () = close_out email_chn in
       (* Save each failing source file *)
-      let nocompile_dir = Format.sprintf "./%s/%s" cfg.smoke.nocompile_directory name in
+      let nocompile_dir = Format.sprintf "./%s/%s" cfg.smoke.output_directory name in
       let () = ensure_dir nocompile_dir in
       let copy_file (target : string) =
         let fname = Format.sprintf "%s/%s.ml" dir_name target in
@@ -70,7 +70,7 @@ let run (directories : string list) : unit =
   let directories = strip_trailing_slash_all directories in
   (* setup *)
   let () = ensure_dir cfg.email.output_directory in
-  let () = ensure_dir cfg.smoke.nocompile_directory in
+  let () = ensure_dir cfg.smoke.output_directory in
   (* Try to infer targets from test names. Assuming all tests are
    * of form 'file_test.ml' *)
   let targets = cfg.smoke.compilation_targets in
