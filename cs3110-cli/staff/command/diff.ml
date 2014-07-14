@@ -1,15 +1,15 @@
 open Cli_constants
 open Filepath_util
-  
+
 let diff_tmp = ".diff"
 let num_files_diffed = ref 0
 
 let create_netid_map (directories : string list) =
-  let netid_map = Hashtbl.create 27 in 
-  let () = 
-    List.iter (fun dir -> 
+  let netid_map = Hashtbl.create 27 in
+  let () =
+    List.iter (fun dir ->
       Hashtbl.add netid_map (tag_of_path dir) dir
-    ) (strip_trailing_slash_all directories) 
+    ) (strip_trailing_slash_all directories)
   in
   netid_map
 
@@ -26,43 +26,43 @@ let run (directories : string list) : unit =
   let () = assert_file_exists cNOCOMPILE_DIR in
   let () = num_files_diffed := 0 in
   (* Space to store outputs *)
-  (* maps netid -> dir, to make it easy to get new input from the 
+  (* maps netid -> dir, to make it easy to get new input from the
   * name of a previous no-compile *)
   let netid_map = create_netid_map directories in
   let results_chn = open_out cDIFF_RESULTS in
   (* For each file in the nocompile folder, check if it has a match in [directories] *)
   let all_nocompiles = get_all_nocompiles () in
-  Array.iter (fun netid -> 
+  Array.iter (fun netid ->
     if Hashtbl.mem netid_map netid then
       let dir = Hashtbl.find netid_map netid in
       (* Found a match. diff this submission *)
       let user_input = ref 2 in
       let result = Array.fold_left (fun acc fname ->
-        if acc = 0 then 
-          (* Already rejected student's fix for previous file. 
+        if acc = 0 then
+          (* Already rejected student's fix for previous file.
            * They suffer the penalty. *)
           0
         else begin
-          (* Run a diff, ask user for judgment. 
+          (* Run a diff, ask user for judgment.
            * Automatically handles missing files and 'no difference' resubmits *)
           let new_file = Format.sprintf "%s/%s" dir fname in
           let old_file = Format.sprintf "%s/%s/%s" cNOCOMPILE_DIR netid fname in
           let simple_cmd = Format.sprintf "diff -q %s %s" old_file new_file in
-          let pretty_cmd = 
-            let diff_cmd = if (Sys.command "which colordiff > /dev/null" = 0) 
+          let pretty_cmd =
+            let diff_cmd = if (Sys.command "which colordiff > /dev/null" = 0)
               then "colordiff"
-              else "diff" in 
+              else "diff" in
             Format.sprintf "%s -u %s %s | less -R" diff_cmd old_file new_file in
           let _ = Format.printf "\n### Executing '%s' \n%!" simple_cmd in
           if not (Sys.file_exists new_file) then
-            (* Resubmission does not contain a file. 
+            (* Resubmission does not contain a file.
              * Return 1 because they do not have a late submission *)
             let _ = Format.printf "File '%s' does not exist!\n%!" new_file in
             1
           else begin
             (* First, check if there are any differences *)
             if (Sys.command simple_cmd) = 0 then
-              (* No differences. Print and return 1. It's 1 
+              (* No differences. Print and return 1. It's 1
                * because they did not submit late *)
               let _ = Format.printf "diff of '%s/%s' finished with no differences\n%!" netid fname in
               1
@@ -86,17 +86,17 @@ let run (directories : string list) : unit =
                 | "n" | "no"  -> user_input := 0
                 | "d"         -> ignore (show_diff ())
                 | "s"         -> ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file))
-                | str         -> if str <> "h" then print_endline "#### Invalid option"; print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n : Reject the diff. Will need to deduct slip day on CMS\n       d : Show the diff again\n       s : Show the source files (first old, then new)\n" 
+                | str         -> if str <> "h" then print_endline "#### Invalid option"; print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n : Reject the diff. Will need to deduct slip day on CMS\n       d : Show the diff again\n       s : Show the source files (first old, then new)\n"
               ) done in
               (* done with repl *)
-              let () = 
+              let () =
                 print_endline "Ok! ";
                 incr num_files_diffed
               in
               !user_input
           end
-        end 
-      (* initial accumulator for the fold is 1 because of the guard on 0 
+        end
+      (* initial accumulator for the fold is 1 because of the guard on 0
        * If [acc = 0], we stop doing diffs for the student. *)
       ) 1 (Sys.readdir (Format.sprintf "%s/%s" cNOCOMPILE_DIR netid)) in
       (* Save the results to the .csv *)
@@ -106,3 +106,20 @@ let run (directories : string list) : unit =
   let () = ignore(Sys.command (Format.sprintf "rm -f %s" diff_tmp)) in
   let () = close_out results_chn in
   Format.printf "Finished inputting decisions for %d files. See '%s' for results\n%!" (!num_files_diffed) cDIFF_RESULTS
+
+let command =
+  Core.Std.Command.basic
+    ~summary:"Run a diff on resubmissions, ask the user for a judgment."
+    ~readme:(fun () -> Core.Std.String.concat ~sep:"\n" [
+      "The [cs3110 diff] command is for checking no-compile fixes.";
+      "It compares current submissions against submissions that didn't";
+      "compile in the last run of [cs3110 smoke] using the Unix tool [diff].";
+      "Each diff is displayed in the terminal and the user is asked to approve";
+      "the changes. Results are stored in a .csv file for future reference.";
+      "(The .csv cannot be uploaded directly to CMS.)"
+    ])
+    Core.Std.Command.Spec.(empty
+      +> anon ("submissions" %: file)
+    )
+    (* TODO input is string list *)
+    (fun subs () -> run [subs])
