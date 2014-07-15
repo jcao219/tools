@@ -26,7 +26,7 @@ module Make =
       RowSet.add sheet row
 
     let count_rows (sheet : t) : int =
-      RowSet.length t
+      RowSet.length sheet
 
     let create () =
       RowSet.empty
