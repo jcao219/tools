@@ -86,16 +86,12 @@ let ensure_dir (dir_name : string) =
  * This is the same as
  *   > cs3110 smoke dir/a dir/b dir/c
  *)
-let directories_of_list (dir : string) : string list =
-  let dir = strip_trailing_slash dir in
-  let len = String.length dir in
-  (* Remove the leading @ to get a filename *)
-  let fname = String.sub dir 1 (len-1) in
-  let _ = assert_file_exists fname in
+let directories_of_list (fname : string) : string list =
+  let () = assert_file_exists fname in
   (* Argument is @path/to/list-of-directory-names.    *
    * Extract a list of directory names from the list. *)
   let dir_names = read_lines (open_in fname) in
-  let prefix = String.sub fname 0 (String.rindex dir '/') in
+  let prefix = String.sub fname 0 (String.rindex fname '/') in
   (* Return the fully-inferred list of directories *)
   List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
 
@@ -145,3 +141,16 @@ let get_files_with_extension (desired_extension : string)
   let get_files dir =
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
+
+(** [at_expand dirs] optionally expand a file containing a list into a list of directories.
+    If the input is a singleton list where the first element is prefixed by and '@' character,
+    treat this input as a file containing a list of newline-separated strings. Create directory
+    names from these strings.
+    Else return the input unchanged. I would have named it '@_expand' but that didn't compile. *)
+let at_expand (dirs : string list) : string list =
+  begin match dirs with
+    | [fname] when (0 < String.length fname) && fname.[0] = '@' ->
+       (* Remove leading '@' *)
+       directories_of_list (String.sub fname 1 ((String.length fname) - 1))
+    | [] | _::_ -> dirs
+  end
