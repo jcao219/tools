@@ -154,3 +154,10 @@ let at_expand (dirs : string list) : string list =
        directories_of_list (String.sub fname 1 ((String.length fname) - 1))
     | [] | _::_ -> dirs
   end
+
+(** [netid_of_filepath s] Very simple, just take the last string from
+    a slash-delimited filepath. Given 'dir1/dir2/dir3/', this function
+    returns 'dir3'. *)
+let netid_of_filepath (path : string) : string
+  let path' = strip_trailing_slash path in
+  snd (rsplit path' '/')

@@ -31,3 +31,4 @@ val tag_of_path : string -> string
 val test_name_of_line : string -> string
 
 val at_expand : string list -> string list
+val netid_of_filepath : string -> string
