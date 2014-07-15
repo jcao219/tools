@@ -161,3 +161,6 @@ let at_expand (dirs : string list) : string list =
 let netid_of_filepath (path : string) : string
   let path' = strip_trailing_slash path in
   snd (rsplit path' '/')
+
+let all_files_exist (files : string list) : bool =
+  List.fold_left (fun acc f -> acc && Sys.file_exists f) true files

@@ -32,3 +32,4 @@ val test_name_of_line : string -> string
 
 val at_expand : string list -> string list
 val netid_of_filepath : string -> string
+val all_files_exist : string list -> bool
