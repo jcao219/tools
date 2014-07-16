@@ -1,29 +1,51 @@
+open Core.Std
 open Filepath_util
 open Process_util
 
-let run ?(src_dir=Sys.getcwd ()) (output_dir : string) : int =
-  let () = Printf.printf "Generating documentation for directory: %s\n" src_dir in
-  let () = ensure_dir output_dir in
-  let build_dir =
-    try
-      if Sys.is_directory "_build" then "_build"
-      else begin
-        Printf.eprintf "Please run %s before generating the documentation."
-                       "\'cs3110 compile <main-module>\'";
-        exit 1
-      end
-    with _ -> "" in
-  let ocamldoc_options = [
+type options = {
+  build_dir : string;
+  output    : string;
+  recompile : bool;
+  verbose   : bool;
+}
+
+let cDOC_OUTPUT = "./_output/_doc"
+let cOCAMLDOC_OPTIONS = [
     "-v";             (* run verbose                                     *)
     "-sort";          (* sort the output modules                         *)
     "-stars";         (* remove leading blank characters in doc comments *)
     "-warn-error";    (* treat errors as warnings                        *)
     "-html";          (* html output by default                          *)
     "-colorize-code"; (* provide syntax highlighting in the HTML         *)
-    "-I";
-    build_dir;        (* includes the output directory of cs3110 compile *)
-    "-d";
-    output_dir;       (* put output in output_dir                        *)
-  ] in
-  let mlis = try get_files_with_extension "mli" src_dir with _ -> [] in
-  run_process "ocamldoc" (ocamldoc_options @ mlis)
+]
+
+(** [doc o ts] Generate ocamldoc documentation for the targets [ts]. *)
+let doc (opts : options) (targets : string list) : int =
+  let () = if opts.verbose then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " targets) in
+  (* TODO use Compile.compile *)
+  let () = if opts.recompile then List.iter ~f:(fun t -> check_code (Build.run t)) targets in
+  run_process "ocamldoc" (cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ targets)
+
+let command =
+  Command.basic
+    ~summary:"Generate ocamldoc documentation."
+    ~readme:(fun () -> String.concat ~sep:"\n" [
+      "Running [cs3110 doc target] will generate the ocamldoc docmentation";
+      "for the source file [target]. The target(s) must be";
+      "compiled first."
+    ])
+    Command.Spec.(
+      empty
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile the target before generating documentation."
+      +> flag ~aliases:["-o"] "-output-dir" (optional file) ~doc:"DIR Save outputted documentation to the directory DIR."
+      +> anon (sequence  ("target" %: string))
+    )
+    (fun v r o ts () ->
+      let opts = {
+        build_dir = "_build"; (* TODO this is delicate because we recompile *)
+        output    = Option.value o ~default:cDOC_OUTPUT;
+        recompile = r;
+        verbose   = v;
+      } in
+      check_code (doc opts ts))
