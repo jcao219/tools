@@ -9,7 +9,8 @@ let config_env () =
 
 (* available subcommands *)
 let targets = [
-  ("clean", Clean.command)
+  ("clean", Clean.command);
+  ("smoke", Smoke.command)
 ]
 
 (* TODO define staff & student commands separately *)
