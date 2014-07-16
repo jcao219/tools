@@ -145,3 +145,9 @@ let get_files_with_extension (desired_extension : string)
   let get_files dir =
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
+
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if is_suffix fname ".ml"
+  then fname
+  else fname ^ ".ml"
