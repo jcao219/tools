@@ -76,9 +76,10 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
 (** [compile args main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. *)
 let compile (run_quiet:bool) (main_module : string) : int =
+  (* TODO ensure_ml main_module (maybe should be add/remove suffix. *)
   let () =
     assert_ocamlbuild_friendly_filepath main_module;
-    assert_file_exists (main_module);
+    assert_file_exists main_module;
   in
   let () = if not run_quiet then Format.printf "[compile] Compiling '%s'\n%!" main_module in
   let opam_packages_str =
