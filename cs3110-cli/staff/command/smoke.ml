@@ -17,9 +17,9 @@ let make_email_message (netid : string) (failed_targets : string list) : string 
   let prefix = "* " in
   [
     Format.sprintf "Dear %s\n" netid;
-    "The following files from your CMS submission were either missing or failed to compile via `cs3110 compile`:";
+    "The following files from your CMS submission were either missing or failed to compile via `cs3110 compile`:\n";
   ] @ (List.map ~f:((^) prefix) failed_targets) @ [
-    "Please update your submission on CMS so that `cs3110 compile <file>` succeeds for each of the above files. If the required changes were small, you will not be charged a late/slip day. If the changes were non-trivial, you will lose either a slip day (if you have any remaining) or the late penalty.\n";
+    "\nPlease update your submission on CMS so that `cs3110 compile <file>` succeeds for each of the above files. If the required changes were small, you will not be charged a late/slip day. If the changes were non-trivial, you will lose either a slip day (if you have any remaining) or the late penalty.\n";
     "Good luck!\n\n";
     "--- Automatically generated message from the CS3110 test harness ---";
   ]
@@ -41,6 +41,8 @@ let copy_directory (opts : options) (netid : string) (dir : string) : unit =
   let () = if exit_code <> 0 then Format.printf "[smoke] ERROR failed to save directory '%s'\n" dir in
   ()
 
+(** [write_email o n fs] Write an email to student [n] explaining that files [fs]
+    failed to compile. The options [o] specify where the email is saved. *)
 let write_email (opts : options) (netid : string) (failures : string list) : unit =
   let fname = Format.sprintf "%s/%s.txt" opts.email_directory netid in
   let message = make_email_message netid failures in
@@ -58,6 +60,9 @@ let compile_target (dir : string) (target : string) : bool =
   let () = Sys.chdir cwd in
   0 = exit_code
 
+(** [smoke_target o d fs c] Smoke test a single file [c] for directory [d].
+    First check whether the file exists, then compile it. On failure, save data
+    for a future [cs3110 diff] and add the target [c] to the list [fs] of failed targets. *)
 let smoke_target (opts : options) (dir : string) (failed_targets : string list) (curr_target : string) : string list =
   let curr_target' = ensure_ml curr_target in
   let curr_path    = Format.sprintf "%s/%s" dir curr_target' in
@@ -99,10 +104,9 @@ let smoke_directory (opts : options) (dir : string) : unit =
        ()
 end
 
+(** [smoke o ds] Smoke test each submission directory [ds]. *)
 let smoke (opts : options) (directories : string list) : unit =
   let directories = strip_trailing_slash_all directories in
-  (* TODO fold here, collect a message, then write it? *)
-  (* meh, the message should be done in smoke_dir *)
   List.iter ~f:(smoke_directory opts) directories
 
 (** [get_smoke_targets o] figure out which files to compile. This could be
@@ -120,8 +124,7 @@ let get_smoke_targets (tgts : string list) : string list =
                           ~f:(fun f -> fst (rsplit f '_'))
                           (List.filter
                              ~f:is_valid_test_file
-                             (Array.to_list (Sys.readdir cTESTS_DIR))
-                          )
+                             (Array.to_list (Sys.readdir cTESTS_DIR)))
               | `No | `Unknown -> raise (File_not_found cSMOKE_TARGETS)
             end
        end
