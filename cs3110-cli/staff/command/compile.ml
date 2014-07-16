@@ -5,9 +5,9 @@ open Filepath_util
 open Process_util
 
 (* Default compiler flags. These are Jane Street's settings.
-   [-warn-error] says "treat the following warnings as errors.
+   [-warn-error] says "treat the following warnings as errors".
    [+a] means "all warnings"
-   [-4-33-34-39-40-41-42-43-44] means "except
+   [-4-33-34-39-40-41-42-43-44] means "except these"
    - [4]  : Fragile pattern matching (uses _)
    - [33] : Unused open statement
    - [34] : Unused type declaration
@@ -21,7 +21,7 @@ open Process_util
    See more documentation here: http://caml.inria.fr/pub/docs/manual-ocaml/native.html
  *)
 let default_compiler_flags = [
-  "-w";
+  "-warn-error";
   "+a-4-33-34-40-41-42-43-44";
 ]
 
@@ -39,14 +39,17 @@ let assert_ocamlbuild_friendly_filepath (path : string) : unit =
 (** [format_compiler_flags fs] prepend the string '-cflag' to each compiler
     flag for compliance with ocamlbuild *)
 let format_compiler_flags (flags : string list) : string list =
-  List.fold_right flags ~f:(fun f acc -> "-cflag":: f :: acc) ~init:[]
+  List.fold_right
+    ~f:(fun f acc -> "-cflag" :: f :: acc)
+    ~init:[]
+    flags
 
 let get_compiler_flags () : string list =
   (* TODO check init file *)
   let fs = default_compiler_flags in
   format_compiler_flags fs
 
-(* TODO change these constants *)
+(* TODO change these constants to use config file *)
 (** [get_dependencies ()] read in config file,
     return list of folders to search recursively during compilation. *)
 let get_dependencies () : string list =
@@ -73,16 +76,16 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
 (** [compile args main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. *)
 let compile (run_quiet:bool) (main_module : string) : int =
-  let main_module = strip_suffix main_module in
   let () =
     assert_ocamlbuild_friendly_filepath main_module;
     assert_file_exists (main_module);
-    Format.printf "Compiling '%s'\n%!" main_module
   in
+  let () = if not run_quiet then Format.printf "[compile] Compiling '%s'\n%!" main_module in
   let opam_packages_str =
     String.concat ~sep:", "
-                  (List.map (get_opam_packages ())
-                            ~f:(Format.sprintf "package(%s)"))
+      (List.map
+         ~f:(Format.sprintf "package(%s)")
+         (get_opam_packages ()))
   in
   let target = Format.sprintf "%s.d.byte" (strip_suffix main_module) in
   let ocamlbuild_flags =  [
@@ -95,8 +98,8 @@ let compile (run_quiet:bool) (main_module : string) : int =
   ] in
   let quiet = if run_quiet then ["-quiet"] else [] in
   let compiler_args = (
-    (get_dependencies ()) @
-    (get_libraries ())    @
+    (get_dependencies ())   @
+    (get_libraries ())      @
     (get_compiler_flags ()) @ quiet @ ocamlbuild_flags)
   in
   run_process "ocamlbuild" compiler_args
