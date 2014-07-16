@@ -151,3 +151,23 @@ let ensure_ml (fname : string) : string =
   if is_suffix fname ".ml"
   then fname
   else fname ^ ".ml"
+
+
+(** [at_expand dirs] optionally expand a file containing a list into a list of directories.
+    If the input is a singleton list where the first element is prefixed by and '@' character,
+    treat this input as a file containing a list of newline-separated strings. Create directory
+    names from these strings.
+    Else return the input unchanged. I would have named it '@_expand' but that didn't compile. *)
+let at_expand (dirs : string list) : string list =
+  begin match dirs with
+    | [fname] when (0 < String.length fname) && fname.[0] = '@' ->
+       (* Remove leading '@' *)
+       directories_of_list (String.sub fname 1 ((String.length fname) - 1))
+    | [] | _::_ -> dirs
+  end
+
+(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  String.length fname <> 0 &&
+  fname.[0] <> '.' &&
+  is_suffix fname "_test.ml"

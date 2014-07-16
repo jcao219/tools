@@ -30,3 +30,5 @@ val tag_of_path : string -> string
 
 val test_name_of_line : string -> string
 val ensure_ml : string -> string
+val at_expand : string list -> string list
+val is_valid_test_file : string -> bool

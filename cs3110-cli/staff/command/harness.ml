@@ -5,12 +5,6 @@ open Filepath_util
 type test = { name : string; absolute_path : string }
 type test_suite = test list
 
-(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
-let is_valid_test_file (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.' &&
-  is_suffix fname "_test.ml"
-
 (** [test_suite_of_directory dir] parse the directory [dir] for test files.
  * It should only contain files with names like 'part1_test.ml'.
  * Print a warning if any file has an unexpected name and ignores that file.
