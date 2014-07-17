@@ -145,3 +145,9 @@ let get_files_with_extension (desired_extension : string)
   let get_files dir =
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
+
+(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  String.length fname <> 0 &&
+  fname.[0] <> '.' &&
+  is_suffix fname "_test.ml"

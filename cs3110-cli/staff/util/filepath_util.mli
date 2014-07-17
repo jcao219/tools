@@ -29,3 +29,4 @@ val strip_trailing_slash_all : string list -> string list
 val tag_of_path : string -> string
 
 val test_name_of_line : string -> string
+val is_valid_test_file : string -> bool
