@@ -1,30 +1,27 @@
+open Core.Std
 open Cli_constants
 open Io_util
 open Filepath_util
 
+(* TODO all these options in all these commands should match the options in the config file *)
+type options = {
+  tests                 : string list;
+  (* tests_directory       : string; *) (* TODO do all tests need to be in the same directory? *)
+  output_directory      : string;
+  postscript            : bool;
+  spreadsheet_location  : string;
+  verbose               : bool;
+}
 type test = { name : string; absolute_path : string }
 type test_suite = test list
 
-(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
-let is_valid_test_file (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.' &&
-  is_suffix fname "_test.ml"
+(** [success_message t] Printed when submission passes test [t]. *)
+let success_message (test_name : string) : string =
+  Format.sprintf "PASS -- %s" test_name
 
-(** [test_suite_of_directory dir] parse the directory [dir] for test files.
- * It should only contain files with names like 'part1_test.ml'.
- * Print a warning if any file has an unexpected name and ignores that file.
- * Returns a [test_suite] of all valid test files. *)
-let test_suite_of_directory (test_dir : string) : test_suite =
-  Array.fold_right (fun fname suite ->
-    (* Check for dotfiles *)
-    if is_valid_test_file fname then
-      let t = { name=strip_suffix fname; absolute_path=test_dir^"/"^fname } in
-      t :: suite
-    else
-      let () = Format.printf "WARNING: skipping invalid test file '%s' in test folder '%s/'\n%!" fname test_dir in
-      suite
-  ) (Sys.readdir test_dir) []
+(** [failure_message t e] Printed when submission fails test [t] with error [e]. *)
+let failure_message (test_name : string) (error_message : string) : string =
+  Format.sprintf "FAIL -- %s : %s" test_name error_message
 
 (* Search all directories for one that passes all tests *)
 let find_compiling_implementation (ts : test_suite) dirs : string option =
@@ -72,12 +69,6 @@ let is_qcheck (msg : string) : bool =
 let parse_num_failed (msg : string) : int =
   (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
   int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
-
-let success_message (test_name : string) : string =
-  Format.sprintf "PASS -- %s" test_name
-
-let failure_message (test_name : string) (error_message : string) : string =
-  Format.sprintf "FAIL -- %s : %s" test_name error_message
 
 (** [harness_collect_output rubric] Iterate over test results,
  * store pass/fail information in [sheet], return pretty-printed output *)
@@ -261,3 +252,49 @@ let run (test_dir : string) (directories : string list) : unit =
     Grades_table.add_row sheet netid scores_by_test
   ) sheet directories in
   Grades_table.write sheet cCMS_FNAME
+
+let harness (opts : options) (subs : string list) =
+  failwith ""
+
+(** [test_suite_of_list ts] Convert a list of relative paths to tests [ts] into a test suite.
+    The test suite is a more convenient representation. *)
+let test_suite_of_list (tests : string list) : test_suite =
+  List.fold_right
+    ~f:(fun fname suite ->
+        let () = assert_file_exists fname in (* hmmm, the error raised here may not be clear. *)
+        let t = { name=strip_suffix fname; absolute_path=fname } in
+        t :: suite)
+    ~init:[]
+    tests
+
+let command =
+  Command.basic
+    ~summary:"Run a test harness on a list of submission folders."
+    ~readme:(fun () -> String.concat ~sep:"\n" [
+      "The harness command runs a collection of tests against a list of submission directories.";
+      "By default, the tests are inferred from the configuration, but may be given explicitly";
+      "through command-line options. Output is generated for each submission directory, detailing";
+      "the tests passed and failed by each submission. By default, we save a spreadsheet and";
+      "markdown (.md) comments for upload to CMS. Additionally, you can generate postscript files";
+      "containing students code and test results in a printer-ready format."
+    ])
+    Command.Spec.(
+      empty
+      +> flag ~aliases:["-v"]          "-verbose"     (no_arg)          ~doc:" Print debugging information."
+      +> flag ~aliases:["-p"; "-ps"]   "-postscript"  (no_arg)          ~doc:" Generate postscript output."
+      +> flag ~aliases:["-t"]          "-test"        (listed file)     ~doc:"FILE Use the unit tests in the module FILE."
+      +> flag ~aliases:["-d"]          "-directory"   (optional file)   ~doc:"DIR Use all unit tests in all modules under directory DIR."
+      +> flag ~aliases:["-o"]          "-output"      (optional string) ~doc:"DIR Set the output directory."
+      +> flag ~aliases:["-s";"-sheet"] "-spreadsheet" (optional string) ~doc:"FILE Location to write the spreadsheet."
+      +> anon (sequence ("submission" %: string))
+    )
+    (fun v ps tests test_dir output_dir sheet_location subs () ->
+      let tests_dir = Optional.value test_dir ~default:cTESTS_DIR in
+      let opts = {
+        tests                = test_suite_of_list (ts @ test_list_of_directory ~verbose:v tests_dir);
+        output_directory     = Optional.value output_dir ~default:cHARNESS_DIR;
+        postscript           = ps;
+        spreadsheet_location = Optional.value sheet_location ~default:cHARNESS_SHEET;
+        verbose              = v;
+      } in
+      harness opts (at_expand subs))
