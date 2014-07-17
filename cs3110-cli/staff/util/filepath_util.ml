@@ -151,3 +151,11 @@ let is_valid_test_file (fname : string) : bool =
   String.length fname <> 0 &&
   fname.[0] <> '.' &&
   is_suffix fname "_test.ml"
+
+let at_expand (dirs : string list) : string list =
+  begin match dirs with
+    | [fname] when (0 < String.length fname) && fname.[0] = '@' ->
+       (* Remove leading '@' *)
+       directories_of_list (String.sub fname 1 ((String.length fname) - 1))
+    | [] | _::_ -> dirs
+  end
