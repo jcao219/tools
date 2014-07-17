@@ -159,3 +159,19 @@ let at_expand (dirs : string list) : string list =
        directories_of_list (String.sub fname 1 ((String.length fname) - 1))
     | [] | _::_ -> dirs
   end
+
+(** [tests_of_directory d] Get the full filenames of tests from a directory [d].
+    For example, if the directory "my_dir" has files "my_test.ml" and "notatest.ml",
+    we will return a singleton list containing the string "mydir/my_test.ml". *)
+(* TODO smoke should use this *)
+let test_list_of_directory ?(verbose=false) (dir : string) : string list =
+  Array.fold_right
+    ~f:(fun acc file ->
+        if is_valid_test_file file then
+          let full_path = Format.sprintf "%s/%s" dir file in
+          full_path :: acc
+        else
+          let () = if verbose then Format.printf "WARNING: skipping invalid test file '%s/%s'.\n" fname test_dir in
+          acc)
+    ~init:[]
+    (Sys.readdir dir)
