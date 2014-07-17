@@ -15,7 +15,7 @@ let cOCAMLDOC_OPTIONS = [
     "-v";             (* run verbose                                     *)
     "-sort";          (* sort the output modules                         *)
     "-stars";         (* remove leading blank characters in doc comments *)
-    "-warn-error";    (* treat errors as warnings                        *)
+    "-warn-error";    (* treat warnings as errors                        *)
     "-html";          (* html output by default                          *)
     "-colorize-code"; (* provide syntax highlighting in the HTML         *)
 ]
