@@ -9,7 +9,8 @@ type options = {
   verbose   : bool;
 }
 
-let cDOC_OUTPUT = "./_output/_doc"
+(* TODO replace with config file, ensure directories nicer *)
+let cDOC_OUTPUT = "./_doc"
 let cOCAMLDOC_OPTIONS = [
     "-v";             (* run verbose                                     *)
     "-sort";          (* sort the output modules                         *)
@@ -23,7 +24,7 @@ let cOCAMLDOC_OPTIONS = [
 let doc (opts : options) (targets : string list) : int =
   let () = if opts.verbose then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " targets) in
   (* TODO use Compile.compile *)
-  let () = if opts.recompile then List.iter ~f:(fun t -> check_code (Build.run t)) targets in
+  let () = if opts.recompile then List.iter ~f:(fun t -> check_code (Build.run (strip_suffix t))) targets in
   run_process "ocamldoc" (cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ targets)
 
 let command =
@@ -43,9 +44,11 @@ let command =
     )
     (fun v r o ts () ->
       let opts = {
-        build_dir = "_build"; (* TODO this is delicate because we recompile *)
+        build_dir = "_build"; (* TODO this is delicate because we may recompile. so don't let the _build dir change. *)
         output    = Option.value o ~default:cDOC_OUTPUT;
         recompile = r;
         verbose   = v;
       } in
+      let () = ensure_dir opts.build_dir in
+      let () = ensure_dir opts.output in
       check_code (doc opts ts))
