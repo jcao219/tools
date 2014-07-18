@@ -26,8 +26,22 @@ let harness_cmd : string = Format.sprintf "%s; rm -rf %s" cms_cmd cHARNESS_DIR
 let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cNOCOMPILE_DIR
 
 let command_not_found (target : string) : string =
-  let () = Printf.printf "Invalid option: %s\n%s\n" target targets_readme in
+  let () = Printf.printf "[clean] Invalid option: %s\n%s\n" target targets_readme in
   "false"
+
+(** [clean_dir_command d] if [d] is a directory, visit [d], clean the build/compile, leave.
+    Otherwise print an error message. *)
+let clean_dir_cmd (dir : string) : string =
+  begin match Sys.is_directory dir with
+    | `Yes           ->
+      Format.sprintf
+        "cd %s; %s; cd %s"
+        dir
+        compile_cmd
+        (Sys.getcwd ())
+    | `No | `Unknown ->
+      command_not_found dir
+  end
 
 let clean (target : string) : unit =
   let cmd =
@@ -39,7 +53,7 @@ let clean (target : string) : unit =
       | "email"   -> email_cmd
       | "harness" -> harness_cmd
       | "smoke"   -> smoke_cmd
-      | _         -> command_not_found target
+      | _         -> clean_dir_cmd target
     end
   in
   check_code (Sys.command cmd)
@@ -50,8 +64,11 @@ let command =
     ~readme:(fun () -> String.concat ~sep:"\n" [
       "The clean command removes all of the automatically generated files and";
       "directories of the cs3110 tool. You can pass a sequence of targets for";
-      "cleaning.";
+      "cleaning (i.e., commands to clean up after), or directories to visit";
       targets_readme
     ])
-    Command.Spec.(empty +> anon (maybe_with_default "compile" ("<target>" %: string)))
+    Command.Spec.(
+      empty
+      +> anon (maybe_with_default "compile" ("<target>" %: string))
+    )
     (fun target () -> clean target)
