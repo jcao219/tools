@@ -69,6 +69,6 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> anon (maybe_with_default "compile" ("<target>" %: string))
+      +> anon (maybe_with_default ["compile"] (sequence ("<target>" %: string)))
     )
-    (fun target () -> clean target)
+    (fun targets () -> List.iter ~f:clean targets)
