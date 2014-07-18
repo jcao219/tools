@@ -26,7 +26,7 @@ let harness_cmd : string = Format.sprintf "%s; rm -rf %s" cms_cmd cHARNESS_DIR
 let smoke_cmd : string = Format.sprintf "%s; rm -rf %s" email_cmd cNOCOMPILE_DIR
 
 let command_not_found (target : string) : string =
-  let () = Printf.printf "[clean] Invalid option: %s\n%s\n" target targets_readme in
+  let () = Printf.printf "[clean] Invalid option: '%s'.\n%s\n" target targets_readme in
   "false"
 
 (** [clean_dir_command d] if [d] is a directory, visit [d], clean the build/compile, leave.
@@ -43,7 +43,8 @@ let clean_dir_cmd (dir : string) : string =
       command_not_found dir
   end
 
-let clean (target : string) : unit =
+let clean ?(verbose=false) (target : string) : unit =
+  let () = if verbose then Format.printf "%![clean] Cleaning target '%s'.\n%!" target in
   let cmd =
     begin match target with
       | "all"     -> compile_cmd
@@ -56,7 +57,10 @@ let clean (target : string) : unit =
       | _         -> clean_dir_cmd target
     end
   in
-  check_code (Sys.command cmd)
+  let () = check_code (Sys.command cmd) in
+  (* 2014-07-18: Need to flush and print one character after running ocamlbuild... *)
+  let () = if verbose then Format.printf "\n%!" in
+  ()
 
 let command =
   Command.basic
@@ -69,6 +73,7 @@ let command =
     ])
     Command.Spec.(
       empty
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
       +> anon (maybe_with_default ["compile"] (sequence ("<target>" %: string)))
     )
-    (fun targets () -> List.iter ~f:clean targets)
+    (fun v targets () -> List.iter ~f:(clean ~verbose:v) targets)
