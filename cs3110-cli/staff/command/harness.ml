@@ -4,7 +4,7 @@ open Io_util
 open Filepath_util
 
 (* aka 'ordered list' *)
-(* TODO remove this *)
+(* TODO remove this? *)
 module StringSet = Set.Make(struct
   type t = string
   let compare = Pervasives.compare
@@ -23,7 +23,7 @@ module TestSuite = Set.Make(struct
 end)
 
 (* the results of running one test file. Keep unit test names alphabetized. *)
-module TestResults = Set.Make(struct (* TODO perhaps the name should be TestFile.unittest *)
+module TestResults = Set.Make(struct (* TODO perhaps the name should be longer, i.e. TestFile.unittest *)
   type t                        = string * int * (string option) (* unit_test_name , points_earned , error_message *)
   let compare (n1,_,_) (n2,_,_) = Pervasives.compare n1 n2
 end)
@@ -122,9 +122,9 @@ let parse_num_failed (msg : string) : int =
   (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
   int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
 
-(** [parse_result o e] Parse the error message [e] to determine whether the unit test
+(** [parse_harness_result o e] Parse the error message [e] to determine whether the unit test
     passed, failed, or was a quickcheck. Return the score earned and appropriate error message. *)
-let parse_result opts (failure_msg : string option) : int * (string option) =
+let parse_harness_result opts (failure_msg : string option) : int * (string option) =
   begin match failure_msg with
     | Some e ->
        if is_qcheck e then
@@ -148,7 +148,7 @@ let harness_run_test opts ~dir (t : test_file) : TestResults.t =
   StringSet.fold
     ~f:(fun acc unit_name ->
         let failure_msg = List.find failures ~f:(fun line -> (test_name_of_line line) = unit_name) in
-        let score, err_msg = parse_result opts unit_name failure_msg in
+        let score, err_msg = parse_harness_result opts unit_name failure_msg in
        TestResults.add acc (unit_name, score, err_msg))
     ~init:TestResults.empty
     t.unit_tests
@@ -281,17 +281,20 @@ let harness (opts : options) (subs : string list) : unit =
     end)
   in
   let () = if opts.verbose then Format.printf "[harness] Running all tests...\n" in
-  List.fold
-    ~f:(fun sheet dir ->
-       let ()          = pre_harness opts dir in
-       let netid       = filename_of_path dir in
-       let all_results = harness_student opts dir in
-       let ()          = post_harness opts ~dir:dir all_results in
-       let row         = (netid, all_results) in
-       HarnessSpreadsheet.add_row sheet row
-       )
-    ~init:(HarnessSpreadsheet.create ())
-    subs
+  let sheet =
+    List.fold
+      ~f:(fun sheet dir ->
+         let ()          = pre_harness opts dir in
+         let netid       = filename_of_path dir in
+         let all_results = harness_student opts dir in
+         let ()          = post_harness opts ~dir:dir all_results in
+         let row         = (netid, all_results) in
+         HarnessSpreadsheet.add_row sheet row
+         )
+      ~init:(HarnessSpreadsheet.create ())
+      subs
+  in
+  HarnessSpreadsheet.write sheet
 
 (** [get_unit_test_names d t] Extract the names of all unit tests from the
     file [test] by compiling it in directory [d]. Raise an error if the file
