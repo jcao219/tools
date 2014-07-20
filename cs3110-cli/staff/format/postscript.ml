@@ -21,3 +21,20 @@ let set_font t (font : font) : unit =
 
 let write t (msg : string) : unit =
   output_string t msg
+
+let write_code t (src_fname : string) : unit =
+  let () = set_font t Header in
+  begin match Sys.file_exists src_fname with
+    | true  ->
+       let () = write t (Format.sprintf "Source code for file '%s':\n" src_fname) in
+       let () = set_font t Code in
+       List.iter ~f:(write t) (In_channel.read_lines src_fname)
+    | false -> write t "SOURCE NOT FOUND\n"
+  end
+
+let write_results t (results_str : string) : unit =
+  let () = set_font t Header in
+  let () = write t "\nTest Results:\n" in
+  let () = set_font t Normal in
+  let () = write t results_str in
+  ()
