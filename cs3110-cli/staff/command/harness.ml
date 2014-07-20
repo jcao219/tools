@@ -68,19 +68,19 @@ let string_of_test_results (results : TestResults.t) : string =
 let sanitize_file (fname : string) : unit =
   (* Use [grep -q], which returns 0 if any matches are found *)
   let cmd = Format.sprintf "grep -q \"TEST\" %s" fname in
-  let is_clean = ref (Sys.command(cmd)) in
-  while (!is_clean = 0) do (
-    Format.printf "\
+  let not_clean = ref (0 = (Sys.command cmd)) in
+  while (!not_clean) do (
+    let () = Format.printf "\
 ********************************************************************************\n\
 *** WARNING : file '%s' contains the string TEST. This is probably BAD!         \n\
 ***           Please edit the file and delete all unit tests, then press RETURN.\n\
 *** Input the string \"ACCEPT\" to accept this file anyway (case-sensitive).    \n\
 ********************************************************************************\n\
-" fname;
+" fname in
     if ("ACCEPT" = (read_line()))
-    then is_clean := 1
-    else is_clean := Sys.command(cmd);
-  ()) done
+    then not_clean := false
+    else not_clean := (0 = (Sys.command cmd))
+  ) done
 
 (** [sanitize_directory d] Check all [.ml] files in directory [d]
     for unit tests. If any, ask the user to remove them before continuing. *)
@@ -215,7 +215,7 @@ let harness (opts : options) (subs : string list) : unit =
   let module HarnessSpreadsheet =
     (* TODO abstract these files. Parameter is just the test suite. *)
     Spreadsheet.Make(struct
-      type row              = string * ((string * TestResults.t) list)
+      type row              = string * ((string * TestResults.t) list) (* should be sorted by test file *)
       let compare_row r1 r2 = Pervasives.compare (fst r1) (fst r2)     (* compare netids *)
       let filename : string = opts.spreadsheet_location
       let row_of_string str = failwith "cannot read sheets yet"
