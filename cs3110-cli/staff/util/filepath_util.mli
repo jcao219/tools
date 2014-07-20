@@ -32,3 +32,4 @@ val test_name_of_line : string -> string
 val is_valid_test_file : ?bool -> string -> bool
 val at_expand : string list -> string list
 val test_list_of_directory : string -> string list
+val filename_of_path : string -> string

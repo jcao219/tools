@@ -175,3 +175,9 @@ let test_list_of_directory ?(verbose=false) (dir : string) : string list =
           acc)
     ~init:[]
     (Sys.readdir dir)
+
+(** [filename_of_path p] Return the last item along the path [p].
+    It could be a filename or a directory name, don't care. *)
+let filename_of_path (path : string) : string =
+  let path = strip_trailing_slash path in
+  snd (rsplit path '/')
