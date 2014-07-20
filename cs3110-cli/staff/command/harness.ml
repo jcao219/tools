@@ -61,6 +61,19 @@ let string_of_test_results (results : TestResults.t) : string =
        ~init:[]
        results)
 
+(** [get_scores tr] Get just the scores (in order) from the test results [t]. *)
+let get_scores (tr : TestResults.t) : int list =
+  TestResults.fold_right
+    ~f:(fun (_,score,_) acc -> score :: acc)
+    ~init:[]
+    tr
+
+(** [sort_results rs] Sort a list of pairs [rs] of (test_file_name, results) in alphabetical
+    order of the test_filen_names. *)
+let sort_results (rs : (string * TestResults.t) list) : (string * TestResults.t) list =
+  List.sort rs
+    ~cmp:(fun (s1,_) (s2,_) -> Pervasives.compare s1 s2)
+
 (** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
     to approve if TEST was in a comment or part of a variable name like
@@ -149,8 +162,7 @@ let harness_student (opts : options) (dir : string) : (string * TestResults.t) l
       ~f:(fun acc t -> (t.name, harness_run_test opts t ~dir:dir) :: acc)
       ~init:[]
   in
-  List.sort results
-    ~cmp:(fun (s1,_) (s2,_) -> Pervasives.compare s1 s2)
+  sort_results results
 
 (** [write_comments o d tr] Create a markdown file summarizing the test results [tr] for
     directory [d]. These comments can be uploaded directly to CMS. *)
@@ -201,63 +213,71 @@ let post_harness (opts : options) ~dir (tr : (string * TestResults.t) list) : un
   let () = if opts.verbose then Format.printf "[harness] Cleaning complete!\n" dir in
   ()
 
+(** [parse_results_from_list us cs] Given a collection of unit test names [us] and a (possibly longer) list
+    of scores [scores], create test results matching the unit tests [us] and additionally return the
+    remaining scores. *)
+let parse_results_from_list (unit_tests : StringSet.t) (cols : string list) : TestResults.t * (string list) =
+  StringSet.fold
+    ~f:(fun (rs, cols_left) unit_name ->
+        begin match cols_left with
+          | []   -> failwith "parse error, not enough columns"
+          | h::t ->
+             let v   = try int_of_string h with _ -> failwith "parse error, column doesn't contain int" in
+             let rs' = TestResults.add rs (unit_name, v) in
+             (rs', t)
+        end)
+    ~init:(TestResults.empty, cols)
+    unit_tests
+
 (** [harness o submissions] Initialize a spreadsheet with unit test names as columns.
     Iterate through students, filling out the sheet. *)
 let harness (opts : options) (subs : string list) : unit =
   let () = if opts.verbose then Format.printf "[harness] Initializing spreadsheet...\n" in
   (* define spreadsheet *)
-  let num_test_files = TestSuite.length opts.test_suite in
-  let num_unit_tests = TestSuite.fold_right
-                         ~f:(fun acc t -> StringSet.length t.unit_tests :: acc)
-                         ~init:[]
-                         opts.test_suite
-  in
   let module HarnessSpreadsheet =
-    (* TODO abstract these files. Parameter is just the test suite. *)
+    (* TODO Set.add doesn't replace existing *)
     Spreadsheet.Make(struct
       type row              = string * ((string * TestResults.t) list) (* should be sorted by test file *)
       let compare_row r1 r2 = Pervasives.compare (fst r1) (fst r2)     (* compare netids *)
       let filename : string = opts.spreadsheet_location
-      let row_of_string str = failwith "cannot read sheets yet"
-        (* (\* string SHOULD be netid, unit_test_scores *\) *)
-        (* let columns = String.split str ~on:',' in *)
-        (* let netid   = List.hd columns in *)
-        (* let all_results = *)
-        (*   List.rev (List.fold *)
-        (*     ~f:(fun (acc,files_left,unit_tests_left) v -> *)
-        (*         (\* is files_left negative? If so, parse error: too many columns *\) *)
-        (*         let v = int_of_string v in *)
-        (*         let file_index = num_test_files - files_left in *)
-        (*         let unit_index = (List.nth_exn num_unit_tests file_index) - unit_tests_left in *)
-        (*         let unit_name  = (\* get unit test name from opts.test_suite *\) in *)
-        (*         (\* create a new acc with same str, unit_name + v added *\) *)
-        (*         (\* check if any unit_tests_left. If so, pass acc *\) *)
-        (*         (\* if not, check if any files left *\) *)
-        (*        ) *)
-        (*     ~init:([],num_test_files,num_unit_tests) *)
-        (*     (List.tl columns)) *)
-        (* in *)
-        (* (netid, all_results) *)
-      let string_of_row r =
-        Format.sprintf "%s,%s" (fst r)
-          (String.concat ~sep:",,"
-                         (List.map
-                                 (snd r)
-                                 ~f:(fun (_,results) ->
-                                     String.concat ~sep:"," (TestResults.fold_right
-                                       results
-                                       ~f:(fun (_,score) acc -> string_of_int score :: acc)
-                                       ~init:[])
-                            ) ))
-      let title : string =
+      let row_of_string str =
+        (* string SHOULD be netid, unit_test_scores *)
+        begin match String.split str ~on:',' with
+          | []               -> failwith "parse error, empty row"
+          | netid :: columns ->
+             let results_by_test, cols_left =
+               TestSuite.fold
+                 ~f(fun (acc,cols) test ->
+                    let pairs, cols' = parse_results_from_list test.unit_tests cols' in
+                    ((test.name, pairs) :: acc, cols')
+                   )
+                 ~init:([],columns)
+                 opts.test_suite))
+             in
+             let () =
+               begin match cols_left with
+                 | []   -> ()
+                 | _::_ -> Format.printf "[harness] WARNING unused columns '%s' in spreadsheet row." (String.concat ~sep:"," cols_left)
+               end
+             in
+             (netid, sort_results results_by_test)
+        end
+      let string_of_row r   =
+        let (netid, results_by_test) = r in
+        let string_of_int_list (ints : int list) : string =
+          String.concat ~sep:"," (List.map ~f:string_of_int ints)
+        in
+        let all_scores = List.map ~f:(fun (_,r) -> string_of_int_list (get_scores r)) results_by_test in
+        Format.sprintf "%s,%s" netid (String.concat ~sep:",," all_scores)
+      let title : string    =
         (* For each test file in the suite, concat all unit test names *)
-        Format.sprintf "NetID,%s"
-          (String.concat ~sep:",,"
-            (TestSuite.fold_right opts.test_suite
-              ~init:[]
-              ~f:(fun test acc -> (String.concat ~sep:"," (StringSet.to_list test.unit_tests)) :: acc)
-            )
-          )
+        let unit_test_names : string list =
+          TestSuite.fold_right
+            ~f:(fun test acc -> (String.concat ~sep:"," (StringSet.to_list test.unit_tests)) :: acc)
+            ~init:[]
+            opts.test_suite
+        in
+        Format.sprintf "NetID,%s" (String.concat ~sep:",," unit_test_names)
     end)
   in
   let () = if opts.verbose then Format.printf "[harness] Running all tests...\n" in
