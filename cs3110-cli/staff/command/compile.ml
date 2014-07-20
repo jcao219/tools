@@ -75,13 +75,10 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
 
 (** [compile args main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. *)
-let compile (run_quiet:bool) (main_module : string) : int =
-  (* TODO ensure_ml main_module (maybe should be add/remove suffix. *)
-  let () =
-    assert_ocamlbuild_friendly_filepath main_module;
-    assert_file_exists main_module;
-  in
-  let () = if not run_quiet then Format.printf "[compile] Compiling '%s'\n%!" main_module in
+let compile ~quiet ~dir (main_module : string) : int =
+  let cwd = Sys.getcwd () in
+  let ()  = Sys.chdir dir in
+  let ()  = if not quiet then Format.printf "[compile] Compiling '%s'\n%!" main_module in
   let opam_packages_str =
     String.concat ~sep:", "
       (List.map
@@ -97,13 +94,15 @@ let compile (run_quiet:bool) (main_module : string) : int =
     "-tag-line"; "<*.native> : " ^ opam_packages_str;
     target
   ] in
-  let quiet = if run_quiet then ["-quiet"] else [] in
+  let run_quiet = if quiet then ["-quiet"] else [] in
   let compiler_args = (
     (get_dependencies ())   @
     (get_libraries ())      @
-    (get_compiler_flags ()) @ quiet @ ocamlbuild_flags)
+    (get_compiler_flags ()) @ run_quiet @ ocamlbuild_flags)
   in
-  run_process "ocamlbuild" compiler_args
+  let exit_code = run_process "ocamlbuild" compiler_args in
+  let ()        = Sys.chdir cwd in
+  exit_code
 
 let command =
   Command.basic
@@ -119,4 +118,14 @@ let command =
       empty
       +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly."
       +> anon ("target" %: string))
-    (fun quiet target () -> check_code (compile quiet target))
+    (fun q target () ->
+     let () = assert_file_exists target in
+     let () = assert_ocamlbuild_friendly_filepath target in
+     let dir,main =
+       begin match String.rsplit2 target ~on:'/' with
+         | None   -> Sys.getcwd (), target
+         | Some v -> v
+       end
+     in
+     (* TODO ensure_ml on main? *)
+     check_code (compile ~quiet:q ~dir:dir main))
