@@ -1,7 +1,10 @@
 open Core.Std
 open Filepath_util
 
-let test ?(quiet=false) ?output (main_module : string) : int =
+let test ?(quiet=false) ?output ~recompile ~dir (main_module : string) : int =
+  let cwd = Sys.getcwd () in
+  let ()  = Sys.chdir dir in
+  let () = if recompile then () (* Compile.compile main_module *) in
   let build_dir = "_build" in (* TODO abstract this *)
   let main_module = strip_suffix main_module in
   (* TODO clean this all up *)
@@ -19,8 +22,10 @@ let test ?(quiet=false) ?output (main_module : string) : int =
       then base_cmd @ [">"; "/dev/null"]
       else base_cmd @ ["-show-counts"]
   end in
-  (* Note that Jane Street doesn't give an exit status. *)
-  Sys.command (String.concat ~sep:" " cmd)
+  (* Note that pa_ounit doesn't give a nonzero exit status if tests are run. *)
+  let exit_code = Sys.command (String.concat ~sep:" " cmd) in
+  let ()        = Sys.chdir cwd in
+  exit_code
 
 let command =
   Command.basic
@@ -36,11 +41,17 @@ let command =
       +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
       +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly. Do not print debug statements."
       +> flag ~aliases:["-o"] "-output" (optional string) ~doc:"FILE Save test output to the file FILE."
-      +> anon ("target" %: string)
+      +> anon ("target" %: file)
     )
-    (fun recompile quiet output main () ->
+    (fun r quiet output target () ->
+      let dir, main =
+        begin match String.rsplit2 target ~on:'/' with
+          | None   -> Sys.getcwd (), target
+          | Some v -> v
+        end
+      in
       (* let () = if recompile then Command.compile main in *)
       Process_util.check_code (begin match output with
-      | Some dest -> test ~quiet:quiet ~output:dest main
-      | None -> test ~quiet:quiet main end)
+      | Some dest -> test ~recompile:r ~quiet:quiet ~output:dest ~dir:dir main
+      | None -> test ~recompile:r ~quiet:quiet ~dir:dir main end)
     )
