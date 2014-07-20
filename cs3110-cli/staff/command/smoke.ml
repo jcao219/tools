@@ -7,6 +7,7 @@ open Process_util
 type options = {
   email_directory     : string;
   nocompile_directory : string;
+  release_directory   : string option;
   targets             : string list;
   verbose             : bool;
 }
@@ -86,6 +87,14 @@ let smoke_target (opts : options) (dir : string) (failed_targets : string list) 
 (** [smoke_directory o d] compile all targets in the folder [dir], generate
     an email message and save the results if any target fails to compile. *)
 let smoke_directory (opts : options) (dir : string) : unit =
+  let () =
+    begin match opts.release_directory with
+      | None   -> ()
+      | Some r ->
+         let () = if opts.verbose then Format.printf "[smoke] copying release files from '%s' to '%s'.\n" r dir in
+         ignore (soft_copy r dir)
+    end
+  in
   let () = if opts.verbose then Format.printf "[smoke] compiling directory '%s'\n" dir in
   let failed_targets = List.rev (List.fold
     ~f:(smoke_target opts dir)
@@ -142,16 +151,24 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
-      +> flag ~aliases:["-t"] "-target" (listed string) ~doc:"target Attempt to compile TARGET in each SUBMISSION directory."
+      +> flag ~aliases:["-v"] "-verbose" no_arg          ~doc:" Print debugging information."
+      +> flag ~aliases:["-t"] "-target"  (listed string) ~doc:"TARGET Attempt to compile TARGET in each SUBMISSION directory."
+      +> flag ~aliases:["-r"] "-release" (optional file) ~doc:"DIR Copy starter code from directory DIR."
       +> anon (sequence ("submission" %: string))
     )
-    (fun v tgts subs () ->
+    (fun v tgts r subs () ->
      let () = ensure_dir cEMAIL_DIR in
      let () = ensure_dir cNOCOMPILE_DIR in
+     let () =
+       begin match r with
+         | None   -> ()
+         | Some d -> assert_file_exists d
+       end
+     in
      let opts = {
        email_directory     = cEMAIL_DIR;
        nocompile_directory = cNOCOMPILE_DIR;
+       release_directory   = r;
        targets             = get_smoke_targets tgts;
        verbose             = v;
      } in
