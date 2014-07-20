@@ -171,3 +171,8 @@ let is_valid_test_file (fname : string) : bool =
   String.length fname <> 0 &&
   fname.[0] <> '.' &&
   is_suffix fname "_test.ml"
+
+(** [soft_copy d1 d2] Copy all files and directories from directory [d1]
+    into directory [d2]. Do NOT overwrite any files in [d2]. *)
+let soft_copy (dir1 : string) (dir2 : string) : int =
+  Sys.command (Format.sprintf "cp -r -n %s/* %s" dir1 dir2)
