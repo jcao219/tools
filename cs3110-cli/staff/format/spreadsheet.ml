@@ -23,7 +23,11 @@ module Make =
     type t = RowSet.t
 
     let add_row (sheet : t) ~row =
-      RowSet.add sheet row
+      if RowSet.mem sheet row then
+        let sheet' = RowSet.remove sheet row in
+        RowSet.add sheet' row
+      else
+        RowSet.add sheet row
 
     let count_rows (sheet : t) : int =
       RowSet.length sheet
@@ -39,7 +43,7 @@ module Make =
       in
       RowSet.of_list lines
 
-    let write (sheet : t) ~file : unit =
+    let write ?(file=Spec.filename) (sheet : t) : unit =
       let rows =
         List.map
           ~f:Spec.string_of_row
