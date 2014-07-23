@@ -1,5 +1,5 @@
 
-Random.init 3110
+Random.self_init ()
 
 (* This is the bank of CS3110 Quotes from over the semesters *)
 let quote_lst = 
@@ -28,13 +28,13 @@ let quote_lst =
 	"I don't remember much of the 90s - mgn29";
 	"May the almighty 3110 gods have mercy on my poor, pathetic soul - 3110 student";
 	"3110 is really just intro to match statements with some other stuff thrown in - Luke";
-	"Instructions: Light 7 candles and pray to the Gods of OCaml. Offer sever bowls of curry along iwth incense and then use the Makefile -Design Document";
+	"Instructions: Light 7 candles and pray to the Gods of OCaml. Offer sever bowls of curry along with incense and then use the Makefile -Design Document";
 	"Some people learned some things this semester -bkc39";
-	"Windows is an operating system used by people who design powerpoints -mdgeorge";
+	"Windows is an operating system used by people who design PowerPoints -mdgeorge";
 	"Jianneng! You're incredible! -3110 student";
 	"A computer is an instrument whose music is ideas - Alan Kay";
-	"priority queues just make me get excited -mdgeorge";
-	"implement fold_left (without using rec?) -problem set 4, part 3";
+	"Priority queues just make me get excited -mdgeorge";
+	"Implement fold_left (without using rec?) -problem set 4, part 3";
 	"'Is there an advanced programming languages course?' 'Yeah, it's called coffee with Nate Foster' -students";
 	"I tend to not use the ps6 constants given cause I know them all... -ejy"]
 
