@@ -10,8 +10,8 @@ BEGIN { RS="\0" }
 		ocamlstr = gensub(/\n/, "\\\\n", "g", ocamlstr);
 		print "\"" ocamlstr "\";";
 	}
-	print "|] in";
-
+	print "|]";
+	print ""
 	print "let print_inspiration () ="
 	print "  let _ = Random.self_init () in"
 	print "  let rand_idx = Random.int (Array.length inspirations) in"
