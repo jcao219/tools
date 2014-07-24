@@ -45,7 +45,7 @@ let command =
       +> anon ("target" %: file)
     )
     (fun r q output target () ->
-      (* let () = if r then Command.compile main in *)
+      let () = if r then Process_util.check_code (Compile.compile target) in
       Process_util.check_code (begin match output with
       | Some dest -> test ~quiet:q ~output:dest target
       | None -> test ~quiet:q target end)
