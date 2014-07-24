@@ -124,11 +124,7 @@ let command =
       +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information (about compiler options, etc.)."
       +> anon ("target" %: file)
     )
-    (fun q v target () ->
+    (fun q v cflags target () ->
       let () = assert_ocamlbuild_friendly_filepath target in
-      let dir,main =
-        Option.value ~default:(Sys.getcwd (), target)
-                   (String.rsplit2 target ~on:'/')
-      in
-      check_code (compile ~quiet:q ~verbose:v ~dir:dir main)
+      check_code (compile ~quiet:q ~verbose:v target)
     )
