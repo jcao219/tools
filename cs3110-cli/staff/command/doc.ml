@@ -22,29 +22,30 @@ let cOCAMLDOC_OPTIONS = [
 
 (** [doc o ts] Generate ocamldoc documentation for the targets [ts]. *)
 let doc (opts : options) (targets : string list) : int =
-  let () = if opts.verbose then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " targets) in
-  (* TODO use Compile.compile *)
-  let () = if opts.recompile then List.iter ~f:(fun t -> check_code (Build.run (strip_suffix t))) targets in
-  run_process "ocamldoc" (cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ targets)
+  let tgts = List.map ~f:ensure_ml targets in
+  let ()   = if opts.verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
+  let ()   = if opts.recompile then List.iter ~f:(fun t -> check_code (Compile.compile (strip_suffix t))) tgts in
+  let args = cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ tgts in
+  let ()   = if opts.verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n" (String.concat ~sep:" " args) in
+  run_process "ocamldoc" args
 
 let command =
   Command.basic
     ~summary:"Generate ocamldoc documentation."
     ~readme:(fun () -> String.concat ~sep:"\n" [
       "Running [cs3110 doc target] will generate the ocamldoc docmentation";
-      "for the source file [target]. The target(s) must be";
-      "compiled first."
+      "for the source file [target]. The target(s) must be compiled first.";
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
-      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile the target before generating documentation."
+      +> flag ~aliases:["-v"] "-verbose"    no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-r"] "-recompile"  no_arg ~doc:" Compile the target before generating documentation."
       +> flag ~aliases:["-o"] "-output-dir" (optional file) ~doc:"DIR Save outputted documentation to the directory DIR."
       +> anon (sequence  ("target" %: string))
     )
     (fun v r o ts () ->
       let opts = {
-        build_dir = "_build"; (* TODO this is delicate because we may recompile. so don't let the _build dir change. *)
+        build_dir = "_build"; (* TODO replace with a constant *)
         output    = Option.value o ~default:cDOC_OUTPUT;
         recompile = r;
         verbose   = v;
