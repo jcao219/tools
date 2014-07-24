@@ -12,8 +12,9 @@ BEGIN { RS="\0" }
 	}
 	print "|] in";
 
-	print "let _ = Random.self_init () in"
-	print "let rand_idx = Random.int (Array.length inspirations) in"
-	print "print_string inspirations.(rand_idx)"
+	print "let print_inspiration () ="
+	print "  let _ = Random.self_init () in"
+	print "  let rand_idx = Random.int (Array.length inspirations) in"
+	print "  print_string inspirations.(rand_idx)"
 }
 ' < inspirations.fortune > inspiration.ml
