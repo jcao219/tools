@@ -72,6 +72,12 @@ let assert_file_exists (filename : string) : unit =
   if not (Sys.file_exists filename) then
     raise (File_not_found filename)
 
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if Core.Std.String.is_suffix fname ~suffix:".ml"
+  then fname
+  else fname ^ ".ml"
+
 (** [ensure_dir d] creates the directory [d] if it does not exist already. *)
 let ensure_dir (dir_name : string) =
   if not (Sys.file_exists dir_name) then
@@ -86,16 +92,12 @@ let ensure_dir (dir_name : string) =
  * This is the same as
  *   > cs3110 smoke dir/a dir/b dir/c
  *)
-let directories_of_list (dir : string) : string list =
-  let dir = strip_trailing_slash dir in
-  let len = String.length dir in
-  (* Remove the leading @ to get a filename *)
-  let fname = String.sub dir 1 (len-1) in
-  let _ = assert_file_exists fname in
+let directories_of_list (fname : string) : string list =
+  let () = assert_file_exists fname in
   (* Argument is @path/to/list-of-directory-names.    *
    * Extract a list of directory names from the list. *)
   let dir_names = read_lines (open_in fname) in
-  let prefix = String.sub fname 0 (String.rindex dir '/') in
+  let prefix = String.sub fname 0 (String.rindex fname '/') in
   (* Return the fully-inferred list of directories *)
   List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
 
@@ -146,13 +148,6 @@ let get_files_with_extension (desired_extension : string)
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
 
-(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
-let ensure_ml (fname : string) : string =
-  if is_suffix fname ".ml"
-  then fname
-  else fname ^ ".ml"
-
-
 (** [at_expand dirs] optionally expand a file containing a list into a list of directories.
     If the input is a singleton list where the first element is prefixed by and '@' character,
     treat this input as a file containing a list of newline-separated strings. Create directory
@@ -176,3 +171,31 @@ let is_valid_test_file (fname : string) : bool =
     into directory [d2]. Do NOT overwrite any files in [d2]. *)
 let soft_copy (dir1 : string) (dir2 : string) : int =
   Sys.command (Format.sprintf "cp -r -n %s/* %s" dir1 dir2)
+
+(** [netid_of_filepath s] Very simple, just take the last string from
+    a slash-delimited filepath. Given 'dir1/dir2/dir3/', this function
+    returns 'dir3'. *)
+let netid_of_filepath (path : string) : string =
+  let path' = strip_trailing_slash path in
+  snd (rsplit path' '/')
+
+let all_files_exist (files : string list) : bool =
+  List.fold_left (fun acc f -> acc && Sys.file_exists f) true files
+
+(** [check_installed cmd] False is the unix tool [cmd] is not found. *)
+let check_installed (cmd : string) : bool =
+  (* Try to run the command's version info, pipe stdout to stderr *)
+  let check_cmd = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
+  0 = (Sys.command check_cmd)
+
+(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
+    is not installed. *)
+let assert_installed (cmd : string) : unit =
+  if not (check_installed cmd) then
+    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
+    raise (Command_not_found msg)
+
+(** [file_is_empty fname] True if [fname] contains nothing. *)
+let file_is_empty (fname : string) : bool =
+  (* [test] returns 0 exit status if file is not empty *)
+  0 <> (Sys.command (Format.sprintf "test -s %s" fname))

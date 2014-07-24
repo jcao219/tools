@@ -56,7 +56,7 @@ let compile_target (dir : string) (target : string) : bool =
   let () = Sys.chdir dir in
   (* TODO remove this Substring thing *)
   let target = String.slice target 0 ((String.length target) - 3) in
-  let exit_code = Build.run target in (* TODO change to Compile.compile target *)
+  let exit_code = Compile.compile target in
   (* TODO clean target *)
   let () = Sys.chdir cwd in
   0 = exit_code
@@ -151,14 +151,15 @@ let command =
       +> anon (sequence ("submission" %: string))
     )
     (fun v tgts r subs () ->
-     let () = ensure_dir cEMAIL_DIR in
-     let () = ensure_dir cNOCOMPILE_DIR in
-     let () = assert_file_exists r in
-     let opts = {
-       email_directory     = cEMAIL_DIR;
-       nocompile_directory = cNOCOMPILE_DIR;
-       release_directory   = r;
-       targets             = get_smoke_targets tgts;
-       verbose             = v;
-     } in
-     smoke opts (at_expand subs))
+      let () = ensure_dir cEMAIL_DIR in
+      let () = ensure_dir cNOCOMPILE_DIR in
+      let () = assert_file_exists r in
+      let opts = {
+        email_directory     = cEMAIL_DIR;
+        nocompile_directory = cNOCOMPILE_DIR;
+        release_directory   = r;
+        targets             = get_smoke_targets tgts;
+        verbose             = v;
+      } in
+      smoke opts (at_expand subs)
+    )

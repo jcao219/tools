@@ -6,6 +6,7 @@ val directories_of_list : string -> string list
 
 val do_if_directory : string -> (string -> 'a) -> string -> int -> 'a
 
+val ensure_ml  : string -> string
 val ensure_dir : string -> unit
 
 val filter_by_extension : string -> string list -> string list
@@ -29,7 +30,19 @@ val strip_trailing_slash_all : string list -> string list
 val tag_of_path : string -> string
 
 val test_name_of_line : string -> string
-val ensure_ml : string -> string
+
 val at_expand : string list -> string list
+
+val netid_of_filepath : string -> string
+
+val all_files_exist : string list -> bool
+
+val check_installed : string -> bool
+
+val assert_installed : string -> unit
+
+val file_is_empty : string -> bool
+
 val is_valid_test_file : string -> bool
+
 val soft_copy : string -> string -> int

@@ -1,3 +1,4 @@
+exception Command_not_found of string
 exception File_not_found of string
 exception Invalid_filepath of string
 
