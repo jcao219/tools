@@ -7,13 +7,6 @@ type options = {
   verbose : bool
 }
 
-let and_diff_result r1 r2 =
-  begin match (r1, r2) with
-    | Ok, Ok    -> Ok
-    | _, NotOk -> NotOk
-    | NotOk, _ -> NotOk
-  end
-
 let diff_result_of_string = function
   | "ok" | "Ok" -> Ok
   | _           -> NotOk
@@ -109,7 +102,11 @@ let diff_directories (opts : options) (old_dir : string) (new_dir : string) : di
         let new_file = new_dir ^ "/" ^ fname in
         let old_file = old_dir ^ "/" ^ fname in
         let r2 = diff_files opts old_file new_file in
-        and_diff_result r1 r2
+        begin match (r1, r2) with
+          | Ok, Ok    -> Ok
+          | _, NotOk -> NotOk
+          | NotOk, _ -> NotOk
+        end
        )
 
 (** [diff_student o t d] diff the current submission [d] of a student against
