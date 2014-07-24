@@ -72,6 +72,12 @@ let assert_file_exists (filename : string) : unit =
   if not (Sys.file_exists filename) then
     raise (File_not_found filename)
 
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if Core.Std.String.is_suffix fname ~suffix:".ml"
+  then fname
+  else fname ^ ".ml"
+
 (** [ensure_dir d] creates the directory [d] if it does not exist already. *)
 let ensure_dir (dir_name : string) =
   if not (Sys.file_exists dir_name) then
