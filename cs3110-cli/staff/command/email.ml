@@ -71,32 +71,19 @@ let send_one_email (opts : options) (msg_file : string) : bool =
   ((Sys.command cmd) = 0) ||
     (Format.printf "Failed to send message to: '%s'\n" recipient; false)
 
-(** [send_all_emails o ms] Send all messages in the collection [ms].
+(** [email o ms] Send all messages in the collection [ms].
     See the command readme for available options [o]. *)
-let send_all_emails (opts : options) (message_files : string array) : unit =
+let email (opts : options) (message_files : string array) : unit =
   let num_success, num_failure =
     Array.fold
       message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
-       if send_one_email opts msg_file
-       then num_success+1 , num_failure
-       else num_success   , num_failure+1)
+           if send_one_email opts msg_file
+           then num_success+1 , num_failure
+           else num_success   , num_failure+1)
   in
   print_results num_success num_failure
-
-let email (verbose : bool) (bccs : string list) (subject : string option) (dir : string option) () : unit =
-  (* TODO use config file *)
-  let dir = match dir with Some f -> f | None -> cEMAIL_DIR in
-  let () = assert_file_exists dir in
-  let () = assert_installed "mutt" in
-  let options = {
-    bccs      = parse_bccs bccs;
-    directory = dir;
-    subject   = (match subject with Some s -> s | None -> cEMAIL_SUBJECT);
-    verbose   = verbose
-  } in
-  send_all_emails options (Sys.readdir dir)
 
 let command =
   Command.basic
@@ -109,8 +96,21 @@ let command =
      ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
-      +> flag ~aliases:["-b"] "-bcc" (listed string) ~doc:"addr Include client [addr] as a bcc on all emails."
+      +> flag ~aliases:["-v"] "-verbose" no_arg            ~doc:" Print debugging information."
+      +> flag ~aliases:["-b"] "-bcc"     (listed string)   ~doc:"addr Include client [addr] as a bcc on all emails."
       +> flag ~aliases:["-s"] "-subject" (optional string) ~doc:"s Use [s] instead of the default subject."
-      +> flag ~aliases:["-d"] "-dir" (optional string) ~doc:"d Search directory [d] for emails instead of the default.")
-    email
+      +> flag ~aliases:["-d"] "-dir"     (optional string) ~doc:"d Search directory [d] for emails instead of the default."
+    )
+    (fun v bccs subject dir () ->
+      (* TODO use config file *)
+      let dir  = Option.value ~default:cEMAIL_DIR dir in
+      let ()   = assert_file_exists dir in
+      let ()   = assert_installed "mutt" in
+      let opts = {
+        bccs      = parse_bccs bccs;
+        directory = dir;
+        subject   = Option.value ~default:cEMAIL_SUBJECT subject;
+        verbose   = v
+      } in
+      email opts (Sys.readdir dir)
+    )
