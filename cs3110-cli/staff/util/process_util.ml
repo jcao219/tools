@@ -10,10 +10,9 @@ let return_code_of_exit_status (st : Unix.process_status) : int =
       let () = Format.printf "Sub-process stopped (signal %d)\n%!" n in
       -1
 
-(* TODO debug mode: print every process before running *)
 (** [run_process f args] Runs an executable and waits for termination, returning
- * an integer exit code.
- * If the process is killed or stopped, prints a warning & returns code -1. *)
+    an integer exit code. If the process is killed or stopped,
+    prints a warning & returns code -1. *)
 let run_process (filename : string) (args : string list) : int =
   let open Unix in
   let pid = create_process filename (Array.of_list (filename :: args))
