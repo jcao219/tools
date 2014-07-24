@@ -1,5 +1,6 @@
 open Core.Std
 open Filepath_util
+open Process_util
 
 let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : int =
   let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main_module in
@@ -11,24 +12,24 @@ let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : i
   let exec      = Format.sprintf "%s/%s.d.byte" build_dir (strip_suffix main_module) in
   (* -log required by harness, nice to have in general, but
      destination './inline_tests.log' is hardcoded *)
-  let base_cmd = [exec; "inline-test-runner"; "dummy"; "-log"] in
-  let cmd = String.concat ~sep:" "
+  let base_args = ["inline-test-runner"; "dummy"; "-log"] in
+  let args =
     begin match output with
       | Some dest ->
         if quiet
-        then base_cmd @ ["2>& 1>/dev/null | grep '^File' >"; dest]
-        else base_cmd @ ["-show-counts"; "&>"; dest]
+        then base_args @ ["2>& 1>/dev/null | grep '^File' >"; dest]
+        else base_args @ ["-show-counts"; "&>"; dest]
       | None      ->
         if quiet
-        then base_cmd @ [">"; "/dev/null"]
-        else base_cmd @ ["-show-counts"]
+        then base_args @ [">"; "/dev/null"]
+        else base_args @ ["-show-counts"]
     end
   in
-  let ()  = if verbose then Format.printf "[test] Test command is '%s'.\n" cmd in
+  let ()  = if verbose then Format.printf "[test] Test args are '%s'.\n" (String.concat ~sep:" " args) in
   (* Note that pa_ounit doesn't give a nonzero exit status if tests are run. *)
   begin match Sys.file_exists exec with
     | `Yes           ->
-      let exit_code = Sys.command cmd in
+      let exit_code = run_process exec args in
       let ()        = Sys.chdir cwd in
       exit_code
     | `No | `Unknown ->
@@ -56,8 +57,8 @@ let command =
       +> anon ("target" %: file)
     )
     (fun r v q output target () ->
-      let () = if r then Process_util.check_code (Compile.compile ~verbose:v target) in
-      Process_util.check_code (begin match output with
+      let () = if r then check_code (Compile.compile ~verbose:v target) in
+      check_code (begin match output with
       | Some dest -> test ~quiet:q ~verbose:v ~output:dest target
       | None      -> test ~quiet:q ~verbose:v target end)
     )
