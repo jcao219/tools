@@ -6,9 +6,13 @@ open Filepath_util
 let run (main_module : string) (args : string list) : int =
   let main      = strip_suffix main_module in
   let build_dir = "_build" in (* TODO abstract with config-file *)
-  let cmd       = Format.sprintf "%s/%s.d.byte" build_dir main in
-  let ()        = assert_file_exists cmd in
-  run_process cmd args
+  let exec      = Format.sprintf "%s/%s.d.byte" build_dir main in
+  begin match Sys.file_exists exec with
+    | `Yes           -> run_process exec args
+    | `No | `Unknown ->
+      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module in
+      raise (Cli_constants.File_not_found msg)
+  end
 
 let command =
   Command.basic
@@ -24,6 +28,6 @@ let command =
       +> anon (sequence ("args" %: string))
     )
     (fun recompile main args () ->
-      (* let () = if recompile then Command.compile main in *)
+      let () = if recompile then check_code (Compile.compile main) in
       check_code (run main args)
     )
