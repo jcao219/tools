@@ -47,7 +47,7 @@ let diff_repl (opts : options) (old_file : string) (new_file : string) : diff_re
     let which_diff = if (check_installed "colordiff") then "colordiff" else "diff" in
     Format.sprintf "%s -u %s %s | less -R" which_diff old_file new_file
   in
-  let show_diff () = ignore (Sys.command diff_cmd) in
+  let show_diff ()  = ignore (Sys.command diff_cmd) in
   let show_files () = ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file)) in
   let user_input = ref None in
   let () = (* repl loop *)
@@ -76,7 +76,7 @@ let files_match (old_file : string) (new_file : string) : bool =
 
 (** [diff_files o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
 let diff_files (opts : options) (old_file : string) (new_file : string) : diff_result =
-  let () = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
+  let ()   = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
   if not (all_files_exist [old_file; new_file]) then
     (* 2014-07-15: file2 is sure to exist, but whatever *)
     let () = if opts.verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
@@ -112,26 +112,25 @@ let diff_directories (opts : options) (old_dir : string) (new_dir : string) : di
 (** [diff_student o t d] diff the current submission [d] of a student against
     the most recent past submission. Save results in the spreadsheet [t]. *)
 let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
-  let netid = netid_of_filepath new_dir in
-  let old_dir = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
+  let netid      = netid_of_filepath new_dir in
+  let old_dir    = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
   begin match Sys.file_exists old_dir with
     | `No | `Unknown ->
-      let () = if opts.verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
+      let ()     = if opts.verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
       tbl
     | `Yes ->
-       let () = if opts.verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
-       let result = diff_directories opts old_dir new_dir in
-       let row    = (netid, result) in
-       DiffSpreadsheet.add_row tbl ~row:row
+      let ()     = if opts.verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
+      let result = diff_directories opts old_dir new_dir in
+      let row    = (netid, result) in
+      DiffSpreadsheet.add_row tbl ~row:row
   end
 
 (** [diff o dirs] Run a diff comparing the submission in each directory of [dirs]
     with the result saved for the student on the last execution of [cs3110 smoke]. *)
 let diff (opts : options) (dirs : string list) : unit =
-  let () = assert_installed "diff" in
   let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student opts) in
-  let () = DiffSpreadsheet.write tbl ~file:cDIFF_RESULTS in
-  let () = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) cDIFF_RESULTS in
+  let ()  = DiffSpreadsheet.write tbl ~file:cDIFF_RESULTS in
+  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) cDIFF_RESULTS in
   ()
 
 let command =
@@ -151,7 +150,10 @@ let command =
       +> anon (sequence ("submission" %: file))
     )
     (fun v subs () ->
-     let opts = {
-       verbose = v;
-     } in
-     diff opts (at_expand subs))
+      (* TODO replace constants with options *)
+      let ()  = assert_installed "diff" in
+      let opts = {
+        verbose = v;
+      } in
+      diff opts (at_expand subs)
+    )
