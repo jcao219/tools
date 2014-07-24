@@ -83,15 +83,6 @@ let ensure_dir (dir_name : string) =
   if not (Sys.file_exists dir_name) then
     Unix.mkdir dir_name 0o777
 
-(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
-    is not installed. *)
-let assert_installed (cmd : string) : unit =
-  (* Try to run the command's version info, pipe stdout to stderr *)
-  let check = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
-  if (Sys.command check) <> 0 then
-    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
-    raise (Command_not_found msg)
-
 (**
  * [directories_of_list dir] Build a list of directories from the file [dir].
  * [dir] should contain a newline-separated list of directories.
