@@ -1,1 +1,1 @@
-val run : unit -> unit
+val command : Core.Std.Command.t
