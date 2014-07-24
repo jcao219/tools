@@ -14,6 +14,7 @@ let run ?(verbose=false) (main_module : string) (args : string list) : int =
   begin match Sys.file_exists exec with
     | `Yes           -> run_process exec args
     | `No | `Unknown ->
+      let () = Format.printf "%!" in
       let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module in
       raise (Cli_constants.File_not_found msg)
   end
