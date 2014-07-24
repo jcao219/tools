@@ -73,35 +73,38 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
     | `Yes            -> read_lines (open_in cOPAM_PACKAGES_FILE)
   end
 
-(** [compile args main] compile [main] into a bytecode executable.
-    Relies on ocamlbuild. *)
-let compile ~quiet ~dir (main_module : string) : int =
-  let cwd = Sys.getcwd () in
-  let ()  = Sys.chdir dir in
-  let ()  = if not quiet then Format.printf "[compile] Compiling '%s'\n%!" main_module in
-  let opam_packages_str =
-    String.concat ~sep:", "
-      (List.map
-         ~f:(Format.sprintf "package(%s)")
-         (get_opam_packages ()))
-  in
-  let target = Format.sprintf "%s.d.byte" (strip_suffix main_module) in
-  let ocamlbuild_flags =  [
-    "-use-ocamlfind";
-    "-no-links";
-    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opam_packages_str;
-    "-tag-line"; "<*.d.byte> : " ^ opam_packages_str;
-    "-tag-line"; "<*.native> : " ^ opam_packages_str;
-    target
-  ] in
+(** [compile q? v? d? main] compile [main] into a bytecode executable.
+    Relies on ocamlbuild. When [q] is high, suppress compiler printouts.
+    When [v] is high, print debugging information. When [d] is given,
+    change into directory [d] before compiling [main]. *)
+let compile ?(quiet=false) ?(verbose=false) ?dir (main_module : string) : int =
+  let main      = ensure_ml main_module in
+  let cwd       = Sys.getcwd () in
+  let ()        = Sys.chdir (Option.value ~default:cwd dir) in
+  let ()        = if verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
+  let target    = Format.sprintf "%s.d.byte" (strip_suffix main) in
+  let ()        = if verbose then Format.printf "[compile] Target is '%s'\n" target in
+  let deps      = get_dependencies () in
+  let ()        = if verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
+  let libs      = get_libraries () in
+  let ()        = if verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
+  let cflags    = get_compiler_flags () in
+  let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
-  let compiler_args = (
-    (get_dependencies ())   @
-    (get_libraries ())      @
-    (get_compiler_flags ()) @ run_quiet @ ocamlbuild_flags)
-  in
-  let exit_code = run_process "ocamlbuild" compiler_args in
+  let opkgs     = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)")       (get_opam_packages ())) in
+  let oflags    =  ["-use-ocamlfind";
+                    "-no-links";
+                    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opkgs;
+                    "-tag-line"; "<*.d.byte> : "                  ^ opkgs;
+                    "-tag-line"; "<*.native> : "                  ^ opkgs;
+                    target] in
+  let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
+  let command   = deps @ libs @ cflags @ run_quiet @ oflags in
+  (* 2014-07-23: Need to flush before ocamlbuild prints. *)
+  let ()        = if verbose && (not quiet) then Format.printf "%!" in
+  let exit_code = run_process "ocamlbuild" command in
   let ()        = Sys.chdir cwd in
+  let ()        = if verbose && (exit_code = 0) then Format.printf "[compile] Compilation succeeded!\n" in
   exit_code
 
 let command =
@@ -112,20 +115,20 @@ let command =
       "input file, resolves dependencies, and compiles to a bytecode";
       "executable file. The object files produced during compilation are placed";
       "in a directory [_build], which will be created (if not already present)";
-      "in the current working directory."
+      "in the current working directory.";
+      "You may pass a file in the current directory or a file in a sub-directory.";
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly."
-      +> anon ("target" %: string))
-    (fun q target () ->
-     let () = assert_file_exists target in
-     let () = assert_ocamlbuild_friendly_filepath target in
-     let dir,main =
-       begin match String.rsplit2 target ~on:'/' with
-         | None   -> Sys.getcwd (), target
-         | Some v -> v
-       end
-     in
-     (* TODO ensure_ml on main? *)
-     check_code (compile ~quiet:q ~dir:dir main))
+      +> flag ~aliases:["-q"] "-quiet"   no_arg ~doc:" Compile quietly."
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information (about compiler options, etc.)."
+      +> anon ("target" %: file)
+    )
+    (fun q v target () ->
+      let () = assert_ocamlbuild_friendly_filepath target in
+      let dir,main =
+        Option.value ~default:(Sys.getcwd (), target)
+                   (String.rsplit2 target ~on:'/')
+      in
+      check_code (compile ~quiet:q ~verbose:v ~dir:dir main)
+    )
