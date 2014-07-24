@@ -1,10 +1,9 @@
 open Core.Std
 open Filepath_util
 
-let test ?(quiet=false) ?output ~recompile ~dir (main_module : string) : int =
+let test ?(quiet=false) ?output ?dir (main_module : string) : int =
   let cwd = Sys.getcwd () in
-  let ()  = Sys.chdir dir in
-  let () = if recompile then () (* Compile.compile main_module *) in
+  let ()  = Sys.chdir (Option.value ~default:cwd dir) in
   let build_dir = "_build" in (* TODO abstract this *)
   let main_module = strip_suffix main_module in
   (* TODO clean this all up *)
@@ -12,16 +11,18 @@ let test ?(quiet=false) ?output ~recompile ~dir (main_module : string) : int =
   (* -log required by harness, nice to have in general, but
      destination './inline_tests.log' is hardcoded *)
   let base_cmd = [exec; "inline-test-runner"; "dummy"; "-log"] in
-  let cmd = begin match output with
-    | Some dest ->
-      if quiet
-      then base_cmd @ ["2>& 1>/dev/null | grep '^File' >"; dest]
-      else base_cmd @ ["-show-counts"; "&>"; dest]
-    | None      ->
-      if quiet
-      then base_cmd @ [">"; "/dev/null"]
-      else base_cmd @ ["-show-counts"]
-  end in
+  let cmd =
+    begin match output with
+      | Some dest ->
+        if quiet
+        then base_cmd @ ["2>& 1>/dev/null | grep '^File' >"; dest]
+        else base_cmd @ ["-show-counts"; "&>"; dest]
+      | None      ->
+        if quiet
+        then base_cmd @ [">"; "/dev/null"]
+        else base_cmd @ ["-show-counts"]
+    end
+  in
   (* Note that pa_ounit doesn't give a nonzero exit status if tests are run. *)
   let exit_code = Sys.command (String.concat ~sep:" " cmd) in
   let ()        = Sys.chdir cwd in
@@ -43,15 +44,9 @@ let command =
       +> flag ~aliases:["-o"] "-output" (optional string) ~doc:"FILE Save test output to the file FILE."
       +> anon ("target" %: file)
     )
-    (fun r quiet output target () ->
-      let dir, main =
-        begin match String.rsplit2 target ~on:'/' with
-          | None   -> Sys.getcwd (), target
-          | Some v -> v
-        end
-      in
-      (* let () = if recompile then Command.compile main in *)
+    (fun r q output target () ->
+      (* let () = if r then Command.compile main in *)
       Process_util.check_code (begin match output with
-      | Some dest -> test ~recompile:r ~quiet:quiet ~output:dest ~dir:dir main
-      | None -> test ~recompile:r ~quiet:quiet ~dir:dir main end)
+      | Some dest -> test ~quiet:q ~output:dest target
+      | None -> test ~quiet:q target end)
     )
