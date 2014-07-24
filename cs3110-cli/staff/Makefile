@@ -6,7 +6,7 @@ STD_LIB=`ocamlc -where`
 
 all: compile
 
-assertions:
+assertions: unassertions
 	corebuild -package qcheck -Is assertions,include,util assertions.cma
 	mv _build/assertions/assertions.cmi _build/assertions/assertions.cmo _build/assertions/assertions.cma ${STD_LIB}
 
@@ -19,11 +19,13 @@ clean:
 
 install: assertions compile link clean
 
-uninstall: unlink
-	rm cs3110-staff
+unassertions:
 	rm ${STD_LIB}/assertions.cmi
 	rm ${STD_LIB}/assertions.cmo
 	rm ${STD_LIB}/assertions.cma
+
+uninstall: unlink unassertions
+	rm cs3110-staff
 
 link:
 	ln -sf `pwd`/cs3110-staff $(LINK)cs3110-staff
