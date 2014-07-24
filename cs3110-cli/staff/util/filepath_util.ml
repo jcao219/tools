@@ -72,10 +72,25 @@ let assert_file_exists (filename : string) : unit =
   if not (Sys.file_exists filename) then
     raise (File_not_found filename)
 
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if Core.Std.String.is_suffix fname ~suffix:".ml"
+  then fname
+  else fname ^ ".ml"
+
 (** [ensure_dir d] creates the directory [d] if it does not exist already. *)
 let ensure_dir (dir_name : string) =
   if not (Sys.file_exists dir_name) then
     Unix.mkdir dir_name 0o777
+
+(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
+    is not installed. *)
+let assert_installed (cmd : string) : unit =
+  (* Try to run the command's version info, pipe stdout to stderr *)
+  let check = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
+  if (Sys.command check) <> 0 then
+    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
+    raise (Command_not_found msg)
 
 (**
  * [directories_of_list dir] Build a list of directories from the file [dir].

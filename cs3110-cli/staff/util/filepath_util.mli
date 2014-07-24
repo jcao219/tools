@@ -1,11 +1,13 @@
 val absolute_path : string -> string
 
 val assert_file_exists : string -> unit
+val assert_installed : string -> unit
 
 val directories_of_list : string -> string list
 
 val do_if_directory : string -> (string -> 'a) -> string -> int -> 'a
 
+val ensure_ml  : string -> string
 val ensure_dir : string -> unit
 
 val filter_by_extension : string -> string list -> string list
