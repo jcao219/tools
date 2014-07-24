@@ -1,17 +1,18 @@
 open Core.Std
 open Filepath_util
 
-let test ?(quiet=false) ?output ?dir (main_module : string) : int =
-  let cwd = Sys.getcwd () in
-  let ()  = Sys.chdir (Option.value ~default:cwd dir) in
+let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : int =
+  let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main_module in
+  let cwd       = Sys.getcwd () in
+  let ()        = Sys.chdir (Option.value ~default:cwd dir) in
+  let ()        = if verbose then Format.printf "[test] Searching for build directory.\n" in
   let build_dir = "_build" in (* TODO abstract this *)
-  let main_module = strip_suffix main_module in
   (* TODO clean this all up *)
-  let exec = Format.sprintf "%s/%s.d.byte" build_dir main_module in
+  let exec      = Format.sprintf "%s/%s.d.byte" build_dir (strip_suffix main_module) in
   (* -log required by harness, nice to have in general, but
      destination './inline_tests.log' is hardcoded *)
   let base_cmd = [exec; "inline-test-runner"; "dummy"; "-log"] in
-  let cmd =
+  let cmd = String.concat ~sep:" "
     begin match output with
       | Some dest ->
         if quiet
@@ -23,10 +24,19 @@ let test ?(quiet=false) ?output ?dir (main_module : string) : int =
         else base_cmd @ ["-show-counts"]
     end
   in
+  let ()  = if verbose then Format.printf "[test] Test command is '%s'.\n" cmd in
   (* Note that pa_ounit doesn't give a nonzero exit status if tests are run. *)
-  let exit_code = Sys.command (String.concat ~sep:" " cmd) in
-  let ()        = Sys.chdir cwd in
-  exit_code
+  begin match Sys.file_exists exec with
+    | `Yes           ->
+      let exit_code = Sys.command cmd in
+      let ()        = Sys.chdir cwd in
+      exit_code
+    | `No | `Unknown ->
+      let ()  = Sys.chdir cwd in
+      let ()  = Format.printf "%!" in
+      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module in
+      raise (Cli_constants.File_not_found msg)
+  end
 
 let command =
   Command.basic
@@ -40,13 +50,14 @@ let command =
     Command.Spec.(
       empty
       +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
-      +> flag ~aliases:["-q"] "-quiet" no_arg ~doc:" Run quietly. Do not print debug statements."
-      +> flag ~aliases:["-o"] "-output" (optional string) ~doc:"FILE Save test output to the file FILE."
+      +> flag ~aliases:["-v"] "-verbose"   no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-q"] "-quiet"     no_arg ~doc:" Run tests quietly."
+      +> flag ~aliases:["-o"] "-output"    (optional string) ~doc:"FILE Save test output to the file FILE."
       +> anon ("target" %: file)
     )
-    (fun r q output target () ->
-      let () = if r then Process_util.check_code (Compile.compile target) in
+    (fun r v q output target () ->
+      let () = if r then Process_util.check_code (Compile.compile ~verbose:v target) in
       Process_util.check_code (begin match output with
-      | Some dest -> test ~quiet:q ~output:dest target
-      | None -> test ~quiet:q target end)
+      | Some dest -> test ~quiet:q ~verbose:v ~output:dest target
+      | None      -> test ~quiet:q ~verbose:v target end)
     )
