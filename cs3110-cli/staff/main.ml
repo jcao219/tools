@@ -11,6 +11,7 @@ let config_env () =
 let targets = [
   ("clean"   , Clean.command);
   ("compile" , Compile.command);
+  ("diff"    , Diff.command);
   ("email"   , Email.command);
   ("run"     , Run.command);
   ("test"    , Test.command)
