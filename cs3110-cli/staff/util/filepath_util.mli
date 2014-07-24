@@ -6,6 +6,7 @@ val directories_of_list : string -> string list
 
 val do_if_directory : string -> (string -> 'a) -> string -> int -> 'a
 
+val ensure_ml  : string -> string
 val ensure_dir : string -> unit
 
 val filter_by_extension : string -> string list -> string list
