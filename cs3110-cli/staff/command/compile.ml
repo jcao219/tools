@@ -124,7 +124,7 @@ let command =
       +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information (about compiler options, etc.)."
       +> anon ("target" %: file)
     )
-    (fun q v cflags target () ->
+    (fun q v target () ->
       let () = assert_ocamlbuild_friendly_filepath target in
       check_code (compile ~quiet:q ~verbose:v target)
     )
