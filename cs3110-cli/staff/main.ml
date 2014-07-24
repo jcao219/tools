@@ -9,8 +9,10 @@ let config_env () =
 
 (* available subcommands *)
 let targets = [
-  ("clean", Clean.command);
-  ("test", Test.command)
+  ("clean"   , Clean.command);
+  ("compile" , Compile.command);
+  ("run"     , Run.command);
+  ("test"    , Test.command)
 ]
 
 (* TODO define staff & student commands separately *)
