@@ -63,9 +63,9 @@ let tag_of_path (path : string) =
     path
 
 (** [assert_file_exists f] raises [File_not_found] if [f] does not exist *)
-let assert_file_exists (filename : string) : unit =
+let assert_file_exists ?msg (filename : string) : unit =
   if not (Sys.file_exists filename) then
-    raise (File_not_found filename)
+    raise (File_not_found (Core.Std.Option.value msg ~default:filename))
 
 (** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
 let ensure_ml (fname : string) : string =

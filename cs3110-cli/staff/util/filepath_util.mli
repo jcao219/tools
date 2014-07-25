@@ -1,6 +1,6 @@
 val absolute_path : string -> string
 
-val assert_file_exists : string -> unit
+val assert_file_exists : ?msg:string -> string -> unit
 
 val directories_of_list : string -> string list
 
