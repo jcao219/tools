@@ -52,13 +52,11 @@ let write_email (opts : options) (netid : string) (failures : string list) : uni
 (** [compile_target d t] change into directory [d], compile the file [t], return
     true if compilation succeeded. *)
 let compile_target (dir : string) (target : string) : bool =
-  let cwd = Sys.getcwd () in
-  let () = Sys.chdir dir in
-  (* TODO remove this Substring thing *)
-  let target = String.slice target 0 ((String.length target) - 3) in
+  let cwd       = Sys.getcwd () in
+  let ()        = Sys.chdir dir in
   let exit_code = Compile.compile target in
-  (* TODO clean target *)
-  let () = Sys.chdir cwd in
+  let ()        = Clean.clean "compile" in
+  let ()        = Sys.chdir cwd in
   0 = exit_code
 
 (** [smoke_target o d fs c] Smoke test a single file [c] for directory [d].
@@ -100,10 +98,10 @@ let smoke_directory (opts : options) (dir : string) : unit =
        let () = if opts.verbose then Format.printf "[smoke] successfully compiled all targets in '%s'\n" dir in
        ()
     | _::_ -> (* Something failed to compile. Save the directory, send an email. *)
-       let () = if opts.verbose then Format.printf "[smoke] failed to compile all targets in '%s'. Saving directory and email.\n" dir in
+       let ()    = if opts.verbose then Format.printf "[smoke] failed to compile all targets in '%s'. Saving directory and email.\n" dir in
        let netid = tag_of_path dir in
-       let () = copy_directory opts netid dir in
-       let () = write_email opts netid failed_targets in
+       let ()    = copy_directory opts netid dir in
+       let ()    = write_email opts netid failed_targets in
        ()
 end
 
