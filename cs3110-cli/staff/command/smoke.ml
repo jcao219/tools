@@ -18,7 +18,7 @@ let make_email_message (netid : string) (failed_targets : string list) : string 
   [
     Format.sprintf "Dear %s\n" netid;
     "The following files from your CMS submission were either missing or failed to compile via `cs3110 compile`:\n";
-  ] @ (List.map ~f:((^) prefix) failed_targets) @ [
+  ] @ (List.map ~f:((^) prefix) (List.sort ~cmp:Pervasives.compare failed_targets)) @ [
     "\nPlease update your submission on CMS so that `cs3110 compile <file>` succeeds for each of the above files. If the required changes were small, you will not be charged a late/slip day. If the changes were non-trivial, you will lose either a slip day (if you have any remaining) or the late penalty.\n";
     "Good luck!\n\n";
     "--- Automatically generated message from the CS3110 test harness ---";
