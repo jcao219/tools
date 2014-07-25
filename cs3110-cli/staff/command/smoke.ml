@@ -115,19 +115,7 @@ let get_smoke_targets (tgts : string list) : string list =
   begin match tgts with
     | _::_ -> tgts
     | []   -> (* try inferring *)
-       begin match Sys.file_exists cSMOKE_TARGETS with
-         | `Yes           -> (* TODO remove this constant completely *)
-            List.map ~f:strip_suffix (In_channel.read_lines cSMOKE_TARGETS)
-         | `No | `Unknown -> (* TODO tests dir should be a config *)
-            begin match Sys.file_exists cTESTS_DIR with
-              | `Yes -> List.map
-                          ~f:(fun f -> fst (rsplit f '_'))
-                          (List.filter
-                             ~f:is_valid_test_file
-                             (Array.to_list (Sys.readdir cTESTS_DIR)))
-              | `No | `Unknown -> raise (File_not_found "Could not determine which files to smoke test.")
-            end
-       end
+       raise (File_not_found "Could not determine which files to smoke test.")
   end
 
 (** [validate_smoke_targets r tgts] Assert that the name of each target
