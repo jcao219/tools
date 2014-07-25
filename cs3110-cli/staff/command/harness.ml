@@ -22,16 +22,16 @@ type test_file = {
 module TestSuite = Set.Make(struct
   type t            = test_file
   let compare t1 t2 = Pervasives.compare t1.name t2.name
-  let sexp_of_t t   = Sexp.of_string t.name
-  let t_of_sexp s   = {absolute_path = "";
-                       name          = Sexp.to_string s; (* Uhhh, this is bad *)
-                       unit_tests    = StringSet.empty}
+  let sexp_of_t _   = failwith "not implemented"
+  let t_of_sexp _   = failwith "not implemented"
 end)
 
 (* the results of running one test file. Keep unit test names alphabetized. *)
-module TestResults = Set.Make(struct (* TODO perhaps the name should be longer, i.e. TestFile.unittest *)
+module TestResults = Set.Make(struct
   type t                        = string * int * (string option) (* unit_test_name , points_earned , error_message *)
   let compare (n1,_,_) (n2,_,_) = Pervasives.compare n1 n2
+  let sexp_of_t _               = failwith "not implemented"
+  let t_of_sexp _               = failwith "not implemented"
 end)
 
 (* TODO all these options in all these commands should match the options in the config file *)
@@ -104,12 +104,12 @@ let sanitize_file (fname : string) : unit =
 (** [sanitize_directory d] Check all [.ml] files in directory [d]
     for unit tests. If any, ask the user to remove them before continuing. *)
 let sanitize_directory (dir : string) : unit =
-  let ml_files = Array.filter (String.is_suffix ~suffix:".ml") (Sys.readdir dir) in
+  let ml_files = Array.filter ~f:(String.is_suffix ~suffix:".ml") (Sys.readdir dir) in
   Array.iter ~f:sanitize_file ml_files
 
 (** [pre_harness o d] Prepare the directory [d] for testing. *)
 let pre_harness (opts : options) (dir : string) : unit =
-  let () = if opts.verbose then Format.printf "[harness] Preparing directory '%s' for testing.\n" in
+  let () = if opts.verbose then Format.printf "[harness] Preparing directory '%s' for testing.\n" dir in
   let () = if opts.verbose then Format.printf "[harness] Checking for unit tests in submission files...\n" in
   let () = sanitize_directory dir in
   let () = if opts.verbose then Format.printf "[harness] Copying release files...\n" in
@@ -135,8 +135,8 @@ let parse_harness_result opts (failure_msg : string option) : int * (string opti
     | Some e ->
        if is_qcheck e then
          (* Success if 100% of quickchecks passed. *)
-         let score = opts.num_qcheck - (parse_num_failed e) in
-         let msg = if (score = opts.num_qcheck) then None else Some e in
+         let score = opts.num_quickcheck - (parse_num_failed e) in
+         let msg = if (score = opts.num_quickcheck) then None else Some e in
          (score, msg)
        else
          (0, Some e)
@@ -149,12 +149,12 @@ let parse_harness_result opts (failure_msg : string option) : int * (string opti
 let harness_run_test opts ~dir (t : test_file) : TestResults.t =
   let ()        = if opts.verbose then Format.printf "[harness] running test file '%s' on submission '%s'.\n" t.absolute_path dir in
   let ()        = ignore (Sys.command (Format.sprintf "cp %s %s" t.absolute_path dir)) in
-  let ()        = Test.test ~quiet:true ~output:opts.fail_output ~dir:dir test_name in
-  let failures  = In_channel.read_lines (Format.sprintf "%s/%s" dir output) in
+  let ()        = Process_util.check_code (Test.test ~quiet:true ~output:opts.fail_output ~dir:dir t.name) in
+  let failures  = In_channel.read_lines (Format.sprintf "%s/%s" dir opts.fail_output) in
   StringSet.fold
     ~f:(fun acc unit_name ->
-        let failure_msg = List.find failures ~f:(fun line -> (test_name_of_line line) = unit_name) in
-        let score, err_msg = parse_harness_result opts unit_name failure_msg in
+        let failure_msg = List.find failures ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
+        let score, err_msg = parse_harness_result opts failure_msg in
        TestResults.add acc (unit_name, score, err_msg))
     ~init:TestResults.empty
     t.unit_tests
@@ -179,9 +179,9 @@ let write_comments (opts : options) (dir : string) (tr : (string * TestResults.t
   let body  =
     List.fold_right
       ~f:(fun (test_file, results) acc ->
-          let title = Format.sprintf "### %s ###\n%s" test_file in
+          let hd    = Format.sprintf "### %s ###\n" test_file in
           let body  = string_of_test_results results in
-          title :: body :: acc)
+          hd :: body :: acc)
       ~init:[]
       tr
   in
@@ -210,13 +210,12 @@ let write_postscript (opts : options) (dir : string) (results : (string * TestRe
 (** [post_harness o d] Clean up the directory [d] after testing.
     Remove generated files/logs, clean. *)
 let post_harness (opts : options) ~dir (tr : (string * TestResults.t) list) : unit =
-  (* TODO remove _test files? *)
   let () = if opts.verbose then Format.printf "[harness] Aggregating results for '%s'.\n" dir in
   let () = write_comments opts dir tr in
   let () = if opts.postscript then write_postscript opts dir tr in
   let () = if opts.verbose then Format.printf "[harness] Cleaning directory '%s'.\n" dir in
-  let () = Clean.clean ~dir:dir ["compile"; "test"] in
-  let () = if opts.verbose then Format.printf "[harness] Cleaning complete!\n" dir in
+  let () = List.iter ~f:(fun tgt -> Clean.clean ~dir:dir tgt) ["compile";"test"] in
+  let () = if opts.verbose then Format.printf "[harness] Cleaning complete!\n" in
   ()
 
 (** [parse_results_from_list us cs] Given a collection of unit test names [us] and a (possibly longer) list
@@ -229,7 +228,7 @@ let parse_results_from_list (unit_tests : StringSet.t) (cols : string list) : Te
           | []   -> failwith "parse error, not enough columns"
           | h::t ->
              let v   = try int_of_string h with _ -> failwith "parse error, column doesn't contain int" in
-             let rs' = TestResults.add rs (unit_name, v) in
+             let rs' = TestResults.add rs (unit_name, v, None) in (* TODO better err msg? *)
              (rs', t)
         end)
     ~init:(TestResults.empty, cols)
@@ -253,8 +252,8 @@ let harness (opts : options) (subs : string list) : unit =
           | netid :: columns ->
              let results_by_test, cols_left =
                TestSuite.fold
-                 ~f(fun (acc,cols) test ->
-                    let pairs, cols' = parse_results_from_list test.unit_tests cols' in
+                 ~f:(fun (acc,cols) test ->
+                    let pairs, cols' = parse_results_from_list test.unit_tests cols in
                     ((test.name, pairs) :: acc, cols')
                    )
                  ~init:([],columns)
@@ -295,7 +294,7 @@ let harness (opts : options) (subs : string list) : unit =
          let all_results = harness_student opts dir in
          let ()          = post_harness opts ~dir:dir all_results in
          let row         = (netid, all_results) in
-         HarnessSpreadsheet.add_row sheet row
+         HarnessSpreadsheet.add_row sheet ~row:row
          )
       ~init:(HarnessSpreadsheet.create ())
       subs
@@ -307,18 +306,19 @@ let harness (opts : options) (subs : string list) : unit =
     [test] does not exist.
     Relies on the file 'inline_tests.log' automatically generated when running
     giving pa_ounit the [-log] option. *)
-let get_unit_test_names ~staging_dir ~test_name (test_abs_path : string) : StringSet.t =
-  begin match Sys.file_exists test with
+let get_unittest_names ?test_name ~staging_dir (test_abs_path : string) : StringSet.t =
+  begin match Sys.file_exists test_abs_path with
     | `No | `Unknown ->
-      let msg = Format.printf "[harness] ERROR could not find test file '%s'. Shutting down...\n" test_abs_path in
+      let msg = Format.sprintf "Could not find test file '%s'." test_abs_path in
       raise (File_not_found msg)
     | `Yes           ->
       (* Copy test into dir, compile test, run to get names out. *)
       let ()  = ignore (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
-      let ()  = Test.test ~quiet:true ~dir:staging_dir test_name in
+      let nm  = Option.value test_name ~default:(strip_suffix (filename_of_path test_abs_path)) in
+      let ()  = Process_util.check_code (Test.test ~quiet:true ~dir:staging_dir nm)  in
       let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir cTEST_OUTPUT) in
-      let ()  = Clean.clean ~dir:staging_dir ["compile"; "test"] in
-      StringSet.of_list (List.map ~f:test_name_of_line raw)
+      let ()  = List.iter ~f:(fun tgt -> Clean.clean ~dir:staging_dir tgt) ["compile";"test"] in
+      StringSet.of_list (List.map ~f:unittest_name_of_line raw)
   end
 
 (** [test_suite_of_list ts] Convert a list of relative paths to tests [ts] into a test suite.
@@ -331,7 +331,7 @@ let test_suite_of_list ~staging_dir (tests : string list) : TestSuite.t =
         let t = {
           absolute_path = path;
           name          = name;
-          unit_tests    = get_unit_test_names ~staging_dir:staging_dir ~test_name:name path;
+          unit_tests    = get_unittest_names ~test_name:name ~staging_dir:staging_dir path;
         } in
         TestSuite.add suite t)
     ~init:TestSuite.empty
@@ -362,15 +362,15 @@ let command =
     )
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n" in
-      let tests_dir = Optional.value test_dir ~default:cTESTS_DIR in
+      let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
-        num_qcheck           = qc;
-        output_directory     = Optional.value output_dir ~default:cHARNESS_DIR;
+        num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
+        output_directory     = Option.value output_dir ~default:cHARNESS_DIR;
         postscript           = ps;
-        relase_directory     = release_dir;
-        spreadsheet_location = Optional.value sheet_location ~default:cHARNESS_SHEET;
-        test_suite           = test_suite_of_list ~staging_dir:release_dir (ts @ test_list_of_directory ~verbose:v tests_dir);
+        release_directory    = release_dir;
+        spreadsheet_location = Option.value sheet_location ~default:cHARNESS_SHEET;
+        test_suite           = test_suite_of_list ~staging_dir:release_dir (tests @ test_list_of_directory ~verbose:v tests_dir);
         verbose              = v;
       } in
       harness opts (at_expand subs))
