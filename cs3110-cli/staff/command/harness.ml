@@ -6,8 +6,10 @@ open Filepath_util
 (* aka 'ordered list' *)
 (* TODO remove this? *)
 module StringSet = Set.Make(struct
-  type t = string
-  let compare = Pervasives.compare
+  type t        = string
+  let compare   = Pervasives.compare
+  let sexp_of_t = Sexp.of_string
+  let t_of_sexp = Sexp.to_string
 end)
 
 type test_file = {
@@ -20,6 +22,10 @@ type test_file = {
 module TestSuite = Set.Make(struct
   type t            = test_file
   let compare t1 t2 = Pervasives.compare t1.name t2.name
+  let sexp_of_t t   = Sexp.of_string t.name
+  let t_of_sexp s   = {absolute_path = "";
+                       name          = Sexp.to_string s; (* Uhhh, this is bad *)
+                       unit_tests    = StringSet.empty}
 end)
 
 (* the results of running one test file. Keep unit test names alphabetized. *)
@@ -252,7 +258,7 @@ let harness (opts : options) (subs : string list) : unit =
                     ((test.name, pairs) :: acc, cols')
                    )
                  ~init:([],columns)
-                 opts.test_suite))
+                 opts.test_suite
              in
              let () =
                begin match cols_left with

@@ -54,11 +54,6 @@ let strip_trailing_slash (s : string) =
   then String.sub s 0 (len - 1)
   else s
 
-(** [strip_trailing_slash_all strs] remove the trailing slash from a
- * list of files *)
-let strip_trailing_slash_all (directories : string list) =
-  List.map (fun s -> strip_trailing_slash s) directories
-
 (** [tag_of_path p] strips all characters up to and including the rightmost / *)
 let tag_of_path (path : string) =
   if String.contains path '/' then
@@ -68,9 +63,15 @@ let tag_of_path (path : string) =
     path
 
 (** [assert_file_exists f] raises [File_not_found] if [f] does not exist *)
-let assert_file_exists (filename : string) : unit =
+let assert_file_exists ?msg (filename : string) : unit =
   if not (Sys.file_exists filename) then
-    raise (File_not_found filename)
+    raise (File_not_found (Core.Std.Option.value msg ~default:filename))
+
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if Core.Std.String.is_suffix fname ~suffix:".ml"
+  then fname
+  else fname ^ ".ml"
 
 (** [ensure_dir d] creates the directory [d] if it does not exist already. *)
 let ensure_dir (dir_name : string) =
@@ -86,16 +87,12 @@ let ensure_dir (dir_name : string) =
  * This is the same as
  *   > cs3110 smoke dir/a dir/b dir/c
  *)
-let directories_of_list (dir : string) : string list =
-  let dir = strip_trailing_slash dir in
-  let len = String.length dir in
-  (* Remove the leading @ to get a filename *)
-  let fname = String.sub dir 1 (len-1) in
-  let _ = assert_file_exists fname in
+let directories_of_list (fname : string) : string list =
+  let () = assert_file_exists fname in
   (* Argument is @path/to/list-of-directory-names.    *
    * Extract a list of directory names from the list. *)
   let dir_names = read_lines (open_in fname) in
-  let prefix = String.sub fname 0 (String.rindex dir '/') in
+  let prefix = String.sub fname 0 (String.rindex fname '/') in
   (* Return the fully-inferred list of directories *)
   List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
 
@@ -152,6 +149,11 @@ let is_valid_test_file (fname : string) : bool =
   fname.[0] <> '.' &&
   is_suffix fname "_test.ml"
 
+(** [at_expand dirs] optionally expand a file containing a list into a list of directories.
+    If the input is a singleton list where the first element is prefixed by and '@' character,
+    treat this input as a file containing a list of newline-separated strings. Create directory
+    names from these strings.
+    Else return the input unchanged. I would have named it '@_expand' but that didn't compile. *)
 let at_expand (dirs : string list) : string list =
   begin match dirs with
     | [fname] when (0 < String.length fname) && fname.[0] = '@' ->
@@ -165,19 +167,20 @@ let at_expand (dirs : string list) : string list =
     we will return a singleton list containing the string "mydir/my_test.ml". *)
 (* TODO smoke should use this *)
 let test_list_of_directory ?(verbose=false) (dir : string) : string list =
-  Array.fold_right
-    ~f:(fun acc file ->
-        if is_valid_test_file file then
-          let full_path = Format.sprintf "%s/%s" dir file in
+  Core.Std.List.fold_right
+    (Array.to_list (Sys.readdir dir))
+    ~f:(fun fname acc ->
+        if is_valid_test_file fname then
+          let full_path = Format.sprintf "%s/%s" dir fname in
           full_path :: acc
         else
-          let () = if verbose then Format.printf "WARNING: skipping invalid test file '%s/%s'.\n" fname test_dir in
+          let () = if verbose then Format.printf "WARNING: skipping invalid test file '%s/%s'.\n" dir fname in
           acc)
     ~init:[]
-    (Sys.readdir dir)
 
 (** [filename_of_path p] Return the last item along the path [p].
-    It could be a filename or a directory name, don't care. *)
+    It could be a filename or a directory name, don't care.\
+    Given 'dir1/dir2/dir3/', this function returns 'dir3'. *)
 let filename_of_path (path : string) : string =
   let path = strip_trailing_slash path in
   snd (rsplit path '/')
@@ -185,4 +188,25 @@ let filename_of_path (path : string) : string =
 (** [soft_copy d1 d2] Copy all files and directories from directory [d1]
     into directory [d2]. Do NOT overwrite any files in [d2]. *)
 let soft_copy (dir1 : string) (dir2 : string) : int =
-  Sys.command (Format.sprintf "cp -r -n %s/* %s" dir1 dir2)
+  Sys.command (Format.sprintf "cp -r -n %s/. %s" dir1 dir2)
+
+let all_files_exist (files : string list) : bool =
+  List.fold_left (fun acc f -> acc && Sys.file_exists f) true files
+
+(** [check_installed cmd] False is the unix tool [cmd] is not found. *)
+let check_installed (cmd : string) : bool =
+  (* Try to run the command's version info, pipe stdout to stderr *)
+  let check_cmd = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
+  0 = (Sys.command check_cmd)
+
+(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
+    is not installed. *)
+let assert_installed (cmd : string) : unit =
+  if not (check_installed cmd) then
+    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
+    raise (Command_not_found msg)
+
+(** [file_is_empty fname] True if [fname] contains nothing. *)
+let file_is_empty (fname : string) : bool =
+  (* [test] returns 0 exit status if file is not empty *)
+  0 <> (Sys.command (Format.sprintf "test -s %s" fname))

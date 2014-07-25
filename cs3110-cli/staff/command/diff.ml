@@ -1,108 +1,159 @@
+open Core.Std
 open Cli_constants
 open Filepath_util
-  
-let diff_tmp = ".diff"
-let num_files_diffed = ref 0
 
-let create_netid_map (directories : string list) =
-  let netid_map = Hashtbl.create 27 in 
-  let () = 
-    List.iter (fun dir -> 
-      Hashtbl.add netid_map (tag_of_path dir) dir
-    ) (strip_trailing_slash_all directories) 
+type diff_result = Ok | NotOk
+type options = {
+  verbose : bool
+}
+
+let diff_result_of_string = function
+  | "ok" | "Ok" -> Ok
+  | _           -> NotOk
+let string_of_diff_result = function
+  | Ok    -> "Ok"
+  | NotOk -> "NOTOK"
+
+module DiffSpreadsheet =
+  Spreadsheet.Make(struct
+    type row                       = string * diff_result
+
+    let compare_row (id,_) (id',_) = Pervasives.compare id id'
+    let filename : string          = cDIFF_RESULTS
+    let row_of_string str          = let id, r_str = String.lsplit2_exn ~on:',' str in
+                                     (id, (diff_result_of_string r_str))
+    let string_of_row (id,result)  = id ^ "," ^ (string_of_diff_result result)
+    let title : string             = "NetID,DiffResult"
+  end)
+
+(** [show_repl_prompt ()] print a prompt string for the diff repl. *)
+let show_repl_prompt () : unit =
+  print_string "[diff] (y/n/d/s/?) >> "
+
+(** [show_repl_help ()] print a help string for the diff repl. *)
+let show_repl_help () : unit =
+  Format.printf "%s\n\n" (String.concat ~sep:"\n" [
+    "Choices are:";
+    "  y : Accept the diff, no penalty";
+    "  n : Reject the diff. Will need to deduct slip day on CMS";
+    "  d : Show the diff again";
+    "  s : Show the source files (first old, then new)"
+  ])
+
+(** [diff_repl o old new] Display a diff, prompt user for a response. *)
+let diff_repl (opts : options) (old_file : string) (new_file : string) : diff_result =
+  let () = if opts.verbose then Format.printf "[diff] Entering diff REPL for files '%s' and '%s'.\n" old_file new_file in
+  let diff_cmd =
+    let which_diff = if (check_installed "colordiff") then "colordiff" else "diff" in
+    Format.sprintf "%s -u %s %s | less -R" which_diff old_file new_file
   in
-  netid_map
+  let show_diff ()  = ignore (Sys.command diff_cmd) in
+  let show_files () = ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file)) in
+  let user_input = ref None in
+  let () = (* repl loop *)
+    let () = show_diff () in
+    while (!user_input = None) do (
+      let () = show_repl_prompt () in
+      begin match (String.lowercase (read_line ())) with
+        | "y" | "yes" | "ok" | "okay" -> user_input := Some Ok
+        | "n" | "no" | "notok" | "nu" -> user_input := Some NotOk
+        | "d" | "diff"                -> show_diff ()
+        | "s" | "show"                -> show_files ()
+        | "h" | "help" | "?"          -> show_repl_help ()
+        | _                           -> let () = print_endline "Invalid option" in show_repl_help ()
+      end
+    ) done
+  in
+  let () = if opts.verbose then print_endline "[diff] Exiting diff REPL." in
+  Option.value_exn
+    ~message:"MAJOR PROBLEM WITH DIFF REPL! user input should NEVER be [None] at this point (but it is)."
+    (!user_input)
 
-(** [get_all_nocompiles ()] read the local directory of no compiles,
- * [cNOCOMPILE_DIR], return all filenames in a sorted array. *)
-let get_all_nocompiles () : string array =
-  let arr = Sys.readdir cNOCOMPILE_DIR in
-  let () = Array.sort Pervasives.compare arr in
-  arr
+(** [files_match f1 f2] True if [f1] and [f2] are textually identical. *)
+let files_match (old_file : string) (new_file : string) : bool =
+  let cmd = Format.sprintf "diff -q %s %s > /dev/null" old_file new_file in
+  0 = (Sys.command cmd)
 
-(** [diff ()] if any files under the [cNOCOMPILE_DIR] match a target,
- * perform a diff on the pre-and post submission. Record results in a csv file. *)
-let run (directories : string list) : unit =
-  let () = assert_file_exists cNOCOMPILE_DIR in
-  let () = num_files_diffed := 0 in
-  (* Space to store outputs *)
-  (* maps netid -> dir, to make it easy to get new input from the 
-  * name of a previous no-compile *)
-  let netid_map = create_netid_map directories in
-  let results_chn = open_out cDIFF_RESULTS in
-  (* For each file in the nocompile folder, check if it has a match in [directories] *)
-  let all_nocompiles = get_all_nocompiles () in
-  Array.iter (fun netid -> 
-    if Hashtbl.mem netid_map netid then
-      let dir = Hashtbl.find netid_map netid in
-      (* Found a match. diff this submission *)
-      let user_input = ref 2 in
-      let result = Array.fold_left (fun acc fname ->
-        if acc = 0 then 
-          (* Already rejected student's fix for previous file. 
-           * They suffer the penalty. *)
-          0
-        else begin
-          (* Run a diff, ask user for judgment. 
-           * Automatically handles missing files and 'no difference' resubmits *)
-          let new_file = Format.sprintf "%s/%s" dir fname in
-          let old_file = Format.sprintf "%s/%s/%s" cNOCOMPILE_DIR netid fname in
-          let simple_cmd = Format.sprintf "diff -q %s %s" old_file new_file in
-          let pretty_cmd = 
-            let diff_cmd = if (Sys.command "which colordiff > /dev/null" = 0) 
-              then "colordiff"
-              else "diff" in 
-            Format.sprintf "%s -u %s %s | less -R" diff_cmd old_file new_file in
-          let _ = Format.printf "\n### Executing '%s' \n%!" simple_cmd in
-          if not (Sys.file_exists new_file) then
-            (* Resubmission does not contain a file. 
-             * Return 1 because they do not have a late submission *)
-            let _ = Format.printf "File '%s' does not exist!\n%!" new_file in
-            1
-          else begin
-            (* First, check if there are any differences *)
-            if (Sys.command simple_cmd) = 0 then
-              (* No differences. Print and return 1. It's 1 
-               * because they did not submit late *)
-              let _ = Format.printf "diff of '%s/%s' finished with no differences\n%!" netid fname in
-              1
-            (* Next, check if either file was empty *)
-            else if (Sys.command (Format.sprintf "test -s %s" old_file)) <> 0 then
-              (* Empty old file! That's a slip day *)
-              0
-            else
-              (* There are differences. Display a prettier diff, wait for user
-               * response *)
-              let show_diff = fun () -> Sys.command pretty_cmd in
-              let () = (* set up repl *)
-                ignore (show_diff ());
-                user_input := 2
-              in
-              (* Collect input *)
-              let () = while (!user_input <> 0 && !user_input <> 1) do (
-                print_string "#### Decision time! Choose one of (y/n/d/s) or type 'h' for help.\n> ";
-                match String.lowercase (read_line ()) with
-                | "y" | "yes" -> user_input := 1
-                | "n" | "no"  -> user_input := 0
-                | "d"         -> ignore (show_diff ())
-                | "s"         -> ignore (Sys.command(Format.sprintf "less %s %s" old_file new_file))
-                | str         -> if str <> "h" then print_endline "#### Invalid option"; print_endline "#### Choices are:\n       y : Accept the diff, no penalty\n       n : Reject the diff. Will need to deduct slip day on CMS\n       d : Show the diff again\n       s : Show the source files (first old, then new)\n" 
-              ) done in
-              (* done with repl *)
-              let () = 
-                print_endline "Ok! ";
-                incr num_files_diffed
-              in
-              !user_input
-          end
-        end 
-      (* initial accumulator for the fold is 1 because of the guard on 0 
-       * If [acc = 0], we stop doing diffs for the student. *)
-      ) 1 (Sys.readdir (Format.sprintf "%s/%s" cNOCOMPILE_DIR netid)) in
-      (* Save the results to the .csv *)
-      output_string results_chn (Format.sprintf "%s,%d\n" netid result)
-  ) all_nocompiles;
-  (* Close up *)
-  let () = ignore(Sys.command (Format.sprintf "rm -f %s" diff_tmp)) in
-  let () = close_out results_chn in
-  Format.printf "Finished inputting decisions for %d files. See '%s' for results\n%!" (!num_files_diffed) cDIFF_RESULTS
+(** [diff_files o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
+let diff_files (opts : options) (old_file : string) (new_file : string) : diff_result =
+  let ()   = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
+  if not (all_files_exist [old_file; new_file]) then
+    (* 2014-07-15: file2 is sure to exist, but whatever *)
+    let () = if opts.verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
+    Ok
+  else if files_match old_file new_file then
+    let () = if opts.verbose then Format.printf "[diff] Passes trivially. Both files identical.\n" in
+    Ok
+  else if file_is_empty old_file then
+    let () = if opts.verbose then Format.printf "[diff] Fails trivially. The old file was empty.\n" in
+    NotOk
+  else
+    diff_repl opts old_file new_file
+
+(** [diff_files o old new] run multiple diffs comparing the files in [new] against matching files in [old].
+    We only care about files that exist in [old]. (Note: those files may be empty) *)
+let diff_directories (opts : options) (old_dir : string) (new_dir : string) : diff_result =
+  let old_files = Sys.readdir old_dir in
+  Array.fold
+    old_files
+    ~init:Ok
+    ~f:(fun r1 fname ->
+        (* Need full path to each file *)
+        let new_file = new_dir ^ "/" ^ fname in
+        let old_file = old_dir ^ "/" ^ fname in
+        let r2 = diff_files opts old_file new_file in
+        begin match (r1, r2) with
+          | Ok, Ok    -> Ok
+          | _, NotOk -> NotOk
+          | NotOk, _ -> NotOk
+        end
+       )
+
+(** [diff_student o t d] diff the current submission [d] of a student against
+    the most recent past submission. Save results in the spreadsheet [t]. *)
+let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
+  let netid      = filename_of_path new_dir in
+  let old_dir    = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
+  begin match Sys.file_exists old_dir with
+    | `No | `Unknown ->
+      let ()     = if opts.verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
+      tbl
+    | `Yes ->
+      let ()     = if opts.verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
+      let result = diff_directories opts old_dir new_dir in
+      let row    = (netid, result) in
+      DiffSpreadsheet.add_row tbl ~row:row
+  end
+
+(** [diff o dirs] Run a diff comparing the submission in each directory of [dirs]
+    with the result saved for the student on the last execution of [cs3110 smoke]. *)
+let diff (opts : options) (dirs : string list) : unit =
+  let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student opts) in
+  let ()  = DiffSpreadsheet.write tbl ~file:cDIFF_RESULTS in
+  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) cDIFF_RESULTS in
+  ()
+
+let command =
+  Command.basic
+    ~summary:"Run a diff on resubmissions, ask the user for a judgment."
+    ~readme:(fun () -> Core.Std.String.concat ~sep:"\n" [
+      "The [cs3110 diff] command is for checking no-compile fixes.";
+      "It compares current submissions against submissions that didn't";
+      "compile in the last run of [cs3110 smoke] using the Unix tool [diff].";
+      "Each diff is displayed in the terminal and the user is asked to approve";
+      "the changes. Results are stored in a .csv file for future reference.";
+      "(The .csv cannot be uploaded directly to CMS.)"
+    ])
+    Command.Spec.(
+      empty
+      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
+      +> anon (sequence ("submission" %: file))
+    )
+    (fun v subs () ->
+      (* TODO replace constants with options *)
+      let ()  = assert_installed "diff" in
+      let opts = {
+        verbose = v;
+      } in
+      diff opts (at_expand subs)
+    )

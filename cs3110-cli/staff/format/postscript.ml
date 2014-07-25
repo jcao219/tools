@@ -1,3 +1,5 @@
+open Core.Std
+
 type font = Normal | Header | Code
 type t = Pervasives.out_channel
 
@@ -25,11 +27,11 @@ let write t (msg : string) : unit =
 let write_code t (src_fname : string) : unit =
   let () = set_font t Header in
   begin match Sys.file_exists src_fname with
-    | true  ->
+    | `No | `Unknown -> write t "SOURCE NOT FOUND\n"
+    | `Yes           ->
        let () = write t (Format.sprintf "Source code for file '%s':\n" src_fname) in
        let () = set_font t Code in
        List.iter ~f:(write t) (In_channel.read_lines src_fname)
-    | false -> write t "SOURCE NOT FOUND\n"
   end
 
 let write_results t (results_str : string) : unit =
