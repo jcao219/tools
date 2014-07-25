@@ -301,6 +301,27 @@ let harness (opts : options) (subs : string list) : unit =
   in
   HarnessSpreadsheet.write sheet
 
+(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  String.length fname <> 0 &&
+  fname.[0] <> '.' &&
+  is_suffix fname "_test.ml"
+
+(** [tests_of_directory d] Get the full filenames of tests from a directory [d].
+    For example, if the directory "my_dir" has files "my_test.ml" and "notatest.ml",
+    we will return a singleton list containing the string "mydir/my_test.ml". *)
+let test_list_of_directory ?(verbose=false) (dir : string) : string list =
+  Core.Std.List.fold_right
+    (Array.to_list (Sys.readdir dir))
+    ~f:(fun fname acc ->
+        if is_valid_test_file fname then
+          let full_path = Format.sprintf "%s/%s" dir fname in
+          full_path :: acc
+        else
+          let () = if verbose then Format.printf "[harness] WARNING: skipping invalid test file '%s/%s'.\n" dir fname in
+          acc)
+    ~init:[]
+
 (** [get_unit_test_names d t] Extract the names of all unit tests from the
     file [test] by compiling it in directory [d]. Raise an error if the file
     [test] does not exist.

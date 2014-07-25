@@ -143,12 +143,6 @@ let get_files_with_extension (desired_extension : string)
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
 
-(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
-let is_valid_test_file (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.' &&
-  is_suffix fname "_test.ml"
-
 (** [at_expand dirs] optionally expand a file containing a list into a list of directories.
     If the input is a singleton list where the first element is prefixed by and '@' character,
     treat this input as a file containing a list of newline-separated strings. Create directory
@@ -161,22 +155,6 @@ let at_expand (dirs : string list) : string list =
        directories_of_list (String.sub fname 1 ((String.length fname) - 1))
     | [] | _::_ -> dirs
   end
-
-(** [tests_of_directory d] Get the full filenames of tests from a directory [d].
-    For example, if the directory "my_dir" has files "my_test.ml" and "notatest.ml",
-    we will return a singleton list containing the string "mydir/my_test.ml". *)
-(* TODO smoke should use this *)
-let test_list_of_directory ?(verbose=false) (dir : string) : string list =
-  Core.Std.List.fold_right
-    (Array.to_list (Sys.readdir dir))
-    ~f:(fun fname acc ->
-        if is_valid_test_file fname then
-          let full_path = Format.sprintf "%s/%s" dir fname in
-          full_path :: acc
-        else
-          let () = if verbose then Format.printf "WARNING: skipping invalid test file '%s/%s'.\n" dir fname in
-          acc)
-    ~init:[]
 
 (** [filename_of_path p] Return the last item along the path [p].
     It could be a filename or a directory name, don't care.\
