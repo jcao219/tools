@@ -54,11 +54,6 @@ let strip_trailing_slash (s : string) =
   then String.sub s 0 (len - 1)
   else s
 
-(** [strip_trailing_slash_all strs] remove the trailing slash from a
- * list of files *)
-let strip_trailing_slash_all (directories : string list) =
-  List.map (fun s -> strip_trailing_slash s) directories
-
 (** [tag_of_path p] strips all characters up to and including the rightmost / *)
 let tag_of_path (path : string) =
   if String.contains path '/' then
@@ -68,9 +63,9 @@ let tag_of_path (path : string) =
     path
 
 (** [assert_file_exists f] raises [File_not_found] if [f] does not exist *)
-let assert_file_exists (filename : string) : unit =
+let assert_file_exists ?msg (filename : string) : unit =
   if not (Sys.file_exists filename) then
-    raise (File_not_found filename)
+    raise (File_not_found (Core.Std.Option.value msg ~default:filename))
 
 (** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
 let ensure_ml (fname : string) : string =
@@ -160,6 +155,17 @@ let at_expand (dirs : string list) : string list =
        directories_of_list (String.sub fname 1 ((String.length fname) - 1))
     | [] | _::_ -> dirs
   end
+
+(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  String.length fname <> 0 &&
+  fname.[0] <> '.' &&
+  is_suffix fname "_test.ml"
+
+(** [soft_copy d1 d2] Copy all files and directories from directory [d1]
+    into directory [d2]. Do NOT overwrite any files in [d2]. *)
+let soft_copy (dir1 : string) (dir2 : string) : int =
+  Sys.command (Format.sprintf "cp -r -n %s/. %s" dir1 dir2)
 
 (** [netid_of_filepath s] Very simple, just take the last string from
     a slash-delimited filepath. Given 'dir1/dir2/dir3/', this function

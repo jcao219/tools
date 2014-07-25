@@ -5,12 +5,6 @@ open Filepath_util
 type test = { name : string; absolute_path : string }
 type test_suite = test list
 
-(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
-let is_valid_test_file (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.' &&
-  is_suffix fname "_test.ml"
-
 (** [test_suite_of_directory dir] parse the directory [dir] for test files.
  * It should only contain files with names like 'part1_test.ml'.
  * Print a warning if any file has an unexpected name and ignores that file.
@@ -153,7 +147,6 @@ let harness_sanitize_src (fname : string) : unit =
  * against [targets] *)
 let run (test_dir : string) (directories : string list) : unit =
   let cwd = Sys.getcwd () in
-  let directories = strip_trailing_slash_all directories in
   let test_suite = test_suite_of_directory test_dir in
   let good_student = match find_compiling_implementation test_suite directories with
     | Some dir -> dir

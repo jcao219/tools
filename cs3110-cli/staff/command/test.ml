@@ -27,7 +27,8 @@ let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : i
   in
   let ()  = if verbose then Format.printf "[test] Test args are '%s'.\n" (String.concat ~sep:" " args) in
   (* Note that pa_ounit doesn't give a nonzero exit status if tests are run. *)
-  begin match Sys.file_exists exec with
+  (* 2014-07-24: This match is a little messy, but cleaning it might affect the harness. Be careful. *)
+   begin match Sys.file_exists exec with
     | `Yes           ->
       let exit_code = run_process exec args in
       let ()        = Sys.chdir cwd in

@@ -14,6 +14,7 @@ let targets = [
   ("diff"    , Diff.command);
   ("email"   , Email.command);
   ("run"     , Run.command);
+  ("smoke"   , Smoke.command);
   ("test"    , Test.command)
 ]
 
