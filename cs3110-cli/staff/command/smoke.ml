@@ -27,17 +27,18 @@ let make_email_message (netid : string) (failed_targets : string list) : string 
 (** [copy_directory o n d] save a copy of the directory [dir] for later diffing.
     The options [o] specify where to save the copy. *)
 let copy_directory (opts : options) (netid : string) (dir : string) : unit =
-  let existing_dir = Format.sprintf "%s/%s" opts.nocompile_directory netid in
+  let target_dir = Format.sprintf "%s/%s" opts.nocompile_directory netid in
   let () =
-    begin match Sys.file_exists existing_dir with
-      | `No | `Unknown -> ()
+    begin match Sys.file_exists target_dir with
+      | `No | `Unknown ->
+        check_code (Sys.command (Format.sprintf "mkdir %s" target_dir))
       | `Yes           ->
-        let () = if opts.verbose then Format.printf "[smoke] removing old diff directory '%s'.\n" existing_dir in
-        ignore (Sys.command (Format.sprintf "rm -rf %s" existing_dir))
+        let () = if opts.verbose then Format.printf "[smoke] removing old diff directory '%s'.\n" target_dir in
+        check_code (Sys.command (Format.sprintf "rm -rf %s; mkdir %s" target_dir target_dir))
     end
   in
-  let () = if opts.verbose then Format.printf "[smoke] copying directory '%s' to folder '%s'.\n" dir opts.nocompile_directory in
-  let exit_code = Sys.command (Format.sprintf "cp -r %s %s" dir opts.nocompile_directory) in
+  let () = if opts.verbose then Format.printf "[smoke] copying directory '%s' to folder '%s'.\n" dir target_dir in
+  let exit_code = Sys.command (Format.sprintf "cp -r %s/. %s" dir target_dir) in
   let () = if exit_code <> 0 then Format.printf "[smoke] ERROR failed to save directory '%s'\n" dir in
   ()
 
@@ -50,10 +51,10 @@ let write_email (opts : options) (netid : string) (failures : string list) : uni
 
 (** [compile_target d t] change into directory [d], compile the file [t], return
     true if compilation succeeded. *)
-let compile_target (dir : string) (target : string) : bool =
+let compile_target (opts : options) (dir : string) (target : string) : bool =
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir dir in
-  let exit_code = Compile.compile target in
+  let exit_code = Compile.compile ~verbose:opts.verbose target in
   let ()        = Clean.clean "compile" in
   let ()        = Sys.chdir cwd in
   0 = exit_code
@@ -66,9 +67,9 @@ let smoke_target (opts : options) (dir : string) (failed_targets : string list) 
   let curr_path    = Format.sprintf "%s/%s" dir curr_target' in
   let () = if opts.verbose then Format.printf "[smoke] searching for target '%s'...\n" curr_path in
   begin match Sys.file_exists curr_path with
-    | `Yes           -> (* Compile *)
+    | `Yes           -> (* Compile. Need to flush printouts here. *)
       let () = if opts.verbose then Format.printf "[smoke] found target '%s', compiling...\n" curr_path in
-      begin match compile_target dir curr_target' with
+      begin match compile_target opts dir curr_target' with
         | true  ->
            let () = if opts.verbose then Format.printf "[smoke] successfully compiled '%s'.\n" curr_path in
            failed_targets
