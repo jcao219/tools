@@ -43,3 +43,5 @@ val file_is_empty : string -> bool
 val is_valid_test_file : string -> bool
 
 val soft_copy : string -> string -> int
+
+val test_list_of_directory : ?verbose:bool -> string -> string list
