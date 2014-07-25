@@ -1,6 +1,5 @@
 open Core.Std
 open Cli_constants
-open Io_util
 open Filepath_util
 open Process_util
 
@@ -117,7 +116,7 @@ let get_smoke_targets (tgts : string list) : string list =
     | []   -> (* try inferring *)
        begin match Sys.file_exists cSMOKE_TARGETS with
          | `Yes           -> (* TODO remove this constant completely *)
-            List.map ~f:strip_suffix (read_lines (open_in cSMOKE_TARGETS))
+            List.map ~f:strip_suffix (In_channel.read_lines cSMOKE_TARGETS)
          | `No | `Unknown -> (* TODO tests dir should be a config *)
             begin match Sys.file_exists cTESTS_DIR with
               | `Yes -> List.map
