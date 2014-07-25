@@ -105,9 +105,10 @@ let compile ?(quiet=false) ?(verbose=false) ?dir (main_module : string) : int =
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
-  let ()        = if verbose && (not quiet) then Format.printf "%!" in
+  let ()        = if verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
   let exit_code = run_process "ocamlbuild" command in
   let ()        = Sys.chdir cwd in
+  let ()        = if verbose && (not quiet) then Format.printf "\n" in (* more required whitespace for ocambuild *)
   let ()        = if verbose && (exit_code = 0) then Format.printf "[compile] Compilation succeeded!\n" in
   exit_code
 
