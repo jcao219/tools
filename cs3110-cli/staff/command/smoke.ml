@@ -130,6 +130,16 @@ let get_smoke_targets (tgts : string list) : string list =
        end
   end
 
+(** [validate_smoke_targets r tgts] Assert that the name of each target
+    matches a file in the release directory. *)
+let validate_smoke_targets ~release (targets : string list) : unit =
+  let prefix = release ^ "/" in
+  List.iter
+    ~f:(fun t ->
+        let msg = Format.sprintf "Smoke test target '%s' not included in release directory." t in
+        assert_file_exists ~msg:msg (prefix ^ (ensure_ml t)))
+    targets
+
 let command =
   Command.basic
     ~summary:"Smoke test. Check if submissions compile. If not, save a copy & make an email message for that submission."
@@ -157,5 +167,6 @@ let command =
         targets             = get_smoke_targets tgts;
         verbose             = v;
       } in
+      let () = validate_smoke_targets ~release:opts.release_directory opts.targets in
       smoke opts (at_expand subs)
     )
