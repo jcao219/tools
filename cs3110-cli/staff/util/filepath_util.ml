@@ -54,11 +54,6 @@ let strip_trailing_slash (s : string) =
   then String.sub s 0 (len - 1)
   else s
 
-(** [strip_trailing_slash_all strs] remove the trailing slash from a
- * list of files *)
-let strip_trailing_slash_all (directories : string list) =
-  List.map (fun s -> strip_trailing_slash s) directories
-
 (** [tag_of_path p] strips all characters up to and including the rightmost / *)
 let tag_of_path (path : string) =
   if String.contains path '/' then

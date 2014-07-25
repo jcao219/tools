@@ -109,7 +109,6 @@ end
 
 (** [smoke o ds] Smoke test each submission directory [ds]. *)
 let smoke (opts : options) (directories : string list) : unit =
-  let directories = strip_trailing_slash_all directories in
   List.iter ~f:(smoke_directory opts) directories
 
 (** [get_smoke_targets o] figure out which files to compile. This could be
@@ -117,36 +116,35 @@ let smoke (opts : options) (directories : string list) : unit =
 let get_smoke_targets (tgts : string list) : string list =
   begin match tgts with
     | _::_ -> tgts
-    | []   ->
+    | []   -> (* try inferring *)
        begin match Sys.file_exists cSMOKE_TARGETS with
-         | `Yes           ->
+         | `Yes           -> (* TODO remove this constant completely *)
             List.map ~f:strip_suffix (read_lines (open_in cSMOKE_TARGETS))
-         | `No | `Unknown ->
+         | `No | `Unknown -> (* TODO tests dir should be a config *)
             begin match Sys.file_exists cTESTS_DIR with
               | `Yes -> List.map
                           ~f:(fun f -> fst (rsplit f '_'))
                           (List.filter
                              ~f:is_valid_test_file
                              (Array.to_list (Sys.readdir cTESTS_DIR)))
-              | `No | `Unknown -> raise (File_not_found cSMOKE_TARGETS)
+              | `No | `Unknown -> raise (File_not_found "Could not determine which files to smoke test.")
             end
        end
   end
 
 let command =
   Command.basic
-    ~summary:"Smoke test. Check if submissions compile. Save a copy & make an email for submissions that don't compile."
+    ~summary:"Smoke test. Check if submissions compile. If not, save a copy & make an email message for that submission."
     ~readme:(fun () -> String.concat ~sep:"\n" [
       "The smoke test is a sanity check for students. We make sure their submissions compile.";
       "If not, we generate an email that can be sent with [cs3110 email] and save a record of";
       "the submission. The policy is that students can resubmit a trivial fix with no penalty.";
-      "Use [cs3110 diff] to compare saved copies with resubmissions. Specify which files to";
-      "compile with the [-target] option or the config file.";
+      "Use [cs3110 diff] to compare saved copies with resubmissions.";
     ])
     Command.Spec.(
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg          ~doc:" Print debugging information."
-      +> flag ~aliases:["-t"] "-target"  (listed string) ~doc:"TARGET Attempt to compile TARGET in each SUBMISSION directory."
+      +> flag ~aliases:["-t"] "-target"  (listed string) ~doc:"TARGET Attempt to compile file TARGET in each SUBMISSION directory."
       +> flag ~aliases:["-r"] "-release" (required file) ~doc:"DIR Copy starter code from directory DIR."
       +> anon (sequence ("submission" %: string))
     )

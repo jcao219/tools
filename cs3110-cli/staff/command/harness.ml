@@ -147,7 +147,6 @@ let harness_sanitize_src (fname : string) : unit =
  * against [targets] *)
 let run (test_dir : string) (directories : string list) : unit =
   let cwd = Sys.getcwd () in
-  let directories = strip_trailing_slash_all directories in
   let test_suite = test_suite_of_directory test_dir in
   let good_student = match find_compiling_implementation test_suite directories with
     | Some dir -> dir
