@@ -26,7 +26,7 @@ val strip_suffix : string -> string
 
 val tag_of_path : string -> string
 
-val test_name_of_line : string -> string
+val unittest_name_of_line : string -> string
 
 val filename_of_path : string -> string
 

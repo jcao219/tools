@@ -96,10 +96,10 @@ let directories_of_list (fname : string) : string list =
   (* Return the fully-inferred list of directories *)
   List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
 
-(** [test_name_of_line s] extract the test name from a line printed by the
- * inline test runner. Name should be the last 'word' of the string, separated
- * from everything else by a colon *)
-let test_name_of_line (line : string) : string =
+(** [unittest_name_of_line s] extract the test name from a line printed by the
+    inline test runner. Name should be the last 'word' of the string, separated
+    from everything else by a colon *)
+let unittest_name_of_line (line : string) : string =
   fst (lsplit (snd (rsplit line ':')) ' ')
 
 (** [get_extension file_name] gets the extension of the file
