@@ -145,10 +145,8 @@ let command =
       +> anon (sequence ("submission" %: string))
     )
     (fun v tgts r subs () ->
-     (* TODO config should clean some of this *)
       let () = ensure_dir cEMAIL_DIR in
       let () = ensure_dir cNOCOMPILE_DIR in
-      let () = ensure_dir cOUTPUT_DIR in
       let () = assert_file_exists r in
       let opts = {
         email_directory     = cEMAIL_DIR;

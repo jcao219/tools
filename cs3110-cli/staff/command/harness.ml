@@ -248,7 +248,7 @@ let post_harness (opts : options) ~dir (tr : TestFileResultSet.t) : unit =
   let () = write_comments opts dir tr in
   let () = if opts.postscript then write_postscript opts dir tr in
   let () = if opts.verbose then Format.printf "[harness] Cleaning directory '%s'.\n" dir in
-  let () = List.iter ~f:(fun tgt -> Clean.clean ~dir:dir tgt) ["compile";"test"] in
+  let () = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:dir tgt)) ["compile";"test"] in
   let () = if opts.verbose then Format.printf "[harness] Cleaning complete!\n" in
   ()
 
@@ -367,7 +367,7 @@ let get_unittest_names ?(verbose=false) ~staging_dir (test_abs_path : string) : 
       let ()  = check_code (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
       let ()  = check_code (Test.test ~quiet:true ~verbose:verbose ~compile:true ~dir:staging_dir test_name)  in
       let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir cTEST_OUTPUT) in
-      let ()  = List.iter ~f:(fun tgt -> Clean.clean ~dir:staging_dir tgt) ["compile";"test"] in
+      let ()  = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:staging_dir tgt)) ["compile";"test"] in
       let ()  = check_code (Sys.command (Format.sprintf "rm %s/%s" staging_dir test_name)) in
       List.fold_left raw
         ~f:(fun acc line -> UnittestSet.add acc (unittest_name_of_line line))
@@ -418,6 +418,7 @@ let command =
     )
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
+      let () = ensure_dir cHARNESS_DIR in
       let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
