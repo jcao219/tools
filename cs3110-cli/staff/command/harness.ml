@@ -341,7 +341,10 @@ let harness (opts : options) (subs : string list) : unit =
       ~init:(HarnessSpreadsheet.create ())
       subs
   in
-  HarnessSpreadsheet.write sheet
+  let () = if opts.verbose then Format.printf "[harness] Testing complete, writing spreadsheet to '%s'...\n" opts.spreadsheet_location in
+  let () = HarnessSpreadsheet.write sheet in
+  let () = if opts.verbose then Format.printf "[harness] All done!\n" in
+  ()
 
 (** [tests_of_directory d] Get the full filenames of tests from a directory [d].
     For example, if the directory "my_dir" has files "my_test.ml" and "notatest.ml",
