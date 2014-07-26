@@ -3,14 +3,9 @@ open Cli_constants
 open Io_util
 open Filepath_util
 
-(* aka 'ordered list' *)
-(* TODO remove this? *)
-module StringSet = Set.Make(struct
-  type t        = string
-  let compare   = Pervasives.compare
-  let sexp_of_t = Sexp.of_string
-  let t_of_sexp = Sexp.to_string
-end)
+(* aka 'ordered list', used only to keep unit test names ordered within a test file. *)
+(* TODO remove this *)
+module StringSet = Set.Make(String)
 
 type test_file = {
   absolute_path : string;
