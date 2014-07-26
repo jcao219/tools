@@ -55,7 +55,7 @@ let compile_target (opts : options) (dir : string) (target : string) : bool =
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir dir in
   let exit_code = Compile.compile ~verbose:opts.verbose target in
-  let ()        = Clean.clean "compile" in
+  let ()        = ignore (Clean.clean "compile") in
   let ()        = Sys.chdir cwd in
   0 = exit_code
 
@@ -145,8 +145,10 @@ let command =
       +> anon (sequence ("submission" %: string))
     )
     (fun v tgts r subs () ->
+     (* TODO config should clean some of this *)
       let () = ensure_dir cEMAIL_DIR in
       let () = ensure_dir cNOCOMPILE_DIR in
+      let () = ensure_dir cOUTPUT_DIR in
       let () = assert_file_exists r in
       let opts = {
         email_directory     = cEMAIL_DIR;

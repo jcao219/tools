@@ -60,10 +60,10 @@ let clean_dir_cmd (dir : string) : string =
     is a directory, clean the compiled files inside it. When [v] is high, print
     debugging information. When [d] is set, change into that directory before
     cleaning. The option [d] is more for internal calls than command-line use. *)
-let clean ?(verbose=false) ?dir (target : string) : unit =
+let clean ?(verbose=false) ?dir (target : string) : int =
   let cwd = Sys.getcwd () in
   let ()  = Sys.chdir (Option.value ~default:cwd dir) in
-  let ()  = if verbose then Format.printf "%![clean] Cleaning target '%s'.\n%!" target in
+  let ()  = if verbose then Format.printf "%![clean] Cleaning target '%s'.\n" target in
   let cmd =
     begin match target with
       | "all"     -> compile_cmd
@@ -77,11 +77,12 @@ let clean ?(verbose=false) ?dir (target : string) : unit =
       | _         -> clean_dir_cmd target
     end
   in
-  let () = check_code (Sys.command cmd) in
+  let ()        = if verbose then Format.printf "[clean] Executing command '%s'.\n%!" cmd in
+  let exit_code = Sys.command cmd in
   (* 2014-07-18: Need to flush and print one character after running ocamlbuild... *)
-  let () = if verbose then Format.printf "\n%!" in
-  let () = Sys.chdir cwd in
-  ()
+  let ()        = if verbose then Format.printf "\n%!" in
+  let ()        = Sys.chdir cwd in
+  exit_code
 
 let command =
   Command.basic
@@ -99,6 +100,6 @@ let command =
     )
     (fun v targets () ->
       List.iter
-        ~f:(clean ~verbose:v)
+        ~f:(fun tgt -> check_code (clean ~verbose:v tgt))
         targets
     )
