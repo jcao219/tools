@@ -3,13 +3,14 @@ open Filepath_util
 open Process_util
 
 let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : int =
-  let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main_module in
+  let main      = ensure_ml main_module in
+  let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main in
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir (Option.value ~default:cwd dir) in
   let ()        = if verbose then Format.printf "[test] Searching for build directory.\n" in
   let build_dir = "_build" in (* TODO abstract this *)
   (* TODO clean this all up *)
-  let exec      = Format.sprintf "%s/%s.d.byte" build_dir (strip_suffix main_module) in
+  let exec      = Format.sprintf "%s/%s.d.byte" build_dir (strip_suffix main) in
   (* -log required by harness, nice to have in general, but
      destination './inline_tests.log' is hardcoded *)
   let base_args = ["inline-test-runner"; "dummy"; "-log"] in
@@ -36,7 +37,7 @@ let test ?(quiet=false) ?(verbose=false) ?output ?dir (main_module : string) : i
     | `No | `Unknown ->
       let ()  = Sys.chdir cwd in
       let ()  = Format.printf "%!" in
-      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module in
+      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main in
       raise (Cli_constants.File_not_found msg)
   end
 
