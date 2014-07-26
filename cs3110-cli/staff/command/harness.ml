@@ -82,8 +82,8 @@ let get_scores (tr : TestFileResult.t) : int list =
 
 (** [is_dotfile fname] true if the file [fn] is a dotfile (aka begins with a '.' character) *)
 let is_dotfile (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.'
+  String.length fname = 0 || (* Filter nonsense *)
+  fname.[0] = '.'
 
 (** [is_valid_test_file fn] true if filename matches the expected format for tests, false otherwise *)
 let is_valid_test_file (fname : string) : bool =
@@ -292,7 +292,7 @@ let harness (opts : options) (subs : string list) : unit =
                  ~f:(fun (acc,cols) test ->
                     let rs, cols' = parse_results_from_list test.unit_tests cols in
                     let acc' = TestFileResultSet.add acc (test.name, rs) in
-                    (acc', List.tl cols')
+                    (acc', Option.value ~default:[] (List.tl cols'))
                    )
                  ~init:(TestFileResultSet.empty,columns)
                  opts.test_suite
@@ -300,7 +300,7 @@ let harness (opts : options) (subs : string list) : unit =
              let () =
                begin match cols_left with
                  | []   -> ()
-                 | _::_ -> Format.printf "[harness] WARNING unused columns '%s' in spreadsheet row." (String.concat ~sep:"," cols_left)
+                 | _::_ -> Format.printf "[harness] WARNING unused columns '%s' in spreadsheet row.\n" (String.concat ~sep:"," cols_left)
                end
              in
              (netid, results_by_test)
