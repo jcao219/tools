@@ -444,6 +444,6 @@ let command =
       let () = ensure_dir cHARNESS_DIR in (* sheet dir *)
       let () = ensure_dir opts.output_directory in
       if TestFileSet.is_empty opts.test_suite
-      then Format.printf "[harness] Empty test suite, nothing to run. Bye now!\n"
+      then Format.printf "[harness] Empty test suite, nothing to run (tests should end with suffix '_test.ml'). Bye now!\n"
       else harness opts (at_expand subs)
     )
