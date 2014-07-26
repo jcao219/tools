@@ -292,7 +292,7 @@ let harness (opts : options) (subs : string list) : unit =
                  ~f:(fun (acc,cols) test ->
                     let rs, cols' = parse_results_from_list test.unit_tests cols in
                     let acc' = TestFileResultSet.add acc (test.name, rs) in
-                    (acc', cols')
+                    (acc', List.tl cols')
                    )
                  ~init:(TestFileResultSet.empty,columns)
                  opts.test_suite
@@ -327,8 +327,16 @@ let harness (opts : options) (subs : string list) : unit =
         Format.sprintf "NetID,%s" (String.concat ~sep:",," unit_test_names)
     end)
   in
+  let initial_sheet =
+    begin match Sys.file_exists opts.spreadsheet_location with
+      | `No | `Unknown -> HarnessSpreadsheet.create ()
+      | `Yes           ->
+         let () = if opts.verbose then Format.printf "[harness] Reading existing spreadsheet '%s'\n" opts.spreadsheet_location in
+         HarnessSpreadsheet.read opts.spreadsheet_location
+    end
+  in
   let () = if opts.verbose then Format.printf "[harness] Running all tests...\n%!" in
-  let sheet =
+  let final_sheet   =
     List.fold
       ~f:(fun sheet dir ->
          let ()          = pre_harness opts dir in
@@ -338,11 +346,11 @@ let harness (opts : options) (subs : string list) : unit =
          let row         = (netid, all_results) in
          HarnessSpreadsheet.add_row sheet ~row:row
          )
-      ~init:(HarnessSpreadsheet.create ())
+      ~init:initial_sheet
       subs
   in
   let () = if opts.verbose then Format.printf "[harness] Testing complete, writing spreadsheet to '%s'...\n" opts.spreadsheet_location in
-  let () = HarnessSpreadsheet.write sheet in
+  let () = HarnessSpreadsheet.write final_sheet in
   let () = if opts.verbose then Format.printf "[harness] All done!\n" in
   ()
 
