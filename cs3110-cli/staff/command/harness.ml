@@ -429,6 +429,7 @@ let command =
     )
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
+      let () = assert_file_exists ~msg:"Release directory missing" release_dir in
       let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
