@@ -94,7 +94,7 @@ let directories_of_list (fname : string) : string list =
   let dir_names = read_lines (open_in fname) in
   let prefix = String.sub fname 0 (String.rindex fname '/') in
   (* Return the fully-inferred list of directories *)
-  List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
+  List.rev (List.fold_left (fun acc name -> (Format.sprintf "%s/%s" prefix name) :: acc) [] dir_names)
 
 (** [unittest_name_of_line s] extract the test name from a line printed by the
     inline test runner. Name should be the last 'word' of the string, separated
