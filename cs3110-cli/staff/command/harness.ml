@@ -429,7 +429,6 @@ let command =
     )
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
-      let () = ensure_dir cHARNESS_DIR in
       let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
@@ -441,5 +440,7 @@ let command =
         test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir (tests @ test_list_of_directory tests_dir);
         verbose              = v;
       } in
+      let () = ensure_dir cHARNESS_DIR in (* sheet dir *)
+      let () = ensure_dir opts.output_directory in
       harness opts (at_expand subs)
     )
