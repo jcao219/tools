@@ -322,11 +322,12 @@ let test_list_of_directory (dir : string) : string list =
   List.map ~f:(fun test_name -> Format.sprintf "%s/%s" dir test_name) test_names
 
 (** [get_unit_test_names d t] Extract the names of all unit tests from the
-    file [test] by compiling it in directory [d]. Raise an error if the file
-    [test] does not exist.
+    file [t] by compiling it in directory [d]. Raise an error if the file
+    [t] does not exist.
     Relies on the file 'inline_tests.log' automatically generated when running
     giving pa_ounit the [-log] option. *)
-let get_unittest_names ?test_name ~staging_dir (test_abs_path : string) : UnittestSet.t =
+let get_unittest_names ~staging_dir (test_abs_path : string) : UnittestSet.t =
+  let test_name = filename_of_path test_abs_path in
   begin match Sys.file_exists test_abs_path with
     | `No | `Unknown ->
       let msg = Format.sprintf "Could not find test file '%s'." test_abs_path in
@@ -334,10 +335,10 @@ let get_unittest_names ?test_name ~staging_dir (test_abs_path : string) : Unitte
     | `Yes           ->
       (* Copy test into staging dir, compile test, run to get names out. *)
       let ()  = ignore (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
-      let nm  = Option.value test_name ~default:(strip_suffix (filename_of_path test_abs_path)) in
-      let ()  = Process_util.check_code (Test.test ~quiet:true ~dir:staging_dir nm)  in
+      let ()  = Process_util.check_code (Test.test ~quiet:true ~dir:staging_dir test_name)  in
       let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir cTEST_OUTPUT) in
       let ()  = List.iter ~f:(fun tgt -> Clean.clean ~dir:staging_dir tgt) ["compile";"test"] in
+      let ()  = ignore (Sys.command (Format.sprintf "rm %s/%s" staging_dir test_name)) in
       List.fold_left raw
         ~f:(fun acc line -> UnittestSet.add acc (unittest_name_of_line line))
         ~init:UnittestSet.empty
@@ -353,7 +354,7 @@ let test_file_set_of_list ~staging_dir (tests : string list) : TestFileSet.t =
         let t = {
           absolute_path = path;
           name          = name;
-          unit_tests    = get_unittest_names ~test_name:name ~staging_dir:staging_dir path;
+          unit_tests    = get_unittest_names ~staging_dir:staging_dir path;
         } in
         TestFileSet.add suite t)
     ~init:TestFileSet.empty
@@ -375,7 +376,7 @@ let command =
       +> flag ~aliases:["-v"]          "-verbose"     (no_arg)          ~doc:" Print debugging information."
       +> flag ~aliases:["-p"; "-ps"]   "-postscript"  (no_arg)          ~doc:" Generate postscript output."
       +> flag ~aliases:["-t"]          "-test"        (listed file)     ~doc:"FILE Use the unit tests in the module FILE."
-      +> flag ~aliases:["-r"]          "-release"     (required file)   ~doc:"DIR Release directory. Used to get starter code and unit test names."
+      +> flag ~aliases:["-r"]          "-release"     (required file)   ~doc:"DIR Release directory. Used to get starter code and as a staging area."
       +> flag ~aliases:["-n"]          "-num-qcheck"  (optional int)    ~doc:(Format.sprintf "INT Set the number of quickcheck tests to run (default = %d)" cNUM_QCHECK)
       +> flag ~aliases:["-d"]          "-directory"   (optional file)   ~doc:"DIR Use all unit tests in all modules under directory DIR."
       +> flag ~aliases:["-o"]          "-output"      (optional string) ~doc:"DIR Set the output directory."
