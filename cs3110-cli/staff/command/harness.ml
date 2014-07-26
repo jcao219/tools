@@ -8,12 +8,12 @@ open Filepath_util
 module StringSet = Set.Make(String)
 
 type test_file = {
-  absolute_path : string;
-  name          : string;
-  unit_tests    : StringSet.t;
+  absolute_path : string;      (* Exact path to the test file. Ends with the filename. *)
+  name          : string;      (* Short name of the test file. *)
+  unit_tests    : StringSet.t; (* Names of the unit tests within the file *)
 }
 
-(* for organizing test files. keep tests alphabetized by filename *)
+(* For organizing test files. Keep tests alphabetized by filename. *)
 module TestSuite = Set.Make(struct
   type t            = test_file
   let compare t1 t2 = Pervasives.compare t1.name t2.name
@@ -21,13 +21,15 @@ module TestSuite = Set.Make(struct
   let t_of_sexp _   = failwith "not implemented"
 end)
 
-(* the results of running one test file. Keep unit test names alphabetized. *)
+(* The results of running one test file. It's a set to keep unit test names alphabetized. *)
 module TestResults = Set.Make(struct
-  type t                        = string * int * (string option) (* unit_test_name , points_earned , error_message *)
+  type t                        = string * int * (string option) (* unittest_name , points_earned , error_message *)
   let compare (n1,_,_) (n2,_,_) = Pervasives.compare n1 n2
   let sexp_of_t _               = failwith "not implemented"
   let t_of_sexp _               = failwith "not implemented"
 end)
+
+(* TODO test results set? *)
 
 (* TODO all these options in all these commands should match the options in the config file *)
 type options = {
@@ -50,27 +52,26 @@ let failure_message (test_name : string) (error_message : string) : string =
   Format.sprintf "FAIL -- %s : %s" test_name error_message
 
 (** [string_of_test_results tr] Pretty-print a batch of test results. Simple
-    set to string conversion. *)
+    set-to-string conversion. *)
 let string_of_test_results (results : TestResults.t) : string =
   String.concat ~sep:"\n"
     (TestResults.fold_right
        ~f:(fun (unit_name, _, err_msg) acc ->
            begin match err_msg with
-             | Some e -> failure_message unit_name e
              | None   -> success_message unit_name
+             | Some e -> failure_message unit_name e
            end :: acc)
        ~init:[]
        results)
 
 (** [get_scores tr] Get just the scores (in order) from the test results [t]. *)
 let get_scores (tr : TestResults.t) : int list =
-  TestResults.fold_right
+  TestResults.fold_right tr
     ~f:(fun (_,score,_) acc -> score :: acc)
     ~init:[]
-    tr
 
 (** [sort_results rs] Sort a list of pairs [rs] of (test_file_name, results) in alphabetical
-    order of the test_filen_names. *)
+    order of the test_file_names. *)
 let sort_results (rs : (string * TestResults.t) list) : (string * TestResults.t) list =
   List.sort rs
     ~cmp:(fun (s1,_) (s2,_) -> Pervasives.compare s1 s2)
@@ -99,8 +100,8 @@ let sanitize_file (fname : string) : unit =
 (** [sanitize_directory d] Check all [.ml] files in directory [d]
     for unit tests. If any, ask the user to remove them before continuing. *)
 let sanitize_directory (dir : string) : unit =
-  let ml_files = Array.filter ~f:(String.is_suffix ~suffix:".ml") (Sys.readdir dir) in
-  Array.iter ~f:sanitize_file ml_files
+  let ml_files = filter_directory ~f:(String.is_suffix ~suffix:".ml")  dir in
+  List.iter ~f:sanitize_file ml_files
 
 (** [pre_harness o d] Prepare the directory [d] for testing. *)
 let pre_harness (opts : options) (dir : string) : unit =

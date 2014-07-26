@@ -143,6 +143,15 @@ let get_files_with_extension (desired_extension : string)
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
 
+(** [filter_directory ~f d] Read files in directory [d], filter the files not matching the
+    predicate [f]. *)
+let filter_directory ~f (dir : string) : string list =
+  (* TODO catch exception / check if directory exists. *)
+  let all_files = Sys.readdir dir in
+  Core.Std.Array.fold_right all_files
+    ~f:(fun x acc -> if f x then x :: acc else acc)
+    ~init:[]
+
 (** [at_expand dirs] optionally expand a file containing a list into a list of directories.
     If the input is a singleton list where the first element is prefixed by and '@' character,
     treat this input as a file containing a list of newline-separated strings. Create directory

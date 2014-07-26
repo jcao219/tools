@@ -41,3 +41,5 @@ val assert_installed : string -> unit
 val file_is_empty : string -> bool
 
 val soft_copy : string -> string -> int
+
+val filter_directory : f:(string->bool) -> string -> string list
