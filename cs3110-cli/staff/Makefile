@@ -20,9 +20,9 @@ clean:
 install: assertions compile link clean
 
 unassertions:
-	rm ${STD_LIB}/assertions.cmi
-	rm ${STD_LIB}/assertions.cmo
-	rm ${STD_LIB}/assertions.cma
+	-rm ${STD_LIB}/assertions.cmi
+	-rm ${STD_LIB}/assertions.cmo
+	-rm ${STD_LIB}/assertions.cma
 
 uninstall: unlink unassertions
 	rm cs3110-staff
