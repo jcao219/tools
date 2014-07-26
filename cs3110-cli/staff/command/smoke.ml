@@ -114,7 +114,7 @@ let smoke (opts : options) (directories : string list) : unit =
 let get_smoke_targets (tgts : string list) : string list =
   begin match tgts with
     | _::_ -> tgts
-    | []   -> (* try inferring *)
+    | []   -> (* TODO infer, or read config *)
        raise (File_not_found "Could not determine which files to smoke test.")
   end
 
