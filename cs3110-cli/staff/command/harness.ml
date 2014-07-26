@@ -431,6 +431,7 @@ let command =
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
       let () = assert_file_exists ~msg:"Release directory missing" release_dir in
       let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
+      let () = assert_file_exists ~msg:"Tests directory missing" tests_dir in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
         num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
