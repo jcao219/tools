@@ -44,3 +44,4 @@ val timeout : int -> ('a -> 'b) -> 'a -> 'b
 
 exception QCheck_result of int * string
 val assert_qcheck : 'a QCheck.Arbitrary.t -> 'a QCheck.Prop.t -> unit
+val cQCHECK_REGEXP : Str.regexp
