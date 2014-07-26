@@ -24,6 +24,10 @@ let set_font t (font : font) : unit =
 let write t (msg : string) : unit =
   output_string t msg
 
+let write_line t (msg : string) : unit =
+  let () = write t msg in
+  output_string t "\n"
+
 let write_code t (src_fname : string) : unit =
   let () = set_font t Header in
   begin match Sys.file_exists src_fname with
@@ -31,7 +35,7 @@ let write_code t (src_fname : string) : unit =
     | `Yes           ->
        let () = write t (Format.sprintf "Source code for file '%s':\n" src_fname) in
        let () = set_font t Code in
-       List.iter ~f:(write t) (In_channel.read_lines src_fname)
+       List.iter ~f:(write_line t) (In_channel.read_lines src_fname)
   end
 
 let write_results t (results_str : string) : unit =
