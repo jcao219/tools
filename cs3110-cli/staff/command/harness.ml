@@ -173,26 +173,30 @@ let parse_harness_result opts (failure_msg : string option) : int * (string opti
 let harness_run_test opts ~dir (tf : test_file) : TestFileResult.t =
   let ()        = if opts.verbose then Format.printf "[harness] Compiling test file '%s' on submission '%s'.\n%!" tf.absolute_path dir in
   let ()        = ignore (Sys.command (Format.sprintf "cp %s %s" tf.absolute_path dir)) in
-  begin match Compile.compile ~quiet:true ~dir:dir tf.name with
-    | 0 -> (* Compiled successfully, run tests *)
-       let () = if opts.verbose then Format.printf "[harness] Running tests '%s/%s'.\n%!" dir tf.name in
-       let () = ignore (Test.test ~quiet:true ~output:opts.fail_output ~dir:dir tf.name) in
-       let raw_lines = In_channel.read_lines (Format.sprintf "%s/%s" dir opts.fail_output) in
-       UnittestSet.fold
-         ~f:(fun acc unit_name ->
-             let failure_msg = List.find raw_lines ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
-             let score, err_msg = parse_harness_result opts failure_msg in
-             TestFileResult.add acc {unittest_name=unit_name; points_earned=score; error_message=err_msg})
-         ~init:TestFileResult.empty
-         tf.unit_tests
-    | _ -> (* Compile error. Generate all-zero results for the no-compile. *)
-       let () = if opts.verbose then Format.printf "[harness] NO COMPILE '%s'.\n%!" dir in
-       UnittestSet.fold
-         ~f:(fun acc unit_name ->
-             TestFileResult.add acc {unittest_name=unit_name; points_earned=0; error_message=(Some "NO COMPILE")})
-         ~init:TestFileResult.empty
-         tf.unit_tests
-  end
+  let results   =
+    begin match Compile.compile ~quiet:true ~dir:dir tf.name with
+      | 0 -> (* Compiled successfully, run tests *)
+         let () = if opts.verbose then Format.printf "[harness] Running tests '%s/%s'.\n%!" dir tf.name in
+         let () = ignore (Test.test ~quiet:true ~output:opts.fail_output ~dir:dir tf.name) in
+         let raw_lines = In_channel.read_lines (Format.sprintf "%s/%s" dir opts.fail_output) in
+         UnittestSet.fold
+           ~f:(fun acc unit_name ->
+               let failure_msg = List.find raw_lines ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
+               let score, err_msg = parse_harness_result opts failure_msg in
+               TestFileResult.add acc {unittest_name=unit_name; points_earned=score; error_message=err_msg})
+           ~init:TestFileResult.empty
+           tf.unit_tests
+      | _ -> (* Compile error. Generate all-zero results for the no-compile. *)
+         let () = if opts.verbose then Format.printf "[harness] NO COMPILE '%s'.\n%!" dir in
+         UnittestSet.fold
+           ~f:(fun acc unit_name ->
+               TestFileResult.add acc {unittest_name=unit_name; points_earned=0; error_message=(Some "NO COMPILE")})
+           ~init:TestFileResult.empty
+           tf.unit_tests
+    end
+  in
+  let ()        = ignore (Sys.command (Format.sprintf "rm %s/%s" dir tf.name)) in
+  results
 
 (** [harness_student] Run all tests in the harness on student [dir].
     The list of results will have have element per test file. Sort results
