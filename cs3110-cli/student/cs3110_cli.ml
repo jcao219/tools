@@ -125,8 +125,12 @@ Usage: cs3110 COMMMAND [args]
   cs3110 run <file>       Run the program file.ml.
   cs3110 test <file>      Run the tests in file.ml.
   cs3110 clean            Removes files created by 'cs3110 compile'.
+  cs3110 inspiration      Displays an inspirational quote.
   cs3110 help             Displays this message.
 "
+
+let inspiration () =
+  Inspiration.print_inspiration ()
 
 (* Use OCAMLRUNPARAM to enable stack traces, unless you've set your own. *)
 let config_env () =
@@ -141,6 +145,7 @@ let () =
   try
     match Array.to_list Sys.argv with
     | [ _; "help" ]  -> help ()
+    | [ _; "inspiration" ] -> inspiration ()
     | [ _; "clean" ] -> clean ()
     | [ _; "compile"; target ] -> build (strip_suffix target)
     | [ _; "test"; target ] -> 
