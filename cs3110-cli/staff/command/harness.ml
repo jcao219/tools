@@ -195,7 +195,7 @@ let harness_run_test opts ~dir (tf : test_file) : TestFileResult.t =
            tf.unit_tests
     end
   in
-  let ()        = ignore (Sys.command (Format.sprintf "rm %s/%s" dir tf.name)) in
+  let ()        = ignore (Sys.command (Format.sprintf "rm %s/%s.ml" dir tf.name)) in
   results
 
 (** [harness_student] Run all tests in the harness on student [dir].
@@ -315,7 +315,7 @@ let harness (opts : options) (subs : string list) : unit =
         let string_of_int_list (ints : int list) : string =
           String.concat ~sep:"," (List.map ~f:string_of_int ints)
         in
-        let all_scores =
+        let all_scores = (* 2014-07-26: Could get and print the total here. *)
           TestFileResultSet.fold_right rs
           ~f:(fun (_,r) acc -> string_of_int_list (get_scores r) :: acc)
           ~init:[]
@@ -325,11 +325,14 @@ let harness (opts : options) (subs : string list) : unit =
         (* For each test file in the suite, concat all unit test names *)
         let unit_test_names : string list =
           TestFileSet.fold_right
-            ~f:(fun test acc -> (String.concat ~sep:"," (UnittestSet.to_list test.unit_tests)) :: acc)
+            ~f:(fun test acc ->
+                 let unittest_str = String.concat ~sep:"," (UnittestSet.to_list test.unit_tests) in
+                 let title_str    = String.uppercase test.name in
+                 (Format.sprintf "%s,%s" unittest_str title_str) :: acc)
             ~init:[]
             opts.test_suite
         in
-        Format.sprintf "NetID,%s" (String.concat ~sep:",," unit_test_names)
+        Format.sprintf "NetID,%s" (String.concat ~sep:"," unit_test_names)
     end)
   in
   let initial_sheet =
