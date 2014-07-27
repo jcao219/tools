@@ -94,12 +94,12 @@ let directories_of_list (fname : string) : string list =
   let dir_names = read_lines (open_in fname) in
   let prefix = String.sub fname 0 (String.rindex fname '/') in
   (* Return the fully-inferred list of directories *)
-  List.rev (List.fold_left (fun acc name -> (prefix ^ name) :: acc) [] dir_names)
+  List.rev (List.fold_left (fun acc name -> (Format.sprintf "%s/%s" prefix name) :: acc) [] dir_names)
 
-(** [test_name_of_line s] extract the test name from a line printed by the
- * inline test runner. Name should be the last 'word' of the string, separated
- * from everything else by a colon *)
-let test_name_of_line (line : string) : string =
+(** [unittest_name_of_line s] extract the test name from a line printed by the
+    inline test runner. Name should be the last 'word' of the string, separated
+    from everything else by a colon *)
+let unittest_name_of_line (line : string) : string =
   fst (lsplit (snd (rsplit line ':')) ' ')
 
 (** [get_extension file_name] gets the extension of the file
@@ -143,6 +143,15 @@ let get_files_with_extension (desired_extension : string)
     filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
   try get_files dir with _ -> []
 
+(** [filter_directory ~f d] Read files in directory [d], filter the files not matching the
+    predicate [f]. *)
+let filter_directory ~f (dir : string) : string list =
+  (* TODO catch exception / check if directory exists. *)
+  let all_files = Sys.readdir dir in
+  Core.Std.Array.fold_right all_files
+    ~f:(fun x acc -> if f x then x :: acc else acc)
+    ~init:[]
+
 (** [at_expand dirs] optionally expand a file containing a list into a list of directories.
     If the input is a singleton list where the first element is prefixed by and '@' character,
     treat this input as a file containing a list of newline-separated strings. Create directory
@@ -156,23 +165,17 @@ let at_expand (dirs : string list) : string list =
     | [] | _::_ -> dirs
   end
 
-(** [is_valid_test_file fn] true if filename matches the expected format, false otherwise *)
-let is_valid_test_file (fname : string) : bool =
-  String.length fname <> 0 &&
-  fname.[0] <> '.' &&
-  is_suffix fname "_test.ml"
+(** [filename_of_path p] Return the last item along the path [p].
+    It could be a filename or a directory name, don't care.\
+    Given 'dir1/dir2/dir3/', this function returns 'dir3'. *)
+let filename_of_path (path : string) : string =
+  let path = strip_trailing_slash path in
+  snd (rsplit path '/')
 
 (** [soft_copy d1 d2] Copy all files and directories from directory [d1]
     into directory [d2]. Do NOT overwrite any files in [d2]. *)
 let soft_copy (dir1 : string) (dir2 : string) : int =
   Sys.command (Format.sprintf "cp -r -n %s/. %s" dir1 dir2)
-
-(** [netid_of_filepath s] Very simple, just take the last string from
-    a slash-delimited filepath. Given 'dir1/dir2/dir3/', this function
-    returns 'dir3'. *)
-let netid_of_filepath (path : string) : string =
-  let path' = strip_trailing_slash path in
-  snd (rsplit path' '/')
 
 let all_files_exist (files : string list) : bool =
   List.fold_left (fun acc f -> acc && Sys.file_exists f) true files

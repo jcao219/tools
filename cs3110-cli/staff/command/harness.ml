@@ -1,256 +1,458 @@
+open Core.Std
 open Cli_constants
 open Io_util
 open Filepath_util
+open Process_util
 
-type test = { name : string; absolute_path : string }
-type test_suite = test list
+(* aka 'ordered list', used only to keep unit test names ordered within a test file. *)
+module UnittestSet = Set.Make(String)
 
-(** [test_suite_of_directory dir] parse the directory [dir] for test files.
- * It should only contain files with names like 'part1_test.ml'.
- * Print a warning if any file has an unexpected name and ignores that file.
- * Returns a [test_suite] of all valid test files. *)
-let test_suite_of_directory (test_dir : string) : test_suite =
-  Array.fold_right (fun fname suite ->
-    (* Check for dotfiles *)
-    if is_valid_test_file fname then
-      let t = { name=strip_suffix fname; absolute_path=test_dir^"/"^fname } in
-      t :: suite
-    else
-      let () = Format.printf "WARNING: skipping invalid test file '%s' in test folder '%s/'\n%!" fname test_dir in
-      suite
-  ) (Sys.readdir test_dir) []
+type test_file = {
+  absolute_path : string;        (* Exact path to the test file. Ends with the filename. *)
+  name          : string;        (* Short name of the test file. *)
+  unit_tests    : UnittestSet.t; (* Names of the unit tests within the file *)
+}
 
-(* Search all directories for one that passes all tests *)
-let find_compiling_implementation (ts : test_suite) dirs : string option =
-  let cwd = Sys.getcwd () in
-  List.fold_left (fun dir_opt new_dir ->
-    match dir_opt with
-      | Some _ -> dir_opt (* already found a good student, skip rest of directories *)
-      | None -> (* Go to student's folder, copy in the tests, compile each, check output *)
-        let () = Sys.chdir new_dir in
-          (* Copy the tests over, compile  each *)
-        let all_compile = List.fold_left (fun acc test ->
-          acc && (let _ = Sys.command (Format.sprintf "cp %s ." test.absolute_path) in
-                  let exit_code = Build.run test.name in exit_code = 0)
-        ) true ts in
-        let () = Sys.chdir cwd in
-        if all_compile then Some new_dir else None
-  ) None dirs
+(* For organizing test files. Keep tests alphabetized by filename. *)
+module TestFileSet = Set.Make(struct
+  type t            = test_file
+  let compare t1 t2 = Pervasives.compare t1.name t2.name
+  let sexp_of_t _   = failwith "not implemented"
+  let t_of_sexp _   = failwith "not implemented"
+end)
 
-(** [find_all_test_names t i] using compiling implementation [i], collect
- * the names of all tests in the suite [t] *)
-(* TODO does not work in isolation *)
-let find_all_test_names (ts : test_suite) impl =
-  let cwd = Sys.getcwd () in
-  let () = Sys.chdir impl in
-  let names = List.rev (List.fold_left (fun all_names test ->
-    (* Run the test to print names *)
-    let cmd = Format.sprintf "./_build/%s.d.byte inline-test-runner dummy -list-test-names > %s" test.name cTEST_OUTPUT in
-    let _ = Sys.command cmd in
-    (* Generated file contains one line per unit test *)
-    let names = List.rev (List.fold_left (fun acc line ->
-      let name = test_name_of_line line in
-      name :: acc
-    ) [] (read_lines (open_in cTEST_OUTPUT))) in
-    (test.name , names) :: all_names
-  ) [] ts) in
-  let () = Sys.chdir cwd in
-  names
+type unittest_result = {
+  unittest_name : string;
+  points_earned : int;
+  error_message : string option;
+}
+(* The results of running one test file. It's a set to keep unit test names alphabetized. *)
+module TestFileResult = Set.Make(struct
+  type t            = unittest_result
+  let compare r1 r2 = Pervasives.compare r1.unittest_name r2.unittest_name
+  let sexp_of_t _   = failwith "not implemented"
+  let t_of_sexp _   = failwith "not implemented"
+end)
 
-(* Determine whether a string came from [Assertions.qcheck] *)
-let is_qcheck (msg : string) : bool =
-  let stripped = snd (rsplit (fst (rsplit msg '(')) 'A') in
-  stripped = "ssertions.QCheck_result" (* 'Qcheck_result' missing the Q *)
+module TestFileResultSet = Set.Make(struct
+  type t                    = string * TestFileResult.t
+  let compare (n1,_) (n2,_) = Pervasives.compare n1 n2
+  let sexp_of_t _           = failwith "not implemented"
+  let t_of_sexp _           = failwith "not implemented"
+end)
 
-(* Extract the number of test failures from a qcheck result string *)
-let parse_num_failed (msg : string) : int =
-  (* Convert '...Assertions.Qcheck_result(9001,"heyheyhey")...' into 9001 *)
-  int_of_string (fst (lsplit (snd (rsplit msg '(')) ','))
+(* TODO all these options in all these commands should match the options in the config file *)
+type options = {
+  fail_output : string;
+  num_quickcheck        : int;
+  test_suite            : TestFileSet.t;
+  release_directory     : string;
+  output_directory      : string;
+  postscript            : bool;
+  spreadsheet_location  : string;
+  verbose               : bool;
+}
 
+(** [success_message t] Printed when submission passes test [t]. *)
 let success_message (test_name : string) : string =
   Format.sprintf "PASS -- %s" test_name
 
+(** [failure_message t e] Printed when submission fails test [t] with error [e]. *)
 let failure_message (test_name : string) (error_message : string) : string =
   Format.sprintf "FAIL -- %s : %s" test_name error_message
 
-(** [harness_collect_output rubric] Iterate over test results,
- * store pass/fail information in [sheet], return pretty-printed output *)
-let harness_collect_output () : int list * string list =
-  (* Make sure output was generated.
-   * Need to manipulate these files *)
-  let () = assert_file_exists cTEST_OUTPUT in
-  let () = assert_file_exists cFAIL_OUTPUT in
-  (* OKAY, things are a little confusing here.
-   * There are 2 files of interest:
-   *   [test_output], containing names of tests, and
-   *   [fail_output], containing names of failed tests and error messages
-   * The protocol is to
-   *   1. Iterate over [fail_output], organize errors by name
-   *   2. Iterate over [test_output], record whether tests passed or failed in order, pretty-print result
-   * 2014-03-24: New complication! Quickcheck tests get partial credit.
-   * Scan the [fail_output] for instances of [Assertions.QCheck_result]. Scrape the integer
-   * argument from this constructor (it's always the first) -- that's the number of failed
-   * tests. Subtract that from the total for the proper part score.
-   *)
-  (* Step 1: Organize error messages *)
-  let errors_by_name = Hashtbl.create 27 in
-  let () = List.iter (fun line ->
-    let name = test_name_of_line line in
-    Hashtbl.add errors_by_name name line
-  ) (read_lines (open_in cFAIL_OUTPUT)) in
-  (* Step 2: Collect pretty output. Returns a TUPLE. *)
-  List.fold_right (fun line (ints,strs) ->
-    let name = snd (rsplit line ':') in
-    if Hashtbl.mem errors_by_name name then
-      (* Failed, or quickcheck *)
-      let err_msg = Hashtbl.find errors_by_name name in
-      if is_qcheck err_msg then
-        (* Is qcheck. May be success. *)
-        let score = cNUM_QCHECK - parse_num_failed err_msg in
-        let msg =
-          if score = cNUM_QCHECK
-          then success_message name
-          else failure_message name err_msg
-        in
-        (score::ints, msg::strs)
-      else
-        (* Is normal. A failure *)
-        let msg = failure_message name err_msg in
-        (0::ints, msg::strs)
-    else
-      (* Passed *)
-      let msg = success_message name in
-      (1::ints, msg::strs)
-  ) (read_lines (open_in cTEST_OUTPUT)) ([],[])
+(** [string_of_test_results tr] Pretty-print a batch of test results. Simple
+    set-to-string conversion. *)
+let string_of_test_results (results : TestFileResult.t) : string =
+  String.concat ~sep:"\n"
+    (TestFileResult.fold_right
+       ~f:(fun r acc ->
+           begin match r.error_message with
+             | None   -> success_message r.unittest_name
+             | Some e -> failure_message r.unittest_name e
+           end :: acc)
+       ~init:[]
+       results)
 
-(** [harness_sanitize_fname str] Check whether the file named [str] contains
- * any unit tests. If so, prompt the user to edit the file. Re-prompt until
- * file is clean. *)
-let harness_sanitize_src (fname : string) : unit =
-  (* Use grep -q, which returns 0 if any matches are found *)
+(** [get_scores tr] Get just the scores (in order) from the test results [t]. *)
+let get_scores (tr : TestFileResult.t) : int list =
+  TestFileResult.fold_right tr
+    ~f:(fun r acc -> r.points_earned :: acc)
+    ~init:[]
+
+(** [is_dotfile fname] true if the file [fn] is a dotfile (aka begins with a '.' character) *)
+let is_dotfile (fname : string) : bool =
+  String.length fname = 0 || (* Filter nonsense *)
+  fname.[0] = '.'
+
+(** [is_valid_test_file fn] true if filename matches the expected format for tests, false otherwise *)
+let is_valid_test_file (fname : string) : bool =
+  (not (is_dotfile fname)) &&
+  is_suffix fname "_test.ml"
+
+(** [is_valid_submission fn] true if filename is a '.ml' but doesn't match format for tests *)
+let is_valid_submission (fname : string) : bool =
+  (not (is_dotfile fname)) &&
+  is_suffix fname ".ml"    &&
+  (not (is_valid_test_file fname))
+
+(** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
+    user to remove all occurrences or approve the file as-is. You'd want
+    to approve if TEST was in a comment or part of a variable name like
+    [cTESTING_MY_BOUNDARIES]. *)
+let sanitize_file (fname : string) : unit =
+  let () = Format.printf "[harness] Sanitizing file '%s'\n%!" fname in
+  (* Use [grep -q], which returns 0 if any matches are found *)
   let cmd = Format.sprintf "grep -q \"TEST\" %s" fname in
-  let is_clean = ref (Sys.command(cmd)) in
-  while (!is_clean = 0) do (
-    Format.printf "\
+  let not_clean = ref (0 = (Sys.command cmd)) in
+  while (!not_clean) do (
+    let () = Format.printf "\
 ********************************************************************************\n\
 *** WARNING : file '%s' contains the string TEST. This is probably BAD!         \n\
 ***           Please edit the file and delete all unit tests, then press RETURN.\n\
 *** Input the string \"ACCEPT\" to accept this file anyway (case-sensitive).    \n\
 ********************************************************************************\n\
-" fname;
+" fname in
     if ("ACCEPT" = (read_line()))
-    then is_clean := 1
-    else is_clean := Sys.command(cmd);
-  ()) done
+    then not_clean := false
+    else not_clean := (0 = (Sys.command cmd))
+  ) done
 
-(** [harness tests targets] run each set of unit tests under [tests]
- * against [targets] *)
-let run (test_dir : string) (directories : string list) : unit =
-  let cwd = Sys.getcwd () in
-  let test_suite = test_suite_of_directory test_dir in
-  let good_student = match find_compiling_implementation test_suite directories with
-    | Some dir -> dir
-    | None -> let () = Format.printf "Error: could not find compiling implementation. Cannot create spreadsheet (but I guess you don't need one).\nExiting...\n" in exit(1)
+(** [sanitize_directory d] Check all [.ml] files in directory [d]
+    for unit tests. If any, ask the user to remove them before continuing. *)
+let sanitize_directory (dir : string) : unit =
+  let ml_filenames = filter_directory ~f:is_valid_submission  dir in
+  let all_paths    = List.map ~f:(fun nm -> Format.sprintf "%s/%s" dir nm) ml_filenames in
+  List.iter ~f:sanitize_file all_paths
+
+(** [pre_harness o d] Prepare the directory [d] for testing. *)
+let pre_harness (opts : options) (dir : string) : unit =
+  let () = if opts.verbose then Format.printf "[harness] Preparing directory '%s' for testing.\n" dir in
+  let () = if opts.verbose then Format.printf "[harness] Checking for unit tests in submission files...\n%!" in
+  let () = sanitize_directory dir in
+  let () = if opts.verbose then Format.printf "[harness] Copying release files...\n%!" in
+  let () = ignore (soft_copy opts.release_directory dir) in
+  let () = if opts.verbose then Format.printf "[harness] Preparation complete!\n" in
+  ()
+
+
+(** [is_qcheck m] Determine whether the message [m] was generated by running
+    a quickcheck unit test.*)
+let is_qcheck (msg : string) : bool =
+  (* 2014-07-20: Quickchecks always raise exceptions. See assertions.ml for details. *)
+  let cQCHECK_REGEXP = Str.regexp "Assertions\\.QCheck_result(\\([0-9]+\\)," in
+  try (* Return true if any match found *)
+    ignore (Str.search_forward cQCHECK_REGEXP msg 0); true
+  with Not_found -> false
+
+(** [parse_qcheck_failures m] Extract the number of qcheck failures from a qcheck result string [m]. *)
+let parse_qcheck_failures (msg : string) : int option =
+  if   is_qcheck msg
+  then Some (try int_of_string (Str.matched_group 1 msg)
+             with e -> let () = print_endline "[harness] QCHECK PARSE ERROR in Harness.parse_num_failed. Make sure error message in assertions.ml matches qcheck pattern in harness.ml" in
+                       raise e)
+  else None
+
+(** [parse_harness_result o e] Parse the error message [e] to determine whether the unit test
+    passed, failed, or was a quickcheck. Return the score earned and appropriate error message. *)
+let parse_harness_result opts (failure_msg : string option) : int * (string option) =
+  begin match failure_msg with
+    | None         -> (1, None) (* Test passed! *)
+    | Some err_msg ->           (* Test failed, or was a quickcheck *)
+       begin match parse_qcheck_failures err_msg with
+         | None          -> (0, failure_msg) (* Regular test, not a quickcheck. *)
+         | Some num_fail -> (* Qcheck. Success if 100% of quickchecks passed. *)
+           let score = opts.num_quickcheck - num_fail in
+           let msg = if (score = opts.num_quickcheck) then None else failure_msg in
+           (score, msg)
+       end
+  end
+
+(** [harness_run_test t d] Run test [t] on the submission in dir [d]. Collect
+    the results of each unit test. *)
+let harness_run_test opts ~dir (tf : test_file) : TestFileResult.t =
+  let ()        = if opts.verbose then Format.printf "[harness] Compiling test file '%s' on submission '%s'.\n%!" tf.absolute_path dir in
+  let ()        = ignore (Sys.command (Format.sprintf "cp %s %s" tf.absolute_path dir)) in
+  let results   =
+    begin match Compile.compile ~quiet:true ~dir:dir tf.name with
+      | 0 -> (* Compiled successfully, run tests *)
+         let () = if opts.verbose then Format.printf "[harness] Running tests '%s/%s'.\n%!" dir tf.name in
+         let () = ignore (Test.test ~quiet:true ~output:opts.fail_output ~dir:dir tf.name) in
+         let raw_lines = In_channel.read_lines (Format.sprintf "%s/%s" dir opts.fail_output) in
+         UnittestSet.fold
+           ~f:(fun acc unit_name ->
+               let failure_msg = List.find raw_lines ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
+               let score, err_msg = parse_harness_result opts failure_msg in
+               TestFileResult.add acc {unittest_name=unit_name; points_earned=score; error_message=err_msg})
+           ~init:TestFileResult.empty
+           tf.unit_tests
+      | _ -> (* Compile error. Generate all-zero results for the no-compile. *)
+         let () = if opts.verbose then Format.printf "[harness] NO COMPILE '%s'.\n%!" dir in
+         UnittestSet.fold
+           ~f:(fun acc unit_name ->
+               TestFileResult.add acc {unittest_name=unit_name; points_earned=0; error_message=(Some "NO COMPILE")})
+           ~init:TestFileResult.empty
+           tf.unit_tests
+    end
   in
-  (* collect the names of every unit test in every file *)
-  let test_names_by_file = find_all_test_names test_suite good_student in
-  (* Initialize spreadsheet for CMS *)
-  let sheet =
-    if Sys.file_exists cCMS_FNAME
-    then Grades_table.init_from_file cCMS_FNAME
-    else Grades_table.init test_names_by_file
+  let ()        = ignore (Sys.command (Format.sprintf "rm %s/%s.ml" dir tf.name)) in
+  results
+
+(** [harness_student] Run all tests in the harness on student [dir].
+    The list of results will have have element per test file. Sort results
+    alphabetically by test file name. *)
+let harness_student (opts : options) (dir : string) : TestFileResultSet.t =
+  TestFileSet.fold opts.test_suite
+    ~f:(fun acc tf ->
+         let r = harness_run_test opts tf ~dir:dir in
+         TestFileResultSet.add acc (tf.name, r))
+    ~init:TestFileResultSet.empty
+
+(** [write_comments o d tr] Create a markdown file summarizing the test results [tr] for
+    directory [d]. These comments can be uploaded directly to CMS. *)
+let write_comments (opts : options) (dir : string) (tr : TestFileResultSet.t) : unit =
+  let netid = filename_of_path dir in
+  let fname = Format.sprintf "%s/%s.md" opts.output_directory netid in
+  let title = Format.sprintf "## Automated test results for '%s' ##" netid in
+  let body  =
+    TestFileResultSet.fold_right
+      ~f:(fun (tname, results) acc ->
+          let hd    = Format.sprintf "### %s ###\n" tname in
+          let body  = string_of_test_results results in
+          let ft    = "\n" in
+          hd :: body :: ft :: acc)
+      ~init:[]
+      tr
   in
-  (* For each implementation to test, copy in the tests, build, and run. *)
-  (* Pass around the spreadsheet *)
-  let sheet = List.fold_left (fun sheet dir ->
-    (* Prepare for testing *)
-    let netid = tag_of_path dir in
-    let txt_fname = Format.sprintf "./%s/%s.md" cOUTPUT_DIR netid in
-    let txt_chn = open_out txt_fname in
-    (* Change into student dir for testing, print titles *)
-    let () = Sys.chdir dir in
-    let () = Format.printf "\n## Running tests for '%s' ##\n%!" netid in
-    let () = output_string txt_chn (Format.sprintf "## Automated test results for %s ##\n" netid) in
-    (* Build and run *)
-    let scores_by_test = List.rev (List.fold_left (fun scores test ->
-      (* Prepare postscript document *)
-      let ps_doc =
-        let fname = Format.sprintf "%s/%s/%s-%s.ps" cwd cOUTPUT_DIR netid test.name in
-        let title = Format.sprintf "%s\t\t%s.ml" netid test.name in
-        Postscript.init fname title
-      in
-      (* copy source file, print header in ps stream *)
-      let _ =
-        Postscript.set_font ps_doc Postscript.Header;
-        (* Copy source to postscript. Obtaining source is a hack, but it's not fatal if it fails *)
-        let _ =
-          let src_fname = Format.sprintf "%s.ml" (fst (rsplit test.name '_')) in
-          if not (Sys.file_exists src_fname) then
-            Postscript.write ps_doc "SOURCE NOT FOUND\n"
-          else begin
-            let () =
-              Sys.chdir cwd;
-              harness_sanitize_src (dir^"/"^src_fname);
-              Sys.chdir dir
-            in
-            let () = Postscript.write ps_doc (Format.sprintf "Source code for file '%s':\n" src_fname) in
-            let () = Postscript.set_font ps_doc Postscript.Code in
-            List.iter (fun line ->
-              Postscript.write ps_doc line; Postscript.write ps_doc "\n"
-            ) (read_lines (open_in src_fname))
-          end
-        in
-        output_string txt_chn (Format.sprintf "### %s ###\n" test.name)
-      in
-      let _ = Sys.command (Format.sprintf "cp %s/%s.ml ." test_dir test.name) in
-      let exit_code = Build.run test.name in
-      (* collect output for printing *)
-      let part_scores, output_by_line =
-        if exit_code <> 0 then
-          [], ["NO COMPILE"]
-        else begin
-          (* Run tests, organize output *)
-          let _ = Test.test_logging_errors test.name in
-          harness_collect_output ()
-        end
-      in
-      (* Postscript title *)
-      let () =
-        Postscript.set_font ps_doc Postscript.Header;
-        Postscript.write ps_doc "\nTest Results:\n";
-        Postscript.set_font ps_doc Postscript.Normal
-      in
-      (* Print results for each test case *)
-      let () =
-        List.iter (fun msg ->
-          print_endline msg;
-          output_string txt_chn "    "; output_string txt_chn msg; output_string txt_chn "\n";
-          Postscript.write ps_doc msg; Postscript.write ps_doc "\n";
-        ) output_by_line;
-        print_endline "";
-        Postscript.write ps_doc "\n"
-      in
-      (* Flush and close postscript *)
-      let _ =
-        flush txt_chn;
-        Postscript.close ps_doc
-      in
-      (* Remove generated files *)
-      let () =
-        (* 2014-01-19: Removing tests so they don't screw with reverse harness *)
-        ignore(Sys.command (Format.sprintf "rm %s.ml" test.name));
-        if Sys.file_exists cTEST_OUTPUT then
-          ignore(Sys.command ("rm " ^ cTEST_OUTPUT));
-        if Sys.file_exists cFAIL_OUTPUT then
-          ignore(Sys.command ("rm " ^ cFAIL_OUTPUT));
+  Out_channel.write_lines fname (title::body)
+
+(** [write_postscript o d tr] Create a postscript file summarizing the test results [tr] for
+    directory [d]. Useful for on-paper grading. *)
+let write_postscript (opts : options) (dir : string) (results : TestFileResultSet.t) : unit =
+  let netid = filename_of_path dir in
+  TestFileResultSet.iter
+    ~f:(fun (test_name, results) ->
+        (* collect data *)
+        let fname = Format.sprintf "%s/%s-%s.ps" opts.output_directory netid test_name in
+        let title = Format.sprintf "%s\t\t%s.ml" netid                 test_name in
+        let src   = Format.sprintf "%s/%s.ml"    dir                   (fst (rsplit test_name '_')) in
+        let body  = string_of_test_results results in
+        (* write postscript *)
+        let chn   = Postscript.init          fname title in
+        let ()    = Postscript.write_code    chn src in
+        let ()    = Postscript.write_results chn body in
+        let ()    = Postscript.close         chn in
         ()
-      in
-      (test.name, part_scores) :: scores
-    ) [] test_suite) in
-    (* Finished with one student. *)
-    let () = close_out txt_chn in
-    let () = Sys.chdir cwd in
-    (* Carry new sheet onto next iteration *)
-    Grades_table.add_row sheet netid scores_by_test
-  ) sheet directories in
-  Grades_table.write sheet cCMS_FNAME
+       )
+    results
+
+(** [post_harness o d] Clean up the directory [d] after testing.
+    Remove generated files/logs, clean. *)
+let post_harness (opts : options) ~dir (tr : TestFileResultSet.t) : unit =
+  let () = if opts.verbose then Format.printf "[harness] Aggregating results for '%s'.\n" dir in
+  let () = write_comments opts dir tr in
+  let () = if opts.postscript then write_postscript opts dir tr in
+  let () = if opts.verbose then Format.printf "[harness] Cleaning directory '%s'.\n" dir in
+  let () = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:dir tgt)) ["compile";"test"] in
+  let () = if opts.verbose then Format.printf "[harness] Cleaning complete!\n" in
+  ()
+
+(** [parse_results_from_list us cs] Given a collection of unit test names [us] and a (possibly longer) list
+    of scores [scores], create test results matching the unit tests [us] and additionally return the
+    remaining scores. *)
+let parse_results_from_list (unit_tests : UnittestSet.t) (cols : string list) : TestFileResult.t * (string list) =
+  UnittestSet.fold
+    ~f:(fun (rs, cols_left) unit_name ->
+        begin match cols_left with
+          | []   -> failwith "parse error, not enough columns"
+          | h::t ->
+             let v   = try int_of_string h
+                       with e -> let () = print_endline "[harness] ERROR parsing, column doesn't contain int" in
+                                 raise e
+             in
+             let rs' = TestFileResult.add rs {unittest_name=unit_name; points_earned=v; error_message=None} in (* TODO better err msg? *)
+             (rs', t)
+        end)
+    ~init:(TestFileResult.empty, cols)
+    unit_tests
+
+(** [harness o submissions] Initialize a spreadsheet with unit test names as columns.
+    Iterate through students, filling out the sheet. *)
+let harness (opts : options) (subs : string list) : unit =
+  let () = if opts.verbose then Format.printf "[harness] Initializing spreadsheet...\n" in
+  (* define spreadsheet *)
+  let module HarnessSpreadsheet =
+    Spreadsheet.Make(struct
+      type row              = string * TestFileResultSet.t
+      let compare_row r1 r2 = Pervasives.compare (fst r1) (fst r2) (* compare netids *)
+      let filename : string = opts.spreadsheet_location
+      let row_of_string str =
+        (* 2014-07-26: string SHOULD be netid, unit_test_scores. The scores SHOULD match the current suite. *)
+        begin match String.split str ~on:',' with
+          | []               -> failwith "parse error, empty row"
+          | netid :: columns ->
+             let results_by_test, cols_left =
+               TestFileSet.fold
+                 ~f:(fun (acc,cols) test ->
+                    let rs, cols' = parse_results_from_list test.unit_tests cols in
+                    let acc'      = TestFileResultSet.add acc (test.name, rs) in
+                    let cols_next = Option.value ~default:[] (List.tl cols') in
+                    (acc', cols_next) (* 2014-07-26: List.tl because we skip the totals columns. *)
+                   )
+                 ~init:(TestFileResultSet.empty,columns)
+                 opts.test_suite
+             in
+             let () =
+               begin match cols_left with
+                 | []   -> ()
+                 | _::_ -> Format.printf "[harness] WARNING unused columns '%s' in spreadsheet row.\n" (String.concat ~sep:"," cols_left)
+               end
+             in
+             (netid, results_by_test)
+        end
+      let string_of_row row =
+        let (netid, rs) = row in
+        let string_of_int_list (ints : int list) : string =
+          String.concat ~sep:"," (List.map ~f:string_of_int ints)
+        in
+        let all_scores = (* 2014-07-26: Could get and print the total here. *)
+          TestFileResultSet.fold_right rs
+          ~f:(fun (_,r) acc -> string_of_int_list (get_scores r) :: acc)
+          ~init:[]
+        in
+        Format.sprintf "%s,%s" netid (String.concat ~sep:",," all_scores)
+      let title : string    =
+        (* For each test file in the suite, concat all unit test names. Stick title (in uppercase) at the end. *)
+        let unit_test_names : string list =
+          TestFileSet.fold_right
+            ~f:(fun test acc ->
+                 let unittest_str = String.concat ~sep:"," (UnittestSet.to_list test.unit_tests) in
+                 let title_str    = String.uppercase test.name in
+                 (Format.sprintf "%s,%s" unittest_str title_str) :: acc)
+            ~init:[]
+            opts.test_suite
+        in
+        Format.sprintf "NetID,%s" (String.concat ~sep:"," unit_test_names)
+    end)
+  in
+  let initial_sheet =
+    begin match Sys.file_exists opts.spreadsheet_location with
+      | `No | `Unknown -> HarnessSpreadsheet.create ()
+      | `Yes           ->
+         let () = if opts.verbose then Format.printf "[harness] Reading existing spreadsheet '%s'\n" opts.spreadsheet_location in
+         HarnessSpreadsheet.read opts.spreadsheet_location
+    end
+  in
+  let () = if opts.verbose then Format.printf "%s\n[harness] Running all tests...\n%!" (String.make 80 '*') in
+  let final_sheet   =
+    List.fold
+      ~f:(fun sheet dir ->
+         let ()          = pre_harness opts dir in
+         let netid       = filename_of_path dir in
+         let all_results = harness_student opts dir in
+         let ()          = post_harness opts ~dir:dir all_results in
+         let row         = (netid, all_results) in
+         HarnessSpreadsheet.add_row sheet ~row:row
+         )
+      ~init:initial_sheet
+      subs
+  in
+  let () = if opts.verbose then Format.printf "[harness] Testing complete, writing spreadsheet to '%s'...\n" opts.spreadsheet_location in
+  let () = HarnessSpreadsheet.write final_sheet in
+  let () = if opts.verbose then Format.printf "[harness] All done!\n" in
+  ()
+
+(** [tests_of_directory d] Get the full filenames of tests from a directory [d].
+    For example, if the directory "my_dir" has files "my_test.ml" and "notatest.ml",
+    we will return a singleton list containing the string "mydir/my_test.ml". *)
+let test_list_of_directory (dir : string) : string list =
+  let test_names = filter_directory ~f:is_valid_test_file dir in
+  List.map ~f:(fun test_name -> Format.sprintf "%s/%s" dir test_name) test_names
+
+(** [get_unit_test_names d t] Extract the names of all unit tests from the
+    file [t] by compiling it in directory [d]. Raise an error if the file
+    [t] does not exist.
+    Relies on the file 'inline_tests.log' automatically generated when running
+    giving pa_ounit the [-log] option. *)
+let get_unittest_names ?(verbose=false) ~staging_dir (test_abs_path : string) : UnittestSet.t =
+  let ()        = if verbose then Format.printf "[harness] collecting unit test names for file '%s'...\n%!" test_abs_path in
+  let test_name = filename_of_path test_abs_path in
+  begin match Sys.file_exists test_abs_path with
+    | `No | `Unknown ->
+      let msg = Format.sprintf "Could not find test file '%s'." test_abs_path in
+      raise (File_not_found msg)
+    | `Yes           ->
+      (* Copy test into staging dir, compile test, run to get names out. *)
+      let ()  = check_code (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
+      let ()  = check_code (Test.test ~quiet:true ~verbose:verbose ~compile:true ~dir:staging_dir test_name)  in
+      let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir cTEST_OUTPUT) in
+      let ()  = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:staging_dir tgt)) ["compile";"test"] in
+      let ()  = check_code (Sys.command (Format.sprintf "rm %s/%s" staging_dir test_name)) in
+      List.fold_left raw
+        ~f:(fun acc line -> UnittestSet.add acc (unittest_name_of_line line))
+        ~init:UnittestSet.empty
+  end
+
+(** [test_suite_of_list ts] Convert a list of relative paths to tests [ts] into a test suite.
+    The test suite is a more convenient representation. *)
+let test_file_set_of_list ?(verbose=false) ~staging_dir (tests : string list) : TestFileSet.t =
+  List.fold_right
+    ~f:(fun path suite ->
+        let () = assert_file_exists path in (* hmmm, the error raised here may not be clear. *)
+        let name = strip_suffix (filename_of_path path) in
+        let t = {
+          absolute_path = path;
+          name          = name;
+          unit_tests    = begin try get_unittest_names ~verbose:verbose ~staging_dir:staging_dir path
+                                with e -> let () = Format.printf "[harness] ERROR: Could not compile files in directory '%s'\n%!" staging_dir in
+                                          raise e
+                          end
+        } in
+        TestFileSet.add suite t)
+    ~init:TestFileSet.empty
+    tests
+
+let command =
+  Command.basic
+    ~summary:"Run a test harness on a list of submission folders."
+    ~readme:(fun () -> String.concat ~sep:"\n" [
+      "The harness command runs a collection of tests against a list of submission directories.";
+      "By default, the tests are inferred from the configuration, but may be given explicitly";
+      "through command-line options. Output is generated for each submission directory, detailing";
+      "the tests passed and failed by each submission. By default, we save a spreadsheet and";
+      "markdown (.md) comments for upload to CMS. Additionally, you can generate postscript files";
+      "containing students code and test results in a printer-ready format."
+    ])
+    Command.Spec.(
+      empty
+      +> flag ~aliases:["-v"]          "-verbose"     (no_arg)          ~doc:" Print debugging information."
+      +> flag ~aliases:["-p"; "-ps"]   "-postscript"  (no_arg)          ~doc:" Generate postscript output."
+      +> flag ~aliases:["-t"]          "-test"        (listed file)     ~doc:"FILE Use the unit tests in the module FILE."
+      +> flag ~aliases:["-r"]          "-release"     (required file)   ~doc:"DIR Release directory. Used to get starter code and as a staging area."
+      +> flag ~aliases:["-n"]          "-num-qcheck"  (optional int)    ~doc:(Format.sprintf "INT Set the number of quickcheck tests to run (default = %d)" cNUM_QCHECK)
+      +> flag ~aliases:["-d"]          "-directory"   (optional file)   ~doc:"DIR Use all unit tests in all modules under directory DIR."
+      +> flag ~aliases:["-o"]          "-output"      (optional string) ~doc:"DIR Set the output directory."
+      +> flag ~aliases:["-s";"-sheet"] "-spreadsheet" (optional string) ~doc:"FILE Location to write the spreadsheet."
+      +> anon (sequence ("submission" %: string))
+    )
+    (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
+      let () = if v then Format.printf "[harness] Parsing options...\n%!" in
+      let () = assert_file_exists ~msg:"Release directory missing" release_dir in
+      let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
+      let () = assert_file_exists ~msg:"Tests directory missing" tests_dir in
+      let opts = {
+        fail_output          = cFAIL_OUTPUT;
+        num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
+        output_directory     = Option.value output_dir ~default:cHARNESS_DIR;
+        postscript           = ps;
+        release_directory    = release_dir;
+        spreadsheet_location = Option.value sheet_location ~default:cHARNESS_SHEET;
+        test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir (tests @ test_list_of_directory tests_dir);
+        verbose              = v;
+      } in
+      let () = ensure_dir cHARNESS_DIR in (* sheet dir *)
+      let () = ensure_dir opts.output_directory in
+      if TestFileSet.is_empty opts.test_suite
+      then Format.printf "[harness] Empty test suite, nothing to run (tests should end with suffix '_test.ml'). Bye now!\n"
+      else harness opts (at_expand subs)
+    )

@@ -13,6 +13,7 @@ let targets = [
   ("compile" , Compile.command);
   ("diff"    , Diff.command);
   ("email"   , Email.command);
+  ("harness" , Harness.command);
   ("run"     , Run.command);
   ("smoke"   , Smoke.command);
   ("test"    , Test.command)

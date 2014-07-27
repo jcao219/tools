@@ -26,11 +26,11 @@ val strip_suffix : string -> string
 
 val tag_of_path : string -> string
 
-val test_name_of_line : string -> string
+val unittest_name_of_line : string -> string
+
+val filename_of_path : string -> string
 
 val at_expand : string list -> string list
-
-val netid_of_filepath : string -> string
 
 val all_files_exist : string list -> bool
 
@@ -40,6 +40,6 @@ val assert_installed : string -> unit
 
 val file_is_empty : string -> bool
 
-val is_valid_test_file : string -> bool
-
 val soft_copy : string -> string -> int
+
+val filter_directory : f:(string->bool) -> string -> string list

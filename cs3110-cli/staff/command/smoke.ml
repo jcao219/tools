@@ -55,7 +55,7 @@ let compile_target (opts : options) (dir : string) (target : string) : bool =
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir dir in
   let exit_code = Compile.compile ~verbose:opts.verbose target in
-  let ()        = Clean.clean "compile" in
+  let ()        = ignore (Clean.clean "compile") in
   let ()        = Sys.chdir cwd in
   0 = exit_code
 
@@ -114,20 +114,8 @@ let smoke (opts : options) (directories : string list) : unit =
 let get_smoke_targets (tgts : string list) : string list =
   begin match tgts with
     | _::_ -> tgts
-    | []   -> (* try inferring *)
-       begin match Sys.file_exists cSMOKE_TARGETS with
-         | `Yes           -> (* TODO remove this constant completely *)
-            List.map ~f:strip_suffix (In_channel.read_lines cSMOKE_TARGETS)
-         | `No | `Unknown -> (* TODO tests dir should be a config *)
-            begin match Sys.file_exists cTESTS_DIR with
-              | `Yes -> List.map
-                          ~f:(fun f -> fst (rsplit f '_'))
-                          (List.filter
-                             ~f:is_valid_test_file
-                             (Array.to_list (Sys.readdir cTESTS_DIR)))
-              | `No | `Unknown -> raise (File_not_found "Could not determine which files to smoke test.")
-            end
-       end
+    | []   -> (* TODO infer, or read config *)
+       raise (File_not_found "Could not determine which files to smoke test.")
   end
 
 (** [validate_smoke_targets r tgts] Assert that the name of each target

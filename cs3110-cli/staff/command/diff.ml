@@ -112,7 +112,7 @@ let diff_directories (opts : options) (old_dir : string) (new_dir : string) : di
 (** [diff_student o t d] diff the current submission [d] of a student against
     the most recent past submission. Save results in the spreadsheet [t]. *)
 let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
-  let netid      = netid_of_filepath new_dir in
+  let netid      = filename_of_path new_dir in
   let old_dir    = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
   begin match Sys.file_exists old_dir with
     | `No | `Unknown ->
