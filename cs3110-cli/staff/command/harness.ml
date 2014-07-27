@@ -219,7 +219,8 @@ let write_comments (opts : options) (dir : string) (tr : TestFileResultSet.t) : 
       ~f:(fun (tname, results) acc ->
           let hd    = Format.sprintf "### %s ###\n" tname in
           let body  = string_of_test_results results in
-          hd :: body :: acc)
+          let ft    = "\n" in
+          hd :: body :: ft :: acc)
       ~init:[]
       tr
   in
