@@ -282,13 +282,12 @@ let harness (opts : options) (subs : string list) : unit =
   let () = if opts.verbose then Format.printf "[harness] Initializing spreadsheet...\n" in
   (* define spreadsheet *)
   let module HarnessSpreadsheet =
-    (* TODO Set.add doesn't replace existing *)
     Spreadsheet.Make(struct
       type row              = string * TestFileResultSet.t
       let compare_row r1 r2 = Pervasives.compare (fst r1) (fst r2) (* compare netids *)
       let filename : string = opts.spreadsheet_location
       let row_of_string str =
-        (* string SHOULD be netid, unit_test_scores *)
+        (* 2014-07-26: string SHOULD be netid, unit_test_scores. The scores SHOULD match the current suite. *)
         begin match String.split str ~on:',' with
           | []               -> failwith "parse error, empty row"
           | netid :: columns ->
@@ -296,8 +295,9 @@ let harness (opts : options) (subs : string list) : unit =
                TestFileSet.fold
                  ~f:(fun (acc,cols) test ->
                     let rs, cols' = parse_results_from_list test.unit_tests cols in
-                    let acc' = TestFileResultSet.add acc (test.name, rs) in
-                    (acc', Option.value ~default:[] (List.tl cols'))
+                    let acc'      = TestFileResultSet.add acc (test.name, rs) in
+                    let cols_next = Option.value ~default:[] (List.tl cols') in
+                    (acc', cols_next) (* 2014-07-26: List.tl because we skip the totals columns. *)
                    )
                  ~init:(TestFileResultSet.empty,columns)
                  opts.test_suite
@@ -322,7 +322,7 @@ let harness (opts : options) (subs : string list) : unit =
         in
         Format.sprintf "%s,%s" netid (String.concat ~sep:",," all_scores)
       let title : string    =
-        (* For each test file in the suite, concat all unit test names *)
+        (* For each test file in the suite, concat all unit test names. Stick title (in uppercase) at the end. *)
         let unit_test_names : string list =
           TestFileSet.fold_right
             ~f:(fun test acc ->
