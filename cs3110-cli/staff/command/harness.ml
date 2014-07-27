@@ -335,7 +335,7 @@ let harness (opts : options) (subs : string list) : unit =
          HarnessSpreadsheet.read opts.spreadsheet_location
     end
   in
-  let () = if opts.verbose then Format.printf "[harness] Running all tests...\n%!" in
+  let () = if opts.verbose then Format.printf "%s\n[harness] Running all tests...\n%!" (String.make 80 '*') in
   let final_sheet   =
     List.fold
       ~f:(fun sheet dir ->
