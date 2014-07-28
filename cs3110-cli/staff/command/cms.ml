@@ -60,7 +60,7 @@ let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
                    ~init:LabeledRow.empty
   in
   let ()       = if opts.verbose then Format.printf "[cms] Extracting netid...\n" in
-  let netid    = snd (LabeledRow.find_exn ~f:(fun (t,_) -> t = "NetId") lr) in
+  let netid    = snd (LabeledRow.find_exn ~f:(fun (t,_) -> t = "NetID") lr) in
   let ()       = if opts.verbose then Format.printf "[cms] Filtering columns...\n" in
   let scores   = LabeledRow.filter ~f:(fun (t,_) -> List.mem titles t) lr in
   let ()       = if opts.verbose then Format.printf "[cms] Reading comments...\n" in
@@ -80,7 +80,7 @@ let cms (opts : options) (sheet : string) =
       let string_of_row (id, lrow, cs)  = let scores = LabeledRow.fold_right ~f:(fun (_,s) acc -> s::acc) ~init:[] lrow in
                                           String.concat ~sep:(Char.escaped opts.delimiter) ([id] @ scores @ [cs])
       let title                         = let names = StringSet.to_list opts.column_names in
-                                          String.concat ~sep:(Char.escaped opts.delimiter) (["NetId"] @ names @ ["Add Comments"])
+                                          String.concat ~sep:(Char.escaped opts.delimiter) (["NetID"] @ names @ ["Add Comments"])
     end)
   in
   let ()        = if opts.verbose then Format.printf "[cms] Parsing input file '%s'...\n" sheet in
@@ -106,7 +106,7 @@ let infer_columns ~sep (sheet : string) : StringSet.t =
   let titles = get_titles_exn ~sep:sep sheet in
   List.fold_left (* Save capitalized titles *)
     ~f:(fun acc str ->
-        if (is_capitalized str) && (str <> "NetId")
+        if (is_capitalized str) && (str <> "NetID")
         then StringSet.add acc str
         else acc)
     ~init:StringSet.empty
@@ -161,8 +161,8 @@ let command =
                       | None   -> infer_delimiter sheet
                    end in
       let ()    = if v then Format.printf "[cms] Identified delimiter '%c'.\n" delim in
-      let ()    = if not ("NetId" = List.hd_exn (get_titles_exn ~sep:delim sheet))
-                  then raise (Invalid_spreadsheet "First column should be 'NetId'.") in
+      let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
+                  then raise (Invalid_spreadsheet "First column should be 'NetID'.") in
       let cols  = begin match cols with
                       | []   -> infer_columns    ~sep:delim input
                       | _::_ -> validate_columns ~sep:delim ~sheet:input cols
