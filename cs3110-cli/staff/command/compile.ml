@@ -65,7 +65,7 @@ let get_dependencies () : string list =
     return list of OCaml libraries to include during compilation. *)
 let get_libraries () : string list =
   begin match Sys.file_exists cLIB_FILE with
-    | `No  | `Unknown -> ["=lib"; "assertions"]
+    | `No  | `Unknown -> ["-lib"; "assertions"]
     | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE]
   end
 
@@ -83,7 +83,7 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
 let get_target ?(mktop=false) (main : string) : string =
   let main = strip_suffix main in
   if mktop then
-    (* TODO A little more preprocessing *)
+    let () = ignore (Sys.command (Format.sprintf "echo '%s' > %s.mltop" main main)) in
     Format.sprintf "%s.top" main
   else
     Format.sprintf "%s.d.byte" main
