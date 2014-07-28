@@ -12,6 +12,7 @@ let targets = [
   ("clean"   , Clean.command);
   ("cms"     , Cms.command);
   ("compile" , Compile.command);
+  ("doc"     , Doc.command);
   ("diff"    , Diff.command);
   ("email"   , Email.command);
   ("harness" , Harness.command);
