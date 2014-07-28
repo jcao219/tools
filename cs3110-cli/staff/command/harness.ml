@@ -59,7 +59,8 @@ let success_message (test_name : string) : string =
 
 (** [failure_message t e] Printed when submission fails test [t] with error [e]. *)
 let failure_message (test_name : string) (error_message : string) : string =
-  Format.sprintf "FAIL -- %s : %s" test_name error_message
+  let safe_err = String.tr ~target:'"' ~replacement:'\'' error_message in
+  Format.sprintf "FAIL -- %s : %s" test_name safe_err
 
 (** [string_of_test_results tr] Pretty-print a batch of test results. Simple
     set-to-string conversion. *)
