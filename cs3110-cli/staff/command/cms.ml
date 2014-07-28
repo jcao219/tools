@@ -8,7 +8,7 @@ exception Invalid_spreadsheet of string
 module StringSet = Set.Make(String)
 type options = {
   columns            : StringSet.t;
-  delimeter          : string;
+  delimeter          : char;
   input_spreadsheet  : string;
   output_spreadsheet : string;
   verbose            : bool;
@@ -74,6 +74,20 @@ type options = {
 (*     output_string out_chn "\n" *)
 (*   ) () in_chn *)
 
+(** [get_titles_exn ~sep sheet] Return the first line from the file [sheet],
+    split into a list on the character [~sep]. Raise an exception in the
+    file [sheet] is empty. *)
+let get_first_line (sheet : string) : string list =
+  let input    = In_channel.create sheet in
+  let line_opt = In_channel.input_line input in
+  let ()       = In_channel.close sheet in
+  begin match line_opt with
+    | Some ln -> String.split ~on:sep ln
+    | None    ->
+       let msg = Format.sprintf "Empty spreadhseet '%s'." sheet in
+       raise (Invalid_spreadsheet msg)
+  end
+
 (** [cms o sheet] Read the spreadsheet [sheet] and extract
     particular columns. Save these columns along with
     harness-generated comments in a new spreadsheet. *)
@@ -90,22 +104,36 @@ let cms (opts : options) (sheet : string) =
 (** [infer_columns ~sep sheet] Infer the special column names
     from the spreadsheet [sheet]. Prompt user to validate selection. *)
 let infer_columns ~sep (sheet : string) : StringSet.t =
-  failwith "bagon"
+  let titles = get_titles_exn ~sep:sep sheet in
+  List.fold_left (* Save capitalized titles *)
+    ~f:(fun acc str ->
+        if String.length str > 0 && ('A' <= str.[0] && str.[0] <= 'Z')
+        then StringSet.add acc str
+        else acc)
+    ~init:StringSet.empty
+    titles
 
 (** [infer_delimeter f] Infer the delimeter string from a spreadsheet
     file by reading the extension. *)
 let infer_delimeter (fname : string) : string =
   begin match get_extension fname with
-    | Some "csv" -> ","
-    | Some "tab" -> "\t"
+    | Some "csv" -> ','
+    | Some "tab" -> '\t'
     | Some _
-    | None       -> ","
+    | None       -> ','
   end
 
 (** [validate_columns ~sep ~sheet cols] Assert that each column name in [cols]
     actually appears as the title of a column in spreadsheet [~sheet]. *)
 let validate_columns ~sep ~sheet (cols : string list) : StringSet.t =
-  failwith "buuu"
+  let titles = get_titles_exn ~sep:sep sheet in
+  List.fold_left (* Filter invalid entries from 'cols'. *)
+    ~f:(fun acc col ->
+         if List.mem titles col
+         then StringSet.add acc col
+         else let () = Format.printf "[cms] WARNING: Ignoring invalid column name '%s'.\n" col in acc)
+    ~init:StringSet.empty
+    cols
 
 let command =
   Command.basic
@@ -120,7 +148,7 @@ let command =
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg            ~doc:" Print debugging information."
       +> flag ~aliases:["-i"] "-input"   (optional file)   ~doc:"DIR Specify the directory of harness-generated comments."
-      +> flag ~aliases:["-s"] "-sep"     (optional string) ~doc:"STR Delimeter (i.e. comma or tab) for the input sheet."
+      +> flag ~aliases:["-s"] "-sep"     (optional string) ~doc:"STR Delimeter character (i.e. comma or tab) for the input sheet."
       +> flag ~aliases:["-o"] "-output"  (optional file)   ~doc:"FILE Write output to the file FILE."
       +> flag ~aliases:["-c"] "-column"  (listed string)   ~doc:"NAME Scrape the column titled NAME from the input spreadsheet."
       +> anon ("spreadsheet" %: string)
@@ -130,10 +158,10 @@ let command =
       let ()    = if v then Format.printf "[cms] Preparing to read spreadsheet '%s'.\n" sheet in
       let input = Option.value inp ~default:cHARNESS_SHEET in (* TODO remove constants *)
       let delim =  begin match sep with
-                      | Some s -> s
+                      | Some s -> Char.of_string s (* TODO error handling *)
                       | None   -> infer_delimeter sheet
                    end in
-      let ()    = if v then Format.printf "[cms] Identified delimeter '%s'.\n" delim in
+      let ()    = if v then Format.printf "[cms] Identified delimeter '%c'.\n" delim in
       let cols  = begin match cols with
                       | []   -> infer_columns    ~sep:delim input
                       | _::_ -> validate_columns ~sep:delim ~sheet:input cols
