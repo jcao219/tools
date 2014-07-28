@@ -40,7 +40,9 @@ let command =
     ~summary:"Generate ocamldoc documentation."
     ~readme:(fun () -> String.concat ~sep:"\n" [
       "Running [cs3110 doc target] will generate the ocamldoc docmentation";
-      "for the source file [target]. The target(s) must be compiled first.";
+      "for the file [target]. The target could be an ml module (.ml) or an";
+      "ml interface (.mli) or a list of modules and interfaces. The target(s)";
+      "must be compiled before docs can be generated.";
     ])
     Command.Spec.(
       empty
