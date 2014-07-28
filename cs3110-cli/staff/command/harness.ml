@@ -320,8 +320,8 @@ let harness (opts : options) (subs : string list) : unit =
           TestFileResultSet.fold_right rs
           ~f:(fun (_,r) acc -> string_of_int_list (get_scores r) :: acc)
           ~init:[]
-        in
-        Format.sprintf "%s,%s" netid (String.concat ~sep:",," all_scores)
+        in (* Trailing comma is for the last 'totals' column. *)
+        Format.sprintf "%s,%s," netid (String.concat ~sep:",," all_scores)
       let title : string    =
         (* For each test file in the suite, concat all unit test names. Stick title (in uppercase) at the end. *)
         let unit_test_names : string list =
