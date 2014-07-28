@@ -42,10 +42,12 @@ let get_titles_exn ~sep (sheet : string) : string list =
 let parse_comments (opts : options) (netid : string) : string =
   let fname = Format.sprintf "%s/%s.md" opts.input_comments netid in
   begin match Sys.file_exists fname with
-    | `No | `Unknown -> ""
+    | `No | `Unknown ->
+      let () = if opts.verbose then Format.printf "[cms] Could not find comments for student '%s'.\n" netid in
+      ""
     | `Yes           ->
-       let lines = In_channel.read_lines fname in
-       Format.sprintf "\"%s\"" (String.concat ~sep:" \n " lines)
+      let lines = In_channel.read_lines fname in
+      Format.sprintf "\"%s\"" (String.concat ~sep:" \n " lines)
   end
 
 (** [parse_row_exn opts ~titles line] Read the data values from a row [line] of the spreadsheet.
