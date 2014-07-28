@@ -22,11 +22,17 @@ let cOCAMLDOC_OPTIONS = [
 
 (** [doc o ts] Generate ocamldoc documentation for the targets [ts]. *)
 let doc (opts : options) (targets : string list) : int =
-  let tgts = List.map ~f:ensure_ml targets in
+  let tgts = List.fold_right targets
+               ~f:(fun tgt acc ->
+                    if (String.is_suffix tgt ~suffix:".ml") || (String.is_suffix tgt ~suffix:".mli")
+                    then tgt :: acc
+                    else let () = Format.printf "[doc] WARNING skipping curious file '%s'.\n" tgt in acc)
+               ~init:[]
+  in
   let ()   = if opts.verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
   let ()   = if opts.recompile then List.iter ~f:(fun t -> check_code (Compile.compile (strip_suffix t))) tgts in
   let args = cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ tgts in
-  let ()   = if opts.verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n" (String.concat ~sep:" " args) in
+  let ()   = if opts.verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n%!" (String.concat ~sep:" " args) in
   run_process "ocamldoc" args
 
 let command =

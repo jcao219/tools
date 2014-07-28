@@ -72,9 +72,17 @@ let assert_file_exists (filename : string) : unit =
   if not (Sys.file_exists filename) then
     raise (File_not_found filename)
 
+(** [is_ml f] True if file [f] is a .ml file. *)
+let is_ml (fname : string) : bool =
+  Core.Std.String.is_suffix fname ~suffix:".ml"
+
+(** [is_mli f] True if file [f] is a .mli file. *)
+let is_mli (fname : string) : bool =
+  Core.Std.String.is_suffix fname ~suffix:".mli"
+
 (** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
 let ensure_ml (fname : string) : string =
-  if Core.Std.String.is_suffix fname ~suffix:".ml"
+  if is_ml fname
   then fname
   else fname ^ ".ml"
 
