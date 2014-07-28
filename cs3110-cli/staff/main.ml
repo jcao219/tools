@@ -17,7 +17,6 @@ let targets = [
   ("run"     , Run.command);
   ("smoke"   , Smoke.command);
   ("test"    , Test.command);
-  ("top"     , Top.command);
 ]
 
 (* TODO define staff & student commands separately *)
