@@ -59,7 +59,8 @@ let success_message (test_name : string) : string =
 
 (** [failure_message t e] Printed when submission fails test [t] with error [e]. *)
 let failure_message (test_name : string) (error_message : string) : string =
-  Format.sprintf "FAIL -- %s : %s" test_name error_message
+  let safe_err = String.tr ~target:'"' ~replacement:'\'' error_message in
+  Format.sprintf "FAIL -- %s : %s" test_name safe_err
 
 (** [string_of_test_results tr] Pretty-print a batch of test results. Simple
     set-to-string conversion. *)
@@ -319,8 +320,8 @@ let harness (opts : options) (subs : string list) : unit =
           TestFileResultSet.fold_right rs
           ~f:(fun (_,r) acc -> string_of_int_list (get_scores r) :: acc)
           ~init:[]
-        in
-        Format.sprintf "%s,%s" netid (String.concat ~sep:",," all_scores)
+        in (* Trailing comma is for the last 'totals' column. *)
+        Format.sprintf "%s,%s," netid (String.concat ~sep:",," all_scores)
       let title : string    =
         (* For each test file in the suite, concat all unit test names. Stick title (in uppercase) at the end. *)
         let unit_test_names : string list =

@@ -10,6 +10,7 @@ let config_env () =
 (* available subcommands *)
 let targets = [
   ("clean"   , Clean.command);
+  ("cms"     , Cms.command);
   ("compile" , Compile.command);
   ("diff"    , Diff.command);
   ("email"   , Email.command);
