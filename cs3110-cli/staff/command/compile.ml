@@ -1,6 +1,5 @@
 open Cli_constants
 open Core.Std
-open Io_util
 open Filepath_util
 open Process_util
 
@@ -49,6 +48,11 @@ let get_compiler_flags () : string list =
   let fs = default_compiler_flags in
   format_compiler_flags fs
 
+(* TODO deprecated *)
+let csv_of_file (file : string) : string =
+  let lines = In_channel.read_lines file in
+  String.concat ~sep:"," lines
+
 (* TODO change these constants to use config file *)
 (** [get_dependencies ()] read in config file,
     return list of folders to search recursively during compilation. *)
@@ -70,7 +74,7 @@ let get_libraries () : string list =
 let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
   begin match Sys.file_exists cOPAM_PACKAGES_FILE with
     | `No  | `Unknown -> []
-    | `Yes            -> read_lines (open_in cOPAM_PACKAGES_FILE)
+    | `Yes            -> In_channel.read_lines cOPAM_PACKAGES_FILE
   end
 
 (** [compile q? v? d? main] compile [main] into a bytecode executable.
@@ -101,9 +105,10 @@ let compile ?(quiet=false) ?(verbose=false) ?dir (main_module : string) : int =
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
-  let ()        = if verbose && (not quiet) then Format.printf "%!" in
+  let ()        = if verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
   let exit_code = run_process "ocamlbuild" command in
   let ()        = Sys.chdir cwd in
+  let ()        = if verbose && (not quiet) then Format.printf "\n" in (* more required whitespace for ocambuild *)
   let ()        = if verbose && (exit_code = 0) then Format.printf "[compile] Compilation succeeded!\n" in
   exit_code
 

@@ -1,3 +1,1 @@
-val run : string list -> unit
-(** [smoke ds] perform a smoke test on every
- * implementation directory in [ds] *)
+val command : Core.Std.Command.t

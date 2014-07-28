@@ -11,13 +11,11 @@ let run ?(verbose=false) (main_module : string) (args : string list) : int =
   let build_dir = "_build" in (* TODO abstract with config-file *)
   let exec      = Format.sprintf "%s/%s.d.byte" build_dir main in
   let ()        = if verbose then Format.printf "[run] Searching for executable '%s'.\n" exec in
-  begin match Sys.file_exists exec with
-    | `Yes           -> run_process exec args
-    | `No | `Unknown ->
-      let () = Format.printf "%!" in
-      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module in
-      raise (Cli_constants.File_not_found msg)
-  end
+  let ()        = assert_file_exists
+                    ~msg:(Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module)
+                    exec
+  in run_process exec args
+
 
 let command =
   Command.basic
