@@ -60,9 +60,9 @@ let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
                    ~init:LabeledRow.empty
   in
   let ()       = if opts.verbose then Format.printf "[cms] Extracting netid...\n" in
-  let netid    = snd (LabeledRow.find_exn ~f:(fun (t,_) -> t = "NetID") lr) in
+  let netid    = snd (LabeledRow.find_exn ~f:(fun (lbl,_) -> lbl = "NetID") lr) in
   let ()       = if opts.verbose then Format.printf "[cms] Filtering columns...\n" in
-  let scores   = LabeledRow.filter ~f:(fun (t,_) -> List.mem titles t) lr in
+  let scores   = LabeledRow.filter ~f:(fun (lbl,_) -> StringSet.mem opts.column_names lbl) lr in
   let ()       = if opts.verbose then Format.printf "[cms] Reading comments...\n" in
   let comments = parse_comments opts netid in
   (netid, scores, comments)
@@ -164,7 +164,7 @@ let command =
       let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
                   then raise (Invalid_spreadsheet "First column should be 'NetID'.") in
       let cols  = begin match cols with
-                      | []   -> infer_columns    ~sep:delim input
+                      | []   -> infer_columns    ~sep:delim sheet
                       | _::_ -> validate_columns ~sep:delim ~sheet:input cols
                   end in
       let ()    = if v then Format.printf "[cms] Target columns are [%s].\n" (String.concat ~sep:"; " (StringSet.to_list cols)) in
