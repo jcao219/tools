@@ -97,6 +97,13 @@ let is_valid_submission (fname : string) : bool =
   String.is_suffix fname ~suffix:".ml" &&
   (not (is_valid_test_file fname))
 
+(** [unittest_name_of_line s] extract the test name from a line printed by the
+    inline test runner. Name should be the last 'word' of the string, separated
+    from everything else by a colon *)
+let unittest_name_of_line (line : string) : string =
+  (* TODO regex this *)
+  fst (String.lsplit2_exn ~on:' ' (snd (String.rsplit2_exn ~on:':' line)))
+
 (** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
     to approve if TEST was in a comment or part of a variable name like
