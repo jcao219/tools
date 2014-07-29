@@ -77,7 +77,7 @@ let files_match (old_file : string) (new_file : string) : bool =
 (** [diff_files o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
 let diff_files (opts : options) (old_file : string) (new_file : string) : diff_result =
   let ()   = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
-  if not (all_files_exist [old_file; new_file]) then
+  if not (files_exist [old_file; new_file]) then
     (* 2014-07-15: file2 is sure to exist, but whatever *)
     let () = if opts.verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
     Ok
