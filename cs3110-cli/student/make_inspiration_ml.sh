@@ -1,7 +1,7 @@
 #!/bin/sh
 
-gawk '
-BEGIN { RS="\0" }
+awk '
+BEGIN { RS="\f" }
 {
 	print "(* THIS FILE IS AUTO-GENERATED. Any manual changes will be overwritten. *)"
 	print ""

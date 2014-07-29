@@ -9,16 +9,17 @@ let config_env () =
 
 (* available subcommands *)
 let targets = [
-  ("clean"   , Clean.command);
-  ("cms"     , Cms.command);
-  ("compile" , Compile.command);
-  ("doc"     , Doc.command);
-  ("diff"    , Diff.command);
-  ("email"   , Email.command);
-  ("harness" , Harness.command);
-  ("run"     , Run.command);
-  ("smoke"   , Smoke.command);
-  ("test"    , Test.command)
+  ("clean"       , Clean.command);
+  ("cms"         , Cms.command);
+  ("compile"     , Compile.command);
+  ("doc"         , Doc.command);
+  ("diff"        , Diff.command);
+  ("email"       , Email.command);
+  ("harness"     , Harness.command);
+  ("inspiration" , Inspiration.command);
+  ("run"         , Run.command);
+  ("smoke"       , Smoke.command);
+  ("test"        , Test.command)
 ]
 
 (* TODO define staff & student commands separately *)
