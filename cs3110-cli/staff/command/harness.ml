@@ -89,12 +89,12 @@ let is_dotfile (fname : string) : bool =
 (** [is_valid_test_file fn] true if filename matches the expected format for tests, false otherwise *)
 let is_valid_test_file (fname : string) : bool =
   (not (is_dotfile fname)) &&
-  is_suffix fname "_test.ml"
+  String.is_suffix fname ~suffix:"_test.ml"
 
 (** [is_valid_submission fn] true if filename is a '.ml' but doesn't match format for tests *)
 let is_valid_submission (fname : string) : bool =
-  (not (is_dotfile fname)) &&
-  is_suffix fname ".ml"    &&
+  (not (is_dotfile fname))             &&
+  String.is_suffix fname ~suffix:".ml" &&
   (not (is_valid_test_file fname))
 
 (** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
