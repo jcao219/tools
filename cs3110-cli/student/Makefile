@@ -17,6 +17,9 @@ inspiration.ml: inspirations.fortune
 clean:
 	rm -f cs3110_cli.cmi
 	rm -f cs3110_cli.cmo
+	rm -f inspiration.ml
+	rm -f inspiration.cmi
+	rm -f inspiration.cmo
 
 install: assertions compile clean link
 

@@ -3,6 +3,8 @@
 gawk '
 BEGIN { RS="\0" }
 {
+	print "(* THIS FILE IS AUTO-GENERATED. Any manual changes will be overwritten. *)"
+	print ""
 	print "let inspirations = [|";
 	n = split($0, inspirations, /%\n/);
 	for (i = 1; i <= n; i++) {
