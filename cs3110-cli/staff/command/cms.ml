@@ -3,8 +3,6 @@ open Cli_constants
 open Filepath_util
 open Io_util
 
-exception Invalid_spreadsheet of string
-
 module StringSet = Set.Make(String)
 type options = {
   column_names       : StringSet.t;
@@ -34,7 +32,7 @@ let get_titles_exn ~sep (sheet : string) : string list =
     | Some ln -> String.split ~on:sep ln
     | None    ->
        let msg = Format.sprintf "Empty spreadhseet '%s'." sheet in
-       raise (Invalid_spreadsheet msg)
+       raise (Spreadsheet.Invalid_spreadsheet msg)
   end
 
 (** [parse_comments o n] Convert the comments file for netid [n] into
@@ -56,7 +54,8 @@ let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
   let ()       = if opts.verbose then Format.printf "[cms] Reading line '%s'.\n" line in
   let data     = String.split ~on:opts.delimiter line in
   let ()       = if opts.verbose then Format.printf "[cms] Matching values with titles.\n" in
-  let ()       = if not ((List.length titles) = (List.length data)) then raise (Invalid_spreadsheet "Row does not match titles") in
+  let ()       = if not ((List.length titles) = (List.length data))
+                 then raise (Spreadsheet.Invalid_spreadsheet "Row does not match titles") in
   let lr       = List.fold2_exn titles data
                    ~f:(fun acc t d -> LabeledRow.add acc (t,d))
                    ~init:LabeledRow.empty
@@ -164,7 +163,7 @@ let command =
                    end in
       let ()    = if v then Format.printf "[cms] Identified delimiter '%c'.\n" delim in
       let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
-                  then raise (Invalid_spreadsheet "First column should be 'NetID'.") in
+                  then raise (Spreadsheet.Invalid_spreadsheet "First column should be 'NetID'.") in
       let cols  = begin match cols with
                       | []   -> infer_columns    ~sep:delim sheet
                       | _::_ -> validate_columns ~sep:delim ~sheet:sheet cols

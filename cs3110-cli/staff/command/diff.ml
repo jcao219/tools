@@ -20,8 +20,13 @@ module DiffSpreadsheet =
 
     let compare_row (id,_) (id',_) = Pervasives.compare id id'
     let filename : string          = cDIFF_RESULTS
-    let row_of_string str          = let id, r_str = String.lsplit2_exn ~on:',' str in
-                                     (id, (diff_result_of_string r_str))
+    let row_of_string str          = begin match String.lsplit2 ~on:',' str with
+                                       | Some (id, data) ->
+                                          (id, (diff_result_of_string data))
+                                       | None            ->
+                                          let msg = Format.sprintf "Improperly formatted row '%s' in diff spreadsheet." str in
+                                          raise (Spreadsheet.Invalid_spreadsheet msg)
+                                     end
     let string_of_row (id,result)  = id ^ "," ^ (string_of_diff_result result)
     let title : string             = "NetID,DiffResult"
   end)

@@ -1,5 +1,7 @@
 open Core.Std
 
+exception Invalid_spreadsheet of string
+
 module type SpecType = sig
   type row
 
