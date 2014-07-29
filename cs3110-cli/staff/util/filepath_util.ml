@@ -1,11 +1,6 @@
 open Cli_constants
 open Io_util
 
-(** [absolute_path f] Prepend the current working directory to
- * the filepath [f] *)
-let absolute_path (f : string) =
-  Format.sprintf "%s/%s" (Sys.getcwd ()) f
-
 (** [split s c b] safely splits string [s] at the left/right-most occurence
  * of character [c]. [b] chooses. If [c] does not appear, returns two
  * copies of [s]. *)
@@ -23,22 +18,6 @@ let lsplit (s : string) (c : char) : string * string =
 let rsplit (s : string) (c : char) : string * string =
   split s c false
 
-let rec starts_with_aux (s: string) (p : string) (i : int) =
-  if i >= String.length p then true
-  else if i >= String.length s then false
-  else s.[i] = p.[i] && starts_with_aux s p (i + 1)
-(** [starts_with s p] checks if the string [p] matches the leading characters of [s] *)
-let starts_with (s : string) (p : string) : bool =
-  starts_with_aux s p 0
-
-let str_reverse (s : string) : string =
-  let as_list = ref [] in
-  let () = String.iter (fun c -> as_list := c :: (!as_list)) s in
-  List.fold_left (fun s c -> s ^ (Char.escaped c)) "" (!as_list)
-
-let is_suffix (s : string) (p : string) : bool =
-  starts_with (str_reverse s) (str_reverse p)
-
 (** [strip_suffix str] strips all characters after and including the
  * rightmost period (.) *)
 let strip_suffix (filename : string) : string =
@@ -53,14 +32,6 @@ let strip_trailing_slash (s : string) =
   if s.[len-1] = '/'
   then String.sub s 0 (len - 1)
   else s
-
-(** [tag_of_path p] strips all characters up to and including the rightmost / *)
-let tag_of_path (path : string) =
-  if String.contains path '/' then
-    let i = 1 + String.rindex path '/' in
-    String.sub path i ((String.length path) - i)
-  else
-    path
 
 (** [assert_file_exists f] raises [File_not_found] if [f] does not exist *)
 let assert_file_exists ?msg (filename : string) : unit =
@@ -104,62 +75,6 @@ let directories_of_list (fname : string) : string list =
   (* Return the fully-inferred list of directories *)
   List.rev (List.fold_left (fun acc name -> (Format.sprintf "%s/%s" prefix name) :: acc) [] dir_names)
 
-(** [unittest_name_of_line s] extract the test name from a line printed by the
-    inline test runner. Name should be the last 'word' of the string, separated
-    from everything else by a colon *)
-let unittest_name_of_line (line : string) : string =
-  fst (lsplit (snd (rsplit line ':')) ' ')
-
-(** [get_extension file_name] gets the extension of the file
- *  [file_name]. The extension is defined to be the characters
- *  occuring to the right of the right-most occurence of the '.'
- *  character. *)
-let get_extension (file_name : string) : string option =
-  if String.contains file_name '.'
-  then Some (snd (rsplit file_name '.'))
-  else None
-
-(** The [do_if_directory] function is used to process directories. So
-    [do_if_directory dir f err_msg ~exit_code:n] executes the process
-    [f] if [dir] is a valid directory and prints the error message
-    [err_msg] to standard out and exits the current process with exit
-    code [n] if not. The default exit code is 1. *)
-let do_if_directory (dir : string)
-                    (f : string -> 'a)
-                    (err_msg : string)
-                    (exit_code : int) : 'a =
-  if Sys.file_exists dir && Sys.is_directory dir then f dir
-  else let () = prerr_endline err_msg in exit exit_code
-
-(** [filter_by_extension desired_extension files] returns a list of
-    the files in [files] that have the desired extension. *)
-let filter_by_extension (desired_extension : string)
-                        (files : string list) : string list =
-  let has_desired_extension file =
-    begin match get_extension file with
-    | None -> false
-    | Some ext -> ext = desired_extension
-    end
-  in
-  List.filter has_desired_extension files
-
-(** [get_files_with_extension] returns a list containing all of the
-    filenames in the given directory that have the desired extension. *)
-let get_files_with_extension (desired_extension : string)
-                             (dir : string) : string list =
-  let get_files dir =
-    filter_by_extension desired_extension (Array.to_list (Sys.readdir dir)) in
-  try get_files dir with _ -> []
-
-(** [filter_directory ~f d] Read files in directory [d], filter the files not matching the
-    predicate [f]. *)
-let filter_directory ~f (dir : string) : string list =
-  (* TODO catch exception / check if directory exists. *)
-  let all_files = Sys.readdir dir in
-  Core.Std.Array.fold_right all_files
-    ~f:(fun x acc -> if f x then x :: acc else acc)
-    ~init:[]
-
 (** [at_expand dirs] optionally expand a file containing a list into a list of directories.
     If the input is a singleton list where the first element is prefixed by and '@' character,
     treat this input as a file containing a list of newline-separated strings. Create directory
@@ -173,8 +88,26 @@ let at_expand (dirs : string list) : string list =
     | [] | _::_ -> dirs
   end
 
+(** [get_extension file_name] gets the extension of the file
+ *  [file_name]. The extension is defined to be the characters
+ *  occuring to the right of the right-most occurence of the '.'
+ *  character. *)
+let get_extension (file_name : string) : string option =
+  if String.contains file_name '.'
+  then Some (snd (rsplit file_name '.'))
+  else None
+
+(** [filter_directory ~p d] Read files in directory [d], remove the files not matching the
+    predicate [p]. *)
+let filter_directory ~f (dir : string) : string list =
+  (* TODO catch exception / check if directory exists. *)
+  let all_files = Sys.readdir dir in
+  Core.Std.Array.fold_right all_files
+    ~f:(fun x acc -> if f x then x :: acc else acc)
+    ~init:[]
+
 (** [filename_of_path p] Return the last item along the path [p].
-    It could be a filename or a directory name, don't care.\
+    It could be a filename or a directory name, don't care.
     Given 'dir1/dir2/dir3/', this function returns 'dir3'. *)
 let filename_of_path (path : string) : string =
   let path = strip_trailing_slash path in
@@ -185,7 +118,7 @@ let filename_of_path (path : string) : string =
 let soft_copy (dir1 : string) (dir2 : string) : int =
   Sys.command (Format.sprintf "cp -r -n %s/. %s" dir1 dir2)
 
-let all_files_exist (files : string list) : bool =
+let files_exist (files : string list) : bool =
   List.fold_left (fun acc f -> acc && Sys.file_exists f) true files
 
 (** [check_installed cmd] False is the unix tool [cmd] is not found. *)
