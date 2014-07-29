@@ -9,7 +9,8 @@ Commands are:
 * `cs3110 run <filename> [args]` Run the executable created by `cs3110 compile <filename>` with the supplied arguments
 * `cs3110 test <filename>` Execute the `pa_ounit` tests within the file
 * `cs3110 clean` remove the files generated through compilation
-* `cs3110 help` print a summary of the available commands 
+* `cs3110 help` print a summary of the available commands
+* `cs3110 inspiration` provides an inspirational quote from past cs3110 staff and professors
 
 Requirements
 ============
