@@ -1,23 +1,6 @@
 open Cli_constants
 open Io_util
 
-(** [split s c b] safely splits string [s] at the left/right-most occurence
- * of character [c]. [b] chooses. If [c] does not appear, returns two
- * copies of [s]. *)
-let split (s : string) (c : char) (b : bool) : string * string =
-  if not (String.contains s c) then
-    (s, s)
-  else
-    let i = 1 + if b then String.index s c else String.rindex s c in
-    let left = String.sub s 0 (i-1) in
-    let right = String.sub s i ((String.length s) - i) in
-    (String.trim left, String.trim right)
-
-let lsplit (s : string) (c : char) : string * string =
-  split s c true
-let rsplit (s : string) (c : char) : string * string =
-  split s c false
-
 (** [strip_suffix str] strips all characters after and including the
  * rightmost period (.) *)
 let strip_suffix (filename : string) : string =
@@ -93,9 +76,10 @@ let at_expand (dirs : string list) : string list =
  *  occuring to the right of the right-most occurence of the '.'
  *  character. *)
 let get_extension (file_name : string) : string option =
-  if String.contains file_name '.'
-  then Some (snd (rsplit file_name '.'))
-  else None
+  begin match Core.Std.String.rsplit2 ~on:'.' file_name with
+    | Some (_,ext) -> Some ext
+    | None         -> None
+  end
 
 (** [filter_directory ~p d] Read files in directory [d], remove the files not matching the
     predicate [p]. *)
@@ -108,10 +92,14 @@ let filter_directory ~f (dir : string) : string list =
 
 (** [filename_of_path p] Return the last item along the path [p].
     It could be a filename or a directory name, don't care.
-    Given 'dir1/dir2/dir3/', this function returns 'dir3'. *)
+    Given 'dir1/dir2/dir3/', this function returns 'dir3'.
+    Given 'file.ml', this function is the identity. *)
 let filename_of_path (path : string) : string =
   let path = strip_trailing_slash path in
-  snd (rsplit path '/')
+  begin match Core.Std.String.rsplit2 ~on:'/' path with
+    | Some (_,str) -> str
+    | None         -> path
+  end
 
 (** [soft_copy d1 d2] Copy all files and directories from directory [d1]
     into directory [d2]. Do NOT overwrite any files in [d2]. *)

@@ -20,10 +20,6 @@ val check_installed : string -> bool
 
 val assert_installed : string -> unit
 
-(** HMMM *)
-val lsplit : string -> char -> string * string
-val rsplit : string -> char -> string * string
-
 val file_is_empty : string -> bool
 
 val soft_copy : string -> string -> int
