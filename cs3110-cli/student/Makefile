@@ -8,10 +8,10 @@ assertions:
 	mv assertions.cmi assertions.cmo assertions.cma ${STD_LIB}
 	rm serializer.cmi serializer.cmo
 
-compile: inspiration.ml
+compile: inspiration
 	ocamlc -o cs3110 str.cma unix.cma inspiration.ml cs3110_cli.mli cs3110_cli.ml
 
-inspiration.ml: inspirations.fortune
+inspiration: inspirations.fortune
 	./make_inspiration_ml.sh
 
 clean:
