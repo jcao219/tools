@@ -1,49 +1,12 @@
 open Cli_constants
 open Core.Std
 
-(** [strip_suffix str] strips all characters after and including the
-    rightmost period (.) *)
-let strip_suffix (str : string) : string =
-  begin match String.rsplit2 ~on:'.' str with
-    | Some (hd,_) -> hd
-    | None        -> str
-  end
-
-(** [strip_trailing_slash str] removes the last character of [str],
-    but only if that character is a / *)
-let strip_trailing_slash (str : string) : string =
-  begin match String.rsplit2 ~on:'/' str with
-    | Some (hd, "") -> hd
-    | Some _ | None -> str
-  end
-
 (** [assert_file_exists fname] raises [File_not_found] if [f] does not exist.
     Optional argument specifies the error message. *)
 let assert_file_exists ?msg (fname : string) : unit =
   begin match Sys.file_exists fname with
     | `Yes           -> ()
     | `No | `Unknown -> raise (File_not_found (Option.value msg ~default:fname))
-  end
-
-(** [is_ml f] True if file [f] is a .ml file. *)
-let is_ml (fname : string) : bool =
-  String.is_suffix fname ~suffix:".ml"
-
-(** [is_mli f] True if file [f] is a .mli file. *)
-let is_mli (fname : string) : bool =
-  String.is_suffix fname ~suffix:".mli"
-
-(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
-let ensure_ml (fname : string) : string =
-  if is_ml fname
-  then fname
-  else fname ^ ".ml"
-
-(** [ensure_dir d] creates the directory [d] if it does not exist already. *)
-let ensure_dir (dir_name : string) : unit =
-  begin match Sys.file_exists dir_name with
-    | `No | `Unknown -> Unix.mkdir dir_name (* default perm is 0777 *)
-    | `Yes           -> ()
   end
 
 (** [directories_of_list dir] Build a list of directories from the file [dir].
@@ -77,14 +40,55 @@ let at_expand (dirs : string list) : string list =
        end
   end
 
-(** [get_extension file_name] gets the extension of the file
-    [file_name]. The extension is defined to be the characters
-    occuring to the right of the right-most occurence of the '.'
-    character. *)
-let get_extension (file_name : string) : string option =
-  begin match String.rsplit2 ~on:'.' file_name with
-    | Some (_,ext) -> Some ext
-    | None         -> None
+(** [check_installed cmd] False is the unix tool [cmd] is not found. *)
+let check_installed (cmd : string) : bool =
+  (* Try to run the command's version info, pipe stdout to stderr *)
+  let check_cmd = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
+  0 = (Sys.command check_cmd)
+
+(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
+    is not installed. *)
+let assert_installed (cmd : string) : unit =
+  if not (check_installed cmd) then
+    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
+    raise (Command_not_found msg)
+
+(** [is_ml f] True if file [f] is a .ml file. *)
+let is_ml (fname : string) : bool =
+  String.is_suffix fname ~suffix:".ml"
+
+(** [is_mli f] True if file [f] is a .mli file. *)
+let is_mli (fname : string) : bool =
+  String.is_suffix fname ~suffix:".mli"
+
+(** [ensure_ml f] Check if [f] has a '.ml' suffix. If not, append one. *)
+let ensure_ml (fname : string) : string =
+  if is_ml fname
+  then fname
+  else fname ^ ".ml"
+
+(** [ensure_dir d] creates the directory [d] if it does not exist already. *)
+let ensure_dir (dir_name : string) : unit =
+  begin match Sys.file_exists dir_name with
+    | `No | `Unknown -> Unix.mkdir dir_name (* default perm is 0777 *)
+    | `Yes           -> ()
+  end
+
+(** [file_is_empty fname] True if [fname] contains nothing. *)
+let file_is_empty (fname : string) : bool =
+  (* [test] returns 0 exit status if file is not empty *)
+  0 <> (Sys.command (Format.sprintf "test -s %s" fname))
+
+(** [files_exist fs] True if all files in the list [fs] exist.
+    False is any one file is a 'no' or 'unknown'. *)
+let rec files_exist (files : string list) : bool =
+  begin match files with
+    | []     -> true
+    | hd::tl ->
+       begin match Sys.file_exists hd with
+         | `No | `Unknown -> false
+         | `Yes           -> files_exist tl
+       end
   end
 
 (** [filter_directory ~p d] Read files in directory [d], remove the files not matching the
@@ -94,6 +98,23 @@ let filter_directory ~f (dir : string) : string list =
   Array.fold_right all_files
     ~f:(fun x acc -> if f x then x :: acc else acc)
     ~init:[]
+
+(** [get_extension file_name] gets the extension of the file
+    [file_name], i.e. the characters occuring to the right
+    of the right-most occurence of the '.' character. *)
+let get_extension (file_name : string) : string option =
+  begin match String.rsplit2 ~on:'.' file_name with
+    | Some (_,ext) -> Some ext
+    | None         -> None
+  end
+
+(** [strip_trailing_slash str] removes the last character of [str],
+    but only if that character is a / *)
+let strip_trailing_slash (str : string) : string =
+  begin match String.rsplit2 ~on:'/' str with
+    | Some (hd, "") -> hd
+    | Some _ | None -> str
+  end
 
 (** [filename_of_path p] Return the last item along the path [p].
     It could be a filename or a directory name, don't care.
@@ -111,30 +132,10 @@ let filename_of_path (path : string) : string =
 let soft_copy (dir1 : string) (dir2 : string) : int =
   Sys.command (Format.sprintf "cp -r -n %s/. %s" dir1 dir2)
 
-let rec files_exist (files : string list) : bool =
-  begin match files with
-    | []     -> true
-    | hd::tl ->
-       begin match Sys.file_exists hd with
-         | `No | `Unknown -> false
-         | `Yes           -> files_exist tl
-       end
+(** [strip_suffix str] strips all characters after and including the
+    rightmost period. *)
+let strip_suffix (str : string) : string =
+  begin match String.rsplit2 ~on:'.' str with
+    | Some (hd,_) -> hd
+    | None        -> str
   end
-
-(** [check_installed cmd] False is the unix tool [cmd] is not found. *)
-let check_installed (cmd : string) : bool =
-  (* Try to run the command's version info, pipe stdout to stderr *)
-  let check_cmd = Format.sprintf "command %s -v > /dev/null 2>&1" cmd in
-  0 = (Sys.command check_cmd)
-
-(** [assert_installed cmd] raises [Command_not_found] if the unix tool [cmd]
-    is not installed. *)
-let assert_installed (cmd : string) : unit =
-  if not (check_installed cmd) then
-    let msg = Format.sprintf "Required command '%s' is not installed.\n" cmd in
-    raise (Command_not_found msg)
-
-(** [file_is_empty fname] True if [fname] contains nothing. *)
-let file_is_empty (fname : string) : bool =
-  (* [test] returns 0 exit status if file is not empty *)
-  0 <> (Sys.command (Format.sprintf "test -s %s" fname))
