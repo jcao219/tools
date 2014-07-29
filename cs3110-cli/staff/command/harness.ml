@@ -100,8 +100,11 @@ let is_valid_submission (fname : string) : bool =
     inline test runner. Name should be the last 'word' of the string, separated
     from everything else by a colon *)
 let unittest_name_of_line (line : string) : string =
-  (* TODO regex this *)
-  fst (String.lsplit2_exn ~on:' ' (snd (String.rsplit2_exn ~on:':' line)))
+  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters .*: \\(.*\\)$" in
+  try
+    let () = ignore (Str.search_forward pattern line 0) in
+    Str.matched_group 1 line
+  with _ -> failwith (Format.sprintf "SERIOUS ERROR: harness couldn't parse line '%s' of failures file." line)
 
 (** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
@@ -453,7 +456,7 @@ let command =
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
       let () = assert_file_exists ~msg:"Release directory missing" release_dir in
       let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
-      let () = assert_file_exists ~msg:"Tests directory missing" tests_dir in
+      let () = assert_file_exists ~msg:"Could not find tests directory" tests_dir in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
         num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
