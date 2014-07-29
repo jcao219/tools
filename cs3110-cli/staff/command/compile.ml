@@ -88,15 +88,16 @@ let get_target ?(mktop=false) (main : string) : string =
       | `Yes           -> mltop
       | `No | `Unknown ->
         let prefix = "*  " in
+        let border = String.make 80 '*' in
         let ()     = print_endline (String.concat ~sep:"\n" [
-          String.make 80 '*';
+          border;
           Format.sprintf "%sERROR: Could not find file '%s'." prefix mltop;
           prefix ^ "A '.mltop' file is required to build a toplevel. This file should contain";
           prefix ^ "the names of all modules you want to include in the toplevel. For example,";
           prefix ^ Format.sprintf "the command 'echo '%s' > '%s' would create a minimal" main mltop;
           prefix ^ "valid '.mltop' file. If the module has dependencies, be sure to include";
           prefix ^ "those as well.";
-          String.make 80 '*';
+          border
         ])
         in
         raise (File_not_found mltop)
