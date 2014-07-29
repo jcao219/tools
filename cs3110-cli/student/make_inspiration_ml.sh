@@ -8,8 +8,8 @@ BEGIN { RS="\f" }
 	print "let inspirations = [|";
 	n = split($0, inspirations, /%\n/);
 	for (i = 1; i <= n; i++) {
-		ocamlstr = gensub(/"/, "\\\\\"", "g", inspirations[i]);
-		ocamlstr = gensub(/\n/, "\\\\n", "g", ocamlstr);
+		ocamlstr = inspirations[i];
+		gsub(/"/, "'"'"'", ocamlstr)
 		print "\"" ocamlstr "\";";
 	}
 	print "|]";
