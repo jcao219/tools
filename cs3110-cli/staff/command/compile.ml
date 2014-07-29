@@ -82,9 +82,25 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
     create a custom toplevel. *)
 let get_target ?(mktop=false) (main : string) : string =
   let main = strip_suffix main in
-  if mktop then
-    let () = ignore (Sys.command (Format.sprintf "echo '%s' > %s.mltop" main main)) in
-    Format.sprintf "%s.top" main
+  if mktop then (* Ensure that the .mltop file exists. *)
+    let mltop   = Format.sprintf "%s.mltop" main in
+    begin match Sys.file_exists mltop with
+      | `Yes           -> mltop
+      | `No | `Unknown ->
+        let prefix = "*  " in
+        let ()     = print_endline (String.concat ~sep:"\n" [
+          String.make 80 '*';
+          Format.sprintf "%sERROR: Could not find file '%s'." prefix mltop;
+          prefix ^ "A '.mltop' file is required to build a toplevel. This file should contain";
+          prefix ^ "the names of all modules you want to include in the toplevel. For example,";
+          prefix ^ Format.sprintf "the command 'echo '%s' > '%s' would create a minimal" main mltop;
+          prefix ^ "valid '.mltop' file. If the module has dependencies, be sure to include";
+          prefix ^ "those as well.";
+          String.make 80 '*';
+        ])
+        in
+        raise (File_not_found mltop)
+    end
   else
     Format.sprintf "%s.d.byte" main
 
