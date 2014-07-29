@@ -150,12 +150,16 @@ let command =
       "in a directory [_build], which will be created (if not already present)";
       "in the current working directory.";
       "You may pass a file in the current directory or a file in a sub-directory.";
+      "";
+      "Additionally, use this command for creating a custom OCaml toplevel with";
+      "the '-mktop' option. Custom toplevels are '.top' files. To use one, change";
+      "into the '_build' directory and execute it."
     ])
     Command.Spec.(
       empty
       +> flag ~aliases:["-q"]           "-quiet"    no_arg ~doc:" Compile quietly."
       +> flag ~aliases:["-v"]           "-verbose"  no_arg ~doc:" Print debugging information (about compiler options, etc.)."
-      +> flag ~aliases:["-t"; "-mktop"] "-toplevel" no_arg ~doc:" Create a custom toplevel instead of an executable."
+      +> flag ~aliases:["-t"; "-mktop"] "-toplevel" no_arg ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
       +> anon ("target" %: file)
     )
     (fun q v mktop target () ->
