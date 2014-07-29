@@ -243,7 +243,14 @@ let write_postscript (opts : options) (dir : string) (results : TestFileResultSe
         (* collect data *)
         let fname = Format.sprintf "%s/%s-%s.ps" opts.output_directory netid test_name in
         let title = Format.sprintf "%s\t\t%s.ml" netid                 test_name in
-        let src   = Format.sprintf "%s/%s.ml"    dir                   (fst (rsplit test_name '_')) in
+        let src   = begin match String.rsplit2 ~on:'_' test_name with
+                      | Some (module_name,_) ->
+                         Format.sprintf "%s/%s.ml" dir module_name
+                      | None                 ->
+                         let () = Format.printf "[harness] WARNING: Could not find source for file '%s'. Unable to generate postscript." test_name in
+                         "\n"
+                    end
+        in
         let body  = string_of_test_results results in
         (* write postscript *)
         let chn   = Postscript.init          fname title in
