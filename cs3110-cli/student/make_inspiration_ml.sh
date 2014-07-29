@@ -19,4 +19,4 @@ BEGIN { RS="\0" }
 	print "  let rand_idx = Random.int (Array.length inspirations) in"
 	print "  print_string inspirations.(rand_idx)"
 }
-' < inspirations.fortune > inspiration.ml
+' < .inspirations.fortune > inspiration.ml
