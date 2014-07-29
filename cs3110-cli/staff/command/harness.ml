@@ -1,6 +1,5 @@
 open Core.Std
 open Cli_constants
-open Io_util
 open Filepath_util
 open Process_util
 

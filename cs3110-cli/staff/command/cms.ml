@@ -1,7 +1,6 @@
 open Core.Std
 open Cli_constants
 open Filepath_util
-open Io_util
 
 module StringSet = Set.Make(String)
 type options = {
