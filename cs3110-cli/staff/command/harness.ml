@@ -455,8 +455,16 @@ let command =
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
       let () = assert_file_exists ~msg:"Release directory missing" release_dir in
-      let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
-      let () = assert_file_exists ~msg:"Could not find tests directory" tests_dir in
+      let test_files = begin match tests with
+                         | []   ->
+                            let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
+                            let () = assert_file_exists ~msg:"Could not find tests directory" tests_dir in
+                            test_list_of_directory tests_dir
+                         | _::_ ->
+                            let () = List.iter ~f:assert_file_exists tests in
+                            tests
+                       end
+      in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
         num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
@@ -464,7 +472,7 @@ let command =
         postscript           = ps;
         release_directory    = release_dir;
         spreadsheet_location = Option.value sheet_location ~default:cHARNESS_SHEET;
-        test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir (tests @ test_list_of_directory tests_dir);
+        test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir test_files;
         verbose              = v;
       } in
       let () = ensure_dir cHARNESS_DIR in (* sheet dir *)
