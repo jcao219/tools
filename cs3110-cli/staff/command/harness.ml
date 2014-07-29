@@ -1,6 +1,6 @@
 open Core.Std
 open Cli_constants
-open Filepath_util
+open Cli_util
 open Process_util
 
 (* aka 'ordered list', used only to keep unit test names ordered within a test file. *)

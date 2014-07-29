@@ -1,6 +1,6 @@
 open Core.Std
 open Cli_constants
-open Filepath_util
+open Cli_util
 
 type diff_result = Ok | NotOk
 type options = {

@@ -1,6 +1,7 @@
 open Core.Std
 open Cli_constants
-open Filepath_util
+open Cli_util
+open Process_util
 
 module StringSet = Set.Make(String)
 type options = {

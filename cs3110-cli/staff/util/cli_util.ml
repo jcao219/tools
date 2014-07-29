@@ -2,7 +2,7 @@ open Cli_constants
 open Core.Std
 
 (** [strip_suffix str] strips all characters after and including the
- * rightmost period (.) *)
+    rightmost period (.) *)
 let strip_suffix (str : string) : string =
   begin match String.rsplit2 ~on:'.' str with
     | Some (hd,_) -> hd
