@@ -18,7 +18,7 @@ let targets = [
   ("harness" , Harness.command);
   ("run"     , Run.command);
   ("smoke"   , Smoke.command);
-  ("test"    , Test.command)
+  ("test"    , Test.command);
 ]
 
 (* TODO define staff & student commands separately *)
