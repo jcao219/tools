@@ -1,48 +1,57 @@
 open Core.Std
-open Cli_constants
 open Cli_util
 open Process_util
 
-type options = {
-  bccs      : string list;
-  directory : string;
-  subject   : string;
-  verbose   : bool
-}
+type options = Cli_config.email_command_options
 
-(** [get_bcc f] read the list of email addresses stored in the file [f]. *)
-let bcc_of_file (fname : string) : string list =
+(** [bcc_of_file fname] read the list of email addresses stored in the file [fname]. *)
+let bcc_of_file (fname : string) : StringSet.t =
   begin match Sys.file_exists fname with
-    | `Yes -> In_channel.with_file fname ~f:In_channel.input_lines
-    | `No | `Unknown -> []
+    | `No | `Unknown ->
+      StringSet.empty
+    | `Yes           ->
+      let lines = In_channel.with_file fname ~f:In_channel.input_lines in
+      StringSet.of_list lines
   end
 
 (** [format_bcc bccs] convert a list of email addresses into
     command-line option format for the [mutt] utility. *)
-let format_bcc (bccs : string list) : string =
-  Format.sprintf "-b '%s'" (String.concat ~sep:"' -b '" bccs)
+let format_bcc (bccs : StringSet.t) : string =
+  let bcc_list = StringSet.to_list bccs in
+  Format.sprintf "-b '%s'" (String.concat ~sep:"' -b '" bcc_list)
 
-(** [get_recipient fname] generate an email address from a message file. *)
-let get_recipient (msg_file : string) : string =
-  (* Filenames should be [netid.txt], where [netid] is a
-     valid Cornell net id *)
-  (strip_suffix msg_file) ^ "@cornell.edu"
+(** [is_valid_netid str] True if the string [str] is lowercase letters followed by
+    numbers. *)
+let is_valid_netid (str : string) : bool =
+  let pattern = Str.regexp "^[a-z]+[0-9]+$" in
+  Str.string_match pattern str 0
+
+(** [is_valid_message_file fname] True if file [fname] looks like '<netid>.txt'
+    for some sequence of letters and numbers <netid>. *)
+let is_valid_message_file (fname : string) : bool =
+  (String.is_suffix fname ~suffix:".txt") &&
+  (let netid = fst (String.lsplit2_exn fname ~on:'.') in is_valid_netid netid)
 
 (** [is_email s] check if the string [s] looks like an email address. *)
-let is_email (str : string) : bool =
+let is_valid_email (str : string) : bool =
   (* minimal email address would look like 'a@a.a' or '@.aaa' *)
   String.contains str '@' && String.contains str '.' && (4 < String.length str)
 
-(** [parse_bccs addrs] parse a list of email addresses from a list of strings.
+(** [get_recipient fname] generate an email address from a message file. *)
+let get_recipient (msg_file : string) : string option =
+  if is_valid_message_file msg_file
+  then Some ((strip_suffix msg_file) ^ "@cornell.edu")
+  else None
+
+(** [parse_bccs addrs] parse a set of email addresses from a list of strings.
     If a string doesn't look like an email address, try reading it as a file. *)
-let parse_bccs (addrs : string list) : string list =
-  List.fold
-    addrs
-    ~init:[]
+let parse_bccs (addrs : string list) : StringSet.t =
+  List.fold addrs
     ~f:(fun acc x ->
         if is_email x
-        then x :: acc
-        else (bcc_of_file x) @ acc)
+        then StringSet.add acc x
+        else StringSet.union acc (bcc_of_file x))
+    ~init:StringSet.empty
 
 (** [print_results pass fail] pretty-print details on the number
     of emails sent. *)
@@ -58,25 +67,30 @@ let print_results (num_success:int) (num_failure:int) =
     to the recipient determined by [f].
     The options [o] change behavior a little. See the command readme. *)
 let send_one_email (opts : options) (msg_file : string) : bool =
-  let recipient = get_recipient msg_file in
-  let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
-    opts.subject
-    (format_bcc opts.bccs)
-    recipient
-    opts.directory
-    msg_file
-  in
-  let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
-  (* Print a message if command failed *)
-  ((Sys.command cmd) = 0) ||
-    (Format.printf "Failed to send message to: '%s'\n" recipient; false)
+  begin match get_recipient msg_file with
+    | None           ->
+       let () = Format.printf "[email] Skipping invalid message file '%s'. The file name should be '<netid>.txt'.\n" msg_file in
+       false
+    | Some recipient ->
+       let recipient = get_recipient msg_file in
+       let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
+                   opts.subject
+                   (format_bcc opts.bccs)
+                   recipient
+                   opts.output_directory
+                   msg_file
+       in
+       let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
+       (* Print a message if command failed *)
+       ((Sys.command cmd) = 0) ||
+         (Format.printf "[email] Failed to send message to: '%s'\n" recipient; false)
+  end
 
 (** [email o ms] Send all messages in the collection [ms].
     See the command readme for available options [o]. *)
 let email (opts : options) (message_files : string array) : unit =
   let num_success, num_failure =
-    Array.fold
-      message_files
+    Array.fold message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
            if send_one_email opts msg_file
@@ -97,20 +111,22 @@ let command =
     Command.Spec.(
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg            ~doc:" Print debugging information."
-      +> flag ~aliases:["-b"] "-bcc"     (listed string)   ~doc:"addr Include client [addr] as a bcc on all emails."
-      +> flag ~aliases:["-s"] "-subject" (optional string) ~doc:"s Use [s] instead of the default subject."
-      +> flag ~aliases:["-d"] "-dir"     (optional string) ~doc:"d Search directory [d] for emails instead of the default."
+      +> flag ~aliases:["-b"] "-bcc"     (listed string)   ~doc:"ADDR Include email address ADDR as a bcc on all emails."
+      +> flag ~aliases:["-s"] "-subject" (optional string) ~doc:"SUBJECT Use string SUBJECT instead of the default subject."
+      +> flag ~aliases:["-d"] "-dir"     (optional string) ~doc:"DIR Search directory DIR for emails instead of the default."
     )
     (fun v bccs subject dir () ->
-      (* TODO use config file *)
-      let dir  = Option.value ~default:cEMAIL_DIR dir in
+      let cfg  = Cli_config.init () in
+      let opts = {
+        admins           = begin match bccs with
+                             | []   -> cfg.email.admins
+                             | _::_ -> parse_bccs bccs
+                           end;
+        subject          = Option.value subject ~default:cfg.email.subject;
+        output_directory = Option.value dir     ~default:cfg.email.output_directory;
+        verbose          = v;
+      } in
       let ()   = assert_file_exists dir in
       let ()   = assert_installed "mutt" in
-      let opts = {
-        bccs      = parse_bccs bccs;
-        directory = dir;
-        subject   = Option.value ~default:cEMAIL_SUBJECT subject;
-        verbose   = v
-      } in
       email opts (Sys.readdir dir)
     )
