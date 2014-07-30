@@ -1,7 +1,6 @@
 open Core.Std
 open Cli_constants
-open Io_util
-open Filepath_util
+open Cli_util
 open Process_util
 
 (* aka 'ordered list', used only to keep unit test names ordered within a test file. *)
@@ -89,13 +88,23 @@ let is_dotfile (fname : string) : bool =
 (** [is_valid_test_file fn] true if filename matches the expected format for tests, false otherwise *)
 let is_valid_test_file (fname : string) : bool =
   (not (is_dotfile fname)) &&
-  is_suffix fname "_test.ml"
+  String.is_suffix fname ~suffix:"_test.ml"
 
 (** [is_valid_submission fn] true if filename is a '.ml' but doesn't match format for tests *)
 let is_valid_submission (fname : string) : bool =
-  (not (is_dotfile fname)) &&
-  is_suffix fname ".ml"    &&
+  (not (is_dotfile fname))             &&
+  String.is_suffix fname ~suffix:".ml" &&
   (not (is_valid_test_file fname))
+
+(** [unittest_name_of_line s] extract the test name from a line printed by the
+    inline test runner. Name should be the last 'word' of the string, separated
+    from everything else by a colon *)
+let unittest_name_of_line (line : string) : string =
+  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters .*: \\(.*\\)$" in
+  try
+    let () = ignore (Str.search_forward pattern line 0) in
+    Str.matched_group 1 line
+  with _ -> failwith (Format.sprintf "SERIOUS ERROR: harness couldn't parse line '%s' of failures file." line)
 
 (** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
@@ -236,7 +245,14 @@ let write_postscript (opts : options) (dir : string) (results : TestFileResultSe
         (* collect data *)
         let fname = Format.sprintf "%s/%s-%s.ps" opts.output_directory netid test_name in
         let title = Format.sprintf "%s\t\t%s.ml" netid                 test_name in
-        let src   = Format.sprintf "%s/%s.ml"    dir                   (fst (rsplit test_name '_')) in
+        let src   = begin match String.rsplit2 ~on:'_' test_name with
+                      | Some (module_name,_) ->
+                         Format.sprintf "%s/%s.ml" dir module_name
+                      | None                 ->
+                         let () = Format.printf "[harness] WARNING: Could not find source for file '%s'. Unable to generate postscript." test_name in
+                         "\n"
+                    end
+        in
         let body  = string_of_test_results results in
         (* write postscript *)
         let chn   = Postscript.init          fname title in
@@ -439,8 +455,16 @@ let command =
     (fun v ps tests release_dir qc test_dir output_dir sheet_location subs () ->
       let () = if v then Format.printf "[harness] Parsing options...\n%!" in
       let () = assert_file_exists ~msg:"Release directory missing" release_dir in
-      let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
-      let () = assert_file_exists ~msg:"Tests directory missing" tests_dir in
+      let test_files = begin match tests with
+                         | []   ->
+                            let tests_dir = Option.value test_dir ~default:cTESTS_DIR in
+                            let () = assert_file_exists ~msg:"Could not find tests directory" tests_dir in
+                            test_list_of_directory tests_dir
+                         | _::_ ->
+                            let () = List.iter ~f:assert_file_exists tests in
+                            tests
+                       end
+      in
       let opts = {
         fail_output          = cFAIL_OUTPUT;
         num_quickcheck       = Option.value qc ~default:cNUM_QCHECK;
@@ -448,7 +472,7 @@ let command =
         postscript           = ps;
         release_directory    = release_dir;
         spreadsheet_location = Option.value sheet_location ~default:cHARNESS_SHEET;
-        test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir (tests @ test_list_of_directory tests_dir);
+        test_suite           = test_file_set_of_list ~verbose:v ~staging_dir:release_dir test_files;
         verbose              = v;
       } in
       let () = ensure_dir cHARNESS_DIR in (* sheet dir *)

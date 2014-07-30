@@ -1,6 +1,6 @@
 open Core.Std
 open Cli_constants
-open Filepath_util
+open Cli_util
 open Process_util
 
 type options = {
@@ -99,7 +99,7 @@ let smoke_directory (opts : options) (dir : string) : unit =
        ()
     | _::_ -> (* Something failed to compile. Save the directory, send an email. *)
        let ()    = if opts.verbose then Format.printf "[smoke] failed to compile all targets in '%s'. Saving directory and email.\n" dir in
-       let netid = tag_of_path dir in
+       let netid = filename_of_path dir in
        let ()    = copy_directory opts netid dir in
        let ()    = write_email opts netid failed_targets in
        ()

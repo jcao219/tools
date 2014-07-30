@@ -1,6 +1,6 @@
 open Cli_constants
+open Cli_util
 open Core.Std
-open Filepath_util
 open Process_util
 
 (* Default compiler flags. These are Jane Street's settings.

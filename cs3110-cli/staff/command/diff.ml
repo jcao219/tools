@@ -1,6 +1,6 @@
 open Core.Std
 open Cli_constants
-open Filepath_util
+open Cli_util
 
 type diff_result = Ok | NotOk
 type options = {
@@ -20,8 +20,13 @@ module DiffSpreadsheet =
 
     let compare_row (id,_) (id',_) = Pervasives.compare id id'
     let filename : string          = cDIFF_RESULTS
-    let row_of_string str          = let id, r_str = String.lsplit2_exn ~on:',' str in
-                                     (id, (diff_result_of_string r_str))
+    let row_of_string str          = begin match String.lsplit2 ~on:',' str with
+                                       | Some (id, data) ->
+                                          (id, (diff_result_of_string data))
+                                       | None            ->
+                                          let msg = Format.sprintf "Improperly formatted row '%s' in diff spreadsheet." str in
+                                          raise (Spreadsheet.Invalid_spreadsheet msg)
+                                     end
     let string_of_row (id,result)  = id ^ "," ^ (string_of_diff_result result)
     let title : string             = "NetID,DiffResult"
   end)
@@ -77,7 +82,7 @@ let files_match (old_file : string) (new_file : string) : bool =
 (** [diff_files o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
 let diff_files (opts : options) (old_file : string) (new_file : string) : diff_result =
   let ()   = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
-  if not (all_files_exist [old_file; new_file]) then
+  if not (files_exist [old_file; new_file]) then
     (* 2014-07-15: file2 is sure to exist, but whatever *)
     let () = if opts.verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
     Ok

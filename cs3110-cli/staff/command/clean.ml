@@ -1,4 +1,5 @@
 open Cli_constants
+open Cli_util
 open Core.Std
 open Process_util
 

@@ -1,5 +1,5 @@
 open Core.Std
-open Filepath_util
+open Cli_util
 open Process_util
 
 type options = {

@@ -1,5 +1,5 @@
 open Core.Std
-open Filepath_util
+open Cli_util
 open Process_util
 
 let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_module : string) : int =
