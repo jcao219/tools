@@ -10,6 +10,7 @@ BEGIN { RS="\f" }
 	for (i = 1; i <= n; i++) {
 		ocamlstr = inspirations[i];
 		gsub(/"/, "'"'"'", ocamlstr)
+		gsub(/\n/, "\n", ocamlstr)
 		print "\"" ocamlstr "\";";
 	}
 	print "|]";

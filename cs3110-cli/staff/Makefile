@@ -17,7 +17,7 @@ compile:
 clean:
 	corebuild -clean
 
-inspiration: inspiration/inspirations.fortune
+inspiration: inspiration/.inspirations.fortune
 	cd inspiration; ./make_inspiration_ml.sh; cd ..
 	mv inspiration/inspiration.ml command/inspiration.ml
 
