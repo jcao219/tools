@@ -24,6 +24,11 @@ let default_compiler_flags = [
   "+a-4-33-34-40-41-42-43-44";
 ]
 
+let default_ocamlbuild_flags = [
+  "-use-ocamlfind";
+  "-no-links"
+]
+
 (* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
  * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
 let assert_ocamlbuild_friendly_filepath (path : string) : unit =
@@ -77,6 +82,17 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
     | `Yes            -> In_channel.read_lines cOPAM_PACKAGES_FILE
   end
 
+let get_ocamlbuild_flags ?(mktop=false) (packages : string list) : string list =
+  if mktop then
+    default_ocamlbuild_flags @ ["-pkgs"; String.concat ~sep:"," packages]
+  else
+    let opkgs = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") packages) in
+    default_ocamlbuild_flags @ [
+      "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opkgs;
+      "-tag-line"; "<*.d.byte> : "                  ^ opkgs;
+      "-tag-line"; "<*.native> : "                  ^ opkgs;
+    ]
+
 (** [get_target ?mktop main] Return the compilation target
     for module [main]. If [mktop] is true, prepare files to
     create a custom toplevel. *)
@@ -118,19 +134,12 @@ let compile ?(quiet=false) ?(verbose=false) ?dir ?(mktop=false) (main_module : s
   let ()        = if verbose then Format.printf "[compile] Target is '%s'\n" target in
   let deps      = get_dependencies () in
   let ()        = if verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
-  let libs      = if mktop then [] else get_libraries () in
+  let libs      = get_libraries () in
   let ()        = if verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
   let cflags    = get_compiler_flags () in
   let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
-  let opkgs     = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)")       (get_opam_packages ())) in
-  let oflags    =  ["-use-ocamlfind";
-                    "-no-links"
-                   ] @ (if mktop then [] else [
-                    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opkgs;
-                    "-tag-line"; "<*.d.byte> : "                  ^ opkgs;
-                    "-tag-line"; "<*.native> : "                  ^ opkgs;
-                   ]) in
+  let oflags    = get_ocamlbuild_flags ~mktop:mktop (get_opam_packages ()) in
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
