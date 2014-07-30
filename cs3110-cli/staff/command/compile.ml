@@ -85,7 +85,7 @@ let get_target ?(mktop=false) (main : string) : string =
   if mktop then (* Ensure that the .mltop file exists. *)
     let mltop   = Format.sprintf "%s.mltop" main in
     begin match Sys.file_exists mltop with
-      | `Yes           -> mltop
+      | `Yes           -> Format.sprintf "%s.top" main
       | `No | `Unknown ->
         let prefix = "*  " in
         let border = String.make 80 '*' in
