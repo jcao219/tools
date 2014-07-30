@@ -5,6 +5,8 @@ exception Command_not_found of string
 exception File_not_found of string
 exception Invalid_filepath of string
 
+module StringSet = Set.Make(String)
+
 (** [assert_file_exists fname] raises [File_not_found] if [f] does not exist.
     Optional argument specifies the error message. *)
 let assert_file_exists ?msg (fname : string) : unit =
