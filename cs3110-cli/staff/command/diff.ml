@@ -96,8 +96,7 @@ let diff_files (opts : options) (old_file : string) (new_file : string) : diff_r
     We only care about files that exist in [old]. (Note: those files may be empty) *)
 let diff_directories (opts : options) (old_dir : string) (new_dir : string) : diff_result =
   let old_files = Sys.readdir old_dir in
-  Array.fold
-    old_files
+  Array.fold old_files
     ~init:Ok
     ~f:(fun r1 fname ->
         (* Need full path to each file *)
@@ -132,8 +131,10 @@ let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) :
 let diff (opts : options) (dirs : string list) : unit =
   let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student opts) in
   let ()  = DiffSpreadsheet.write tbl ~file:opts.output_spreadsheet in
-  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) opts.output_spreadsheet in
-  ()
+  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n"
+              (DiffSpreadsheet.count_rows tbl)
+              opts.output_spreadsheet
+  in  ()
 
 let command =
   Command.basic
@@ -149,15 +150,17 @@ let command =
     Command.Spec.(
       empty
       +> flag ~aliases:["-v"] "-verbose" no_arg              ~doc:" Print debugging information."
+      +> flag ~aliases:["-i"] "-input"   (optional filename) ~doc:"DIR Set location of input (nocompile) submissions."
       +> flag ~aliases:["-o"] "-output"  (optional filename) ~doc:"FILE Set location of output spreadsheet."
       +> anon (sequence ("submission" %: file))
     )
-    (fun v output subs () ->
+    (fun v input output subs () ->
       let cfg = Config.init () in
       let ()  = assert_installed "diff" in
       let opts = {
-        output_spreadsheet = Option.value output ~default:cfg.diff.output_spreadsheet;
-        verbose            = v;
+        nocompile_directory = Option.value input  ~default:cfg.diff.nocompile_directory;
+        output_spreadsheet  = Option.value output ~default:cfg.diff.output_spreadsheet;
+        verbose             = v;
       } in
       diff opts (at_expand subs)
     )
