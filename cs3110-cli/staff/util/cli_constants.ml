@@ -1,7 +1,3 @@
-exception Command_not_found of string
-exception File_not_found of string
-exception Invalid_filepath of string
-
 let cEXPECTED_VERSION = "4.01.0"
 let cEMAIL_SUBJECT = "[CS3110 test harness] compile error"
 let cEMAIL_ADMINS = "_email_bcc.txt"

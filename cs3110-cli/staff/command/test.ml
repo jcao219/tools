@@ -41,7 +41,7 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
       let ()  = Sys.chdir cwd in
       let ()  = Format.printf "%!" in
       let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main in
-      raise (Cli_constants.File_not_found msg)
+      raise (File_not_found msg)
   end
 
 let command =
