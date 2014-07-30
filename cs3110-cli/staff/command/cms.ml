@@ -1,16 +1,7 @@
 open Core.Std
-open Cli_constants
+open Cli_config
 open Cli_util
 open Process_util
-
-module StringSet = Set.Make(String)
-type options = {
-  column_names       : StringSet.t;
-  delimiter          : char;
-  comments_directory : string;
-  output_spreadsheet : string;
-  verbose            : bool;
-}
 
 module LabeledRow = Set.Make(struct
   type t = string * string
@@ -37,7 +28,7 @@ let get_titles_exn ~sep (sheet : string) : string list =
 
 (** [parse_comments o n] Convert the comments file for netid [n] into
     a spreadsheet-ready string. *)
-let parse_comments (opts : options) (netid : string) : string =
+let parse_comments (opts : cms_command_options) (netid : string) : string =
   let fname = Format.sprintf "%s/%s.md" opts.comments_directory netid in
   begin match Sys.file_exists fname with
     | `No | `Unknown ->
@@ -50,7 +41,7 @@ let parse_comments (opts : options) (netid : string) : string =
 
 (** [parse_row_exn opts ~titles line] Read the data values from a row [line] of the spreadsheet.
     Pull out the netid and filter the data columns and read the comments from an external file. *)
-let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
+let parse_row_exn (opts : cms_command_options) ~titles (line : string) : cms_row =
   let ()       = if opts.verbose then Format.printf "[cms] Reading line '%s'.\n" line in
   let data     = String.split ~on:opts.delimiter line in
   let ()       = if opts.verbose then Format.printf "[cms] Matching values with titles.\n" in
@@ -71,7 +62,7 @@ let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
 (** [cms o sheet] Read the spreadsheet [sheet] and extract
     particular columns. Save these columns along with
     harness-generated comments in a new spreadsheet. *)
-let cms (opts : options) (sheet : string) =
+let cms (opts : cms_command_options) (sheet : string) =
   let () = if opts.verbose then Format.printf "[cms] Creating spreadsheet template...\n" in
   let module CmsSpreadsheet = Spreadsheet.Make(struct
       type row                          = cms_row
@@ -113,14 +104,14 @@ let infer_columns ~sep (sheet : string) : StringSet.t =
     ~init:StringSet.empty
     titles
 
-(** [infer_delimiter f] Infer the delimiter string from a spreadsheet
-    file by reading the file extension. *)
-let infer_delimiter (fname : string) : char =
+(** [infer_delimiter f] Try inferring the delimiter string from
+     a spreadsheet file by reading the file extension. *)
+let infer_delimiter (fname : string) : char option =
   begin match get_extension fname with
-    | Some "csv" -> ','
-    | Some "tab" -> '\t'
+    | Some "csv" -> Some ','
+    | Some "tab" -> Some '\t'
     | Some _
-    | None       -> ','
+    | None       -> None
   end
 
 (** [validate_columns ~sep ~sheet cols] Filter any column names in [cols] that
@@ -154,26 +145,31 @@ let command =
       +> anon ("spreadsheet" %: string)
     )
     (fun v inp sep out cols sheet () ->
+      let cfg   = config_init () in
       let ()    = assert_file_exists ~msg:"Input spreadsheet does not exist! Bye now." sheet in
       let ()    = if v then Format.printf "[cms] Preparing to read spreadsheet '%s'.\n" sheet in
-      let input = Option.value inp ~default:cHARNESS_SHEET in (* TODO remove constants *)
+      let input = Option.value inp ~default:cfg.cms.comments_directory in
       let delim =  begin match sep with
                       | Some s -> (try Char.of_string s with _ -> failwith "Delimiter must be a single character.")
-                      | None   -> infer_delimiter sheet
+                      | None   -> Option.value (infer_delimiter sheet) ~default:cfg.cms.delimiter
                    end in
       let ()    = if v then Format.printf "[cms] Identified delimiter '%c'.\n" delim in
       let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
                   then raise (Spreadsheet.Invalid_spreadsheet "First column should be 'NetID'.") in
       let cols  = begin match cols with
-                      | []   -> infer_columns    ~sep:delim sheet
-                      | _::_ -> validate_columns ~sep:delim ~sheet:sheet cols
+                      | []   ->
+                         if StringSet.is_empty cfg.cms.column_names
+                         then infer_columns ~sep:delim sheet
+                         else cfg.cms.column_names
+                      | _::_ ->
+                         validate_columns ~sep:delim ~sheet:sheet cols
                   end in
       let ()    = if v then Format.printf "[cms] Target columns are [%s].\n" (String.concat ~sep:"; " (StringSet.to_list cols)) in
       let opts  = {
         column_names       = cols;
         delimiter          = delim;
         comments_directory = input;
-        output_spreadsheet = Option.value out ~default:"./cms_spreadsheet.csv";
+        output_spreadsheet = Option.value out ~default:cfg.cms.output_spreadsheet;
         verbose            = v;
       } in
       cms opts sheet
