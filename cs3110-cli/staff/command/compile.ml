@@ -65,7 +65,7 @@ let get_dependencies () : string list =
     return list of OCaml libraries to include during compilation. *)
 let get_libraries () : string list =
   begin match Sys.file_exists cLIB_FILE with
-    | `No  | `Unknown -> ["-libs"; "assertions"]
+    | `No  | `Unknown -> ["-lib"; "assertions"]
     | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE]
   end
 
@@ -77,33 +77,62 @@ let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
     | `Yes            -> In_channel.read_lines cOPAM_PACKAGES_FILE
   end
 
+(** [get_target ?mktop main] Return the compilation target
+    for module [main]. If [mktop] is true, prepare files to
+    create a custom toplevel. *)
+let get_target ?(mktop=false) (main : string) : string =
+  let main = strip_suffix main in
+  if mktop then (* Ensure that the .mltop file exists. *)
+    let mltop   = Format.sprintf "%s.mltop" main in
+    begin match Sys.file_exists mltop with
+      | `Yes           -> mltop
+      | `No | `Unknown ->
+        let prefix = "*  " in
+        let border = String.make 80 '*' in
+        let ()     = print_endline (String.concat ~sep:"\n" [
+          border;
+          Format.sprintf "%sERROR: Could not find file '%s'." prefix mltop;
+          prefix ^ "A '.mltop' file is required to build a toplevel. This file should contain";
+          prefix ^ "the names of all modules you want to include in the toplevel. For example,";
+          prefix ^ Format.sprintf "the command 'echo '%s' > '%s' would create a minimal" main mltop;
+          prefix ^ "valid '.mltop' file. If the module has dependencies, be sure to include";
+          prefix ^ "those as well.";
+          border
+        ])
+        in
+        raise (File_not_found mltop)
+    end
+  else
+    Format.sprintf "%s.d.byte" main
+
 (** [compile q? v? d? main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. When [q] is high, suppress compiler printouts.
     When [v] is high, print debugging information. When [d] is given,
     change into directory [d] before compiling [main]. *)
-let compile ?(quiet=false) ?(verbose=false) ?dir (main_module : string) : int =
+let compile ?(quiet=false) ?(verbose=false) ?dir ?(mktop=false) (main_module : string) : int =
   let main      = ensure_ml main_module in
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir (Option.value ~default:cwd dir) in
   let ()        = if verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
-  let target    = Format.sprintf "%s.d.byte" (strip_suffix main) in
+  let target    = get_target ~mktop:mktop main in
   let ()        = if verbose then Format.printf "[compile] Target is '%s'\n" target in
   let deps      = get_dependencies () in
   let ()        = if verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
-  let libs      = get_libraries () in
+  let libs      = if mktop then [] else get_libraries () in
   let ()        = if verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
   let cflags    = get_compiler_flags () in
   let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
   let opkgs     = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)")       (get_opam_packages ())) in
   let oflags    =  ["-use-ocamlfind";
-                    "-no-links";
+                    "-no-links"
+                   ] @ (if mktop then [] else [
                     "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opkgs;
                     "-tag-line"; "<*.d.byte> : "                  ^ opkgs;
                     "-tag-line"; "<*.native> : "                  ^ opkgs;
-                    target] in
+                   ]) in
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
-  let command   = deps @ libs @ cflags @ run_quiet @ oflags in
+  let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
   let ()        = if verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
   let exit_code = run_process "ocamlbuild" command in
@@ -122,14 +151,19 @@ let command =
       "in a directory [_build], which will be created (if not already present)";
       "in the current working directory.";
       "You may pass a file in the current directory or a file in a sub-directory.";
+      "";
+      "Additionally, use this command for creating a custom OCaml toplevel with";
+      "the '-mktop' option. Custom toplevels are '.top' files. To use one, change";
+      "into the '_build' directory and execute it."
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-q"] "-quiet"   no_arg ~doc:" Compile quietly."
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information (about compiler options, etc.)."
+      +> flag ~aliases:["-q"]           "-quiet"    no_arg ~doc:" Compile quietly."
+      +> flag ~aliases:["-v"]           "-verbose"  no_arg ~doc:" Print debugging information (about compiler options, etc.)."
+      +> flag ~aliases:["-t"; "-mktop"] "-toplevel" no_arg ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
       +> anon ("target" %: file)
     )
-    (fun q v target () ->
+    (fun q v mktop target () ->
       let () = assert_ocamlbuild_friendly_filepath target in
-      check_code (compile ~quiet:q ~verbose:v target)
+      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop target)
     )
