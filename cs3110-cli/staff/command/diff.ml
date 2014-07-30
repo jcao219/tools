@@ -1,11 +1,8 @@
 open Core.Std
-open Cli_constants
 open Cli_util
 
 type diff_result = Ok | NotOk
-type options = {
-  verbose : bool
-}
+type options     = Cli_config.diff_command_options
 
 let diff_result_of_string = function
   | "ok" | "Ok" -> Ok
@@ -19,7 +16,7 @@ module DiffSpreadsheet =
     type row                       = string * diff_result
 
     let compare_row (id,_) (id',_) = Pervasives.compare id id'
-    let filename : string          = cDIFF_RESULTS
+    let filename : string          = "INTENTIONALLY NOT IMPLEMENTED" (* Should probably remove title from the sheet.*)
     let row_of_string str          = begin match String.lsplit2 ~on:',' str with
                                        | Some (id, data) ->
                                           (id, (diff_result_of_string data))
@@ -118,12 +115,12 @@ let diff_directories (opts : options) (old_dir : string) (new_dir : string) : di
     the most recent past submission. Save results in the spreadsheet [t]. *)
 let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
   let netid      = filename_of_path new_dir in
-  let old_dir    = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
+  let old_dir    = Format.sprintf "%s/%s" opts.nocompile_directory netid in
   begin match Sys.file_exists old_dir with
     | `No | `Unknown ->
       let ()     = if opts.verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
       tbl
-    | `Yes ->
+    | `Yes           ->
       let ()     = if opts.verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
       let result = diff_directories opts old_dir new_dir in
       let row    = (netid, result) in
@@ -134,8 +131,8 @@ let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) :
     with the result saved for the student on the last execution of [cs3110 smoke]. *)
 let diff (opts : options) (dirs : string list) : unit =
   let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student opts) in
-  let ()  = DiffSpreadsheet.write tbl ~file:cDIFF_RESULTS in
-  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) cDIFF_RESULTS in
+  let ()  = DiffSpreadsheet.write tbl ~file:opts.output_spreadsheet in
+  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) opts.output_spreadsheet in
   ()
 
 let command =
@@ -151,14 +148,16 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-v"] "-verbose" no_arg              ~doc:" Print debugging information."
+      +> flag ~aliases:["-o"] "-output"  (optional filename) ~doc:"FILE Set location of output spreadsheet."
       +> anon (sequence ("submission" %: file))
     )
-    (fun v subs () ->
-      (* TODO replace constants with options *)
+    (fun v output subs () ->
+      let cfg = Config.init () in
       let ()  = assert_installed "diff" in
       let opts = {
-        verbose = v;
+        output_spreadsheet = Option.value output ~default:cfg.diff.output_spreadsheet;
+        verbose            = v;
       } in
       diff opts (at_expand subs)
     )
