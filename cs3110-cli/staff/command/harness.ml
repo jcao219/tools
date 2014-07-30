@@ -40,17 +40,17 @@ module TestFileResultSet = Set.Make(struct
   let t_of_sexp _           = failwith "not implemented"
 end)
 
-(* TODO all these options in all these commands should match the options in the config file *)
-type options = {
-  fail_output : string;
-  num_quickcheck        : int;
-  test_suite            : TestFileSet.t;
-  release_directory     : string;
-  output_directory      : string;
-  postscript            : bool;
-  spreadsheet_location  : string;
-  verbose               : bool;
-}
+type options = Cli_config.harness_command_options
+(*     { *)
+(*   fail_output : string; *)
+(*   num_quickcheck        : int; *)
+(*   test_suite            : TestFileSet.t; *)
+(*   release_directory     : string; *)
+(*   output_directory      : string; *)
+(*   postscript            : bool; *)
+(*   spreadsheet_location  : string; *)
+(*   verbose               : bool; *)
+(* } *)
 
 (** [success_message t] Printed when submission passes test [t]. *)
 let success_message (test_name : string) : string =
@@ -178,7 +178,7 @@ let parse_harness_result opts (failure_msg : string option) : int * (string opti
        end
   end
 
-(** [harness_run_test t d] Run test [t] on the submission in dir [d]. Collect
+(** [harness_run_test o co t d] Run test [t] on the submission in dir [d]. Collect
     the results of each unit test. *)
 let harness_run_test opts ~dir (tf : test_file) : TestFileResult.t =
   let ()        = if opts.verbose then Format.printf "[harness] Compiling test file '%s' on submission '%s'.\n%!" tf.absolute_path dir in
@@ -214,7 +214,7 @@ let harness_run_test opts ~dir (tf : test_file) : TestFileResult.t =
 let harness_student (opts : options) (dir : string) : TestFileResultSet.t =
   TestFileSet.fold opts.test_suite
     ~f:(fun acc tf ->
-         let r = harness_run_test opts tf ~dir:dir in
+         let r = harness_run_test opts c_opts tf ~dir:dir in
          TestFileResultSet.add acc (tf.name, r))
     ~init:TestFileResultSet.empty
 

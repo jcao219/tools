@@ -3,7 +3,6 @@ open Cli_util
 open Process_util
 
 type options = {
-  build_dir : string;
   output    : string;
   recompile : bool;
   verbose   : bool;
@@ -20,8 +19,10 @@ let cOCAMLDOC_OPTIONS = [
     "-colorize-code"; (* provide syntax highlighting in the HTML         *)
 ]
 
-(** [doc o ts] Generate ocamldoc documentation for the targets [ts]. *)
-let doc (opts : options) (targets : string list) : int =
+(** [doc ?r o ts] Generate ocamldoc documentation for the targets [ts].
+    If [r] is true, recompile before building docs. *)
+let doc ?(recompile=false) (opts : Cli_config.doc_command_options) (targets : string list) : int =
+  let opts = config.compile in
   let tgts = List.fold_right targets
                ~f:(fun tgt acc ->
                     if (String.is_suffix tgt ~suffix:".ml") || (String.is_suffix tgt ~suffix:".mli")
@@ -52,8 +53,8 @@ let command =
       +> anon (sequence  ("target" %: string))
     )
     (fun v r o ts () ->
+      let cfg  = Cli_config.init () in
       let opts = {
-        build_dir = "_build"; (* TODO replace with a constant *)
         output    = Option.value o ~default:cDOC_OUTPUT;
         recompile = r;
         verbose   = v;
