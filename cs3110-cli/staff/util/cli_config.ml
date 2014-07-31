@@ -13,6 +13,7 @@ type compile_command_options = {
   include_directories : StringSet.t;
   opam_packages       : StringSet.t;
   ocaml_libraries     : StringSet.t;
+  thread              : bool;
 }
 type diff_command_options = {
   nocompile_directory : string;
@@ -75,6 +76,7 @@ let default_config = {
     include_directories = StringSet.empty;
     opam_packages       = StringSet.of_list cREQUIRED_OPAM_PACKAGES;
     ocaml_libraries     = StringSet.empty;
+    thread              = false;
   };
   diff    = {
     nocompile_directory = default_nocompile_directory;
@@ -224,6 +226,8 @@ end = struct
                                                          ~default:default.compile.opam_packages);
              ocaml_libraries     = Option.value (parse_string_set m ~key:"compile.ocaml_libraries")
                                                 ~default:default.compile.ocaml_libraries;
+             thread              = Option.value (parse_bool m ~key:"compile.thread")
+                                                ~default:default.compile.thread;
           };
           doc     = {
             output_directory = Option.value (parse_string m ~key:"doc.output_directory")

@@ -12,6 +12,7 @@ type compile_command_options = {
   include_directories     : StringSet.t;  (** Sub-directories to search during compilation. *)
   opam_packages           : StringSet.t;  (** OPAM packages to include in compilation. *)
   ocaml_libraries         : StringSet.t;  (** Extra OCaml libraries to link during compilation. *)
+  thread                  : bool;         (** Flag to load threading libraries. *)
 }
 type diff_command_options    = {
   nocompile_directory     : string;       (** Directory to scrape past submissions that failed to compile. *)

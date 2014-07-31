@@ -122,9 +122,9 @@ let get_target ?(mktop=false) (main : string) : string =
   else
     Format.sprintf "%s.d.byte" main
 
-(** [compile ?q ?v ?m ?t ?d ?o main] compile [main] into a bytecode executable.
+(** [compile ?q ?v ?m ?d ?o main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. *)
-let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?(thread=false) ?dir ?opts (main_module : string) : int =
+let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
   let opts      = (begin match opts with
                      | Some o -> o
                      | None   -> (Cli_config.init ()).compile
@@ -143,7 +143,7 @@ let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?(thread=false) ?dir 
   let cflags    = format_compiler_flags default_compiler_flags in (* 2014-07-30: ignores the config's compiler flags *)
   let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
-  let oflags    = format_ocamlbuild_flags ~mktop:mktop ~thread:thread opts.opam_packages in
+  let oflags    = format_ocamlbuild_flags ~mktop:mktop ~thread:opts.thread opts.opam_packages in
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
@@ -196,6 +196,7 @@ let command =
                                 | []   -> cfg.compile.ocaml_libraries
                                 | _::_ -> StringSet.of_list libs
                               end;
+        thread              = thread || cfg.compile.thread;
       } : options) in
-      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~thread:thread ~opts:opts target)
+      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~opts:opts target)
     )
