@@ -56,11 +56,12 @@ let command =
     )
     (fun v r o ts () ->
       let cfg  = Cli_config.init () in
-      let opts = {
-        output    = Option.value o ~default:cfg.output_directory;
-        verbose   = v;
-      } in
-      let () = ensure_dir opts.build_dir in
-      let () = ensure_dir opts.output in
+      let opts = ({
+        output_directory = Option.value o ~default:cfg.doc.output_directory;
+        verbose          = v;
+      } : Cli_config.doc_command_options)
+      in
+      let () = ensure_dir Cli_config.cBUILD_DIRECTORY in
+      let () = ensure_dir opts.output_directory in
       check_code (doc ~recompile:r opts ts)
     )
