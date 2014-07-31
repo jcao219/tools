@@ -25,10 +25,10 @@ type doc_command_options = {
   verbose          : bool;
 }
 type email_command_options = {
-  admins           : StringSet.t;
-  subject          : string;
-  output_directory : string;
-  verbose          : bool;
+  admins          : StringSet.t;
+  input_directory : string;
+  subject         : string;
+  verbose         : bool;
 }
 type harness_command_options = {
   input_directory         : string;
@@ -37,13 +37,15 @@ type harness_command_options = {
   postscript              : bool;
   quickcheck_count        : int;
   temporary_failures_file : string;
-  temporary_results_file  : string;
   tests_directory         : string;
   verbose                 : bool;
 }
 type smoke_command_options = {
-  output_directory    : string;
-  compilation_targets : string list;
+  compilation_targets : StringSet.t;
+  email_directory     : string;
+  input_directory     : string;
+  nocompile_directory : string;
+  verbose             : bool;
 }
 
 type t = {
@@ -69,7 +71,8 @@ let cREQUIRED_OPAM_PACKAGES = [
 let cPA_OUNIT_LOGFILE = "inline_tests.log"
 
 let default_comments_directory  = Format.sprintf "%s/_harness/comments" cOUTPUT_DIRECTORY
-let default_nocompile_directory = Format.sprintf "%s/_smoke/nocompile" cOUTPUT_DIRECTORY
+let default_email_directory     = Format.sprintf "%s/_email"            cOUTPUT_DIRECTORY
+let default_nocompile_directory = Format.sprintf "%s/_smoke/nocompile"  cOUTPUT_DIRECTORY
 let default_config = {
   cms     = {
     column_names       = StringSet.empty;
@@ -93,10 +96,10 @@ let default_config = {
     verbose          = false;
   };
   email   = {
-    admins           = [];
-    subject          = "[CS 3110 test harness] compile error";
-    output_directory = Format.sprintf "%s/_email" cOUTPUT_DIRECTORY;
-    verbose          = false;
+    admins          = [];
+    input_directory = default_email_directory;
+    subject         = "[CS 3110 test harness] compile error";
+    verbose         = false;
   };
   harness = {
     input_directory         = "_release";
@@ -105,13 +108,15 @@ let default_config = {
     postscript              = false;
     quickcheck_count        = 100;
     temporary_failures_file = "inline_test_failures.log";
-    temporary_results_file  = cPA_OUNIT_LOGFILE;
     tests_directory         = "_tests";
     verbose                 = false;
   };
   smoke   = {
-    compilation_targets = [];
-    output_directory    = default_nocompile_directory;
+    compilation_targets = StringSet.empty;
+    email_directory     = default_email_directory;
+    input_directory     = "_release";
+    nocompile_directory = default_nocompile_directory;
+    verbose             = false;
   };
 }
 
@@ -267,16 +272,22 @@ end = struct
                                                       ~default:default.harness.quickcheck_count;
              temporary_failures_file   = Option.value (parse_filename m ~key:"harness.temporary_failures_file" ~suffix:".log")
                                                       ~default:default.harness.temporary_failures_file;
-             temporary_results_file    = cPA_OUNIT_LOGFILE; (* 2014-07-30: temporary_results_file is not overridable *)
              tests_directory           = Option.value (parse_string m ~key:"harness.tests_directory")
                                                       ~default:default.harness.tests_directory;
              verbose                   = Option.value (parse_bool  m ~key:"harness.verbose")
                                                       ~default:default.harness.verbose;
            };
            smoke   = {
-             (* TODO rename to [output_directory] *)
-             output_directory = (parse_string m ~key:"smoke.output_directory" %> default.smoke.output_directory);
-             compilation_targets = (parse_string_list m ~key:"smoke.compilation_targets" %> default.smoke.compilation_targets);
+             compilation_targets = Option.value (parse_string_set m ~key:"smoke.compilation_targets")
+                                                ~default:default.smoke.compilation_targets;
+             email_directory     = Option.value (parse_string m ~key:"smoke.email_directory")
+                                                ~default:default.smoke.email_directory;
+             input_directory     = Option.value (parse_string m ~key:"smoke.input_directory")
+                                                ~default:default.smoke.input_directory;
+             nocompile_directory = Option.value (parse_string m ~key:"smoke.nocompile_directory")
+                                                ~default:smoke.nocompile_directory;
+             verbose             = Option.value (parse_bool m ~key:"smoke.verbose")
+                                                ~default:default.smoke.verbose;
            };
          }
     end
