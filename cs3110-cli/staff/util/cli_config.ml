@@ -52,8 +52,6 @@ type t = {
   smoke   : smoke_command_options;
 }
 
-let cLOCAL_CONFIG = "./.cs3110"
-let cGLOBAL_CONFIG = "~/.cs3110"
 let cOUTPUT_DIRECTORY = "./_cs3110"
 let cBUILD_DIRECTORY = "./_build"
 let cREQUIRED_OPAM_PACKAGES = [
@@ -278,10 +276,11 @@ end = struct
 end
 
 let add_local_config (cfg : t) : t =
-  Parser.parse cLOCAL_CONFIG ~default:cfg
+  Parser.parse "./.cs3110"  ~default:cfg
 
 let add_global_config (cfg : t) : t =
-  Parser.parse cGLOBAL_CONFIG  ~default:cfg
+  Parser.parse "~/.cs3110"  ~default:cfg
 
 let init () : t =
+  let () = ensure_dir cOUTPUT_DIRECTORY in
   add_local_config (add_global_config default_config)
