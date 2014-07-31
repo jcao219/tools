@@ -150,6 +150,7 @@ let command =
       let ()    = assert_file_exists ~msg:"Input spreadsheet does not exist! Bye now." sheet in
       let ()    = if v then Format.printf "[cms] Preparing to read spreadsheet '%s'.\n" sheet in
       let input = Option.value inp ~default:cfg.cms.comments_directory in
+      (* TODO abstract *)
       let delim =  begin match sep with
                       | Some s -> (try Char.of_string s with _ -> failwith "Delimiter must be a single character.")
                       | None   -> Option.value (infer_delimiter sheet) ~default:cfg.cms.delimiter
@@ -157,6 +158,7 @@ let command =
       let ()    = if v then Format.printf "[cms] Identified delimiter '%c'.\n" delim in
       let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
                   then raise (Spreadsheet.Invalid_spreadsheet "First column should be 'NetID'.") in
+      (* TODO abstract *)
       let cols  = begin match cols with
                       | []   ->
                          if StringSet.is_empty cfg.cms.column_names
@@ -168,9 +170,9 @@ let command =
       let ()    = if v then Format.printf "[cms] Target columns are [%s].\n" (String.concat ~sep:"; " (StringSet.to_list cols)) in
       let opts  = {
         column_names       = cols;
+        comments_directory = Option.value input ~default:cfg.cms.comments_directory;
         delimiter          = delim;
-        comments_directory = input;
-        output_spreadsheet = Option.value out ~default:cfg.cms.output_spreadsheet;
+        output_spreadsheet = Option.value out   ~default:cfg.cms.output_spreadsheet;
         verbose            = v;
       } in
       cms opts sheet
