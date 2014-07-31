@@ -222,10 +222,11 @@ end = struct
           compile = {
              include_directories = Option.value (parse_string_set m ~key:"compile.include_directories")
                                                 ~default:default.compile.include_directories;
-             opam_packages       = List.fold_left cREQUIRED_OPAM_PACKAGES ~f:StringSet.add
+             opam_packages       = List.fold_left cREQUIRED_OPAM_PACKAGES
+                                     ~f:StringSet.add
                                      ~init:(Option.value (parse_string_set m ~key:"compile.opam_packages")
                                                          ~default:default.compile.opam_packages);
-             ocaml_libraries     = Option.value (parse_string_set m ~key:"compile.opam_packages")
+             ocaml_libraries     = Option.value (parse_string_set m ~key:"compile.ocaml_libraries")
                                                 ~default:default.compile.ocaml_libraries;
           };
           doc     = {
