@@ -6,8 +6,8 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
   let main      = ensure_ml main_module in
   let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main in
   let cwd       = Sys.getcwd () in
-  let dir       = Option.value ~default:cwd dir in (* TODO TODO TODO TODO uncomment 'verbose' *)
-  let ()        = if compile then check_code (Compile.compile ~quiet:quiet (* ~verbose:verbose *) ~dir:dir main) in
+  let dir       = Option.value ~default:cwd dir in
+  let ()        = if compile then check_code (Compile.compile ~quiet:quiet ~verbose:verbose ~dir:dir main) in
   let ()        = Sys.chdir dir in
   let exec      = Format.sprintf "%s/%s.d.byte" Cli_config.cBUILD_DIRECTORY (strip_suffix main) in
   (* [-log] required by [cs3110 harness] and nice to have in general.
@@ -52,13 +52,13 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
       +> flag ~aliases:["-v"] "-verbose"   no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
       +> flag ~aliases:["-q"] "-quiet"     no_arg ~doc:" Run tests quietly."
       +> flag ~aliases:["-o"] "-output"    (optional string) ~doc:"FILE Save test output to the file FILE."
       +> anon ("target" %: file)
     )
-    (fun r v q output target () ->
+    (fun v r q output target () ->
       check_code (begin match output with
       | Some dest -> test ~quiet:q ~compile:r ~verbose:v ~output:dest target
       | None      -> test ~quiet:q ~compile:r ~verbose:v target end)
