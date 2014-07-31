@@ -77,19 +77,19 @@ let format_ocamlbuild_flags ?(mktop=false) (pkgs : StringSet.t) : string list =
                end
     in default_ocamlbuild_flags @ pkgs
   else
-    let pkgs =
+    let pkgs_str =
       begin match StringSet.to_list pkgs with
-        | [] -> []
-        | xs -> String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") packages)
+        | [] -> ""
+        | xs -> String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") xs)
       end
     in
     default_ocamlbuild_flags @ [
       "-tag-line";
-      "<*.ml{,i}> : syntax(camlp4o), " ^ pkgs;
+      "<*.ml{,i}> : syntax(camlp4o), " ^ pkgs_str;
       "-tag-line";
-      "<*.d.byte> : "                  ^ pkgs;
+      "<*.d.byte> : "                  ^ pkgs_str;
       "-tag-line";
-      "<*.native> : "                  ^ pkgs;
+      "<*.native> : "                  ^ pkgs_str;
     ]
 
 (** [get_target ?mktop main] Return the compilation target
@@ -125,10 +125,10 @@ let get_target ?(mktop=false) (main : string) : string =
     When [v] is high, print debugging information. When [d] is given,
     change into directory [d] before compiling [main]. *)
 let compile ?(quiet=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
-  let opts      = begin match opts with
+  let opts      = (begin match opts with
                     | Some o -> o
                     | None   -> (Cli_config.init ()).compile
-                  end
+                  end : options)
   in
   let main      = ensure_ml main_module in
   let cwd       = Sys.getcwd () in
@@ -136,9 +136,9 @@ let compile ?(quiet=false) ?(mktop=false) ?dir ?opts (main_module : string) : in
   let ()        = if opts.verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
   let target    = get_target ~mktop:mktop main in
   let ()        = if opts.verbose then Format.printf "[compile] Target is '%s'\n" target in
-  let deps      = format_includes opts.compile.include_directories in
+  let deps      = format_includes opts.include_directories in
   let ()        = if opts.verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
-  let libs      = format_libraries opts.compile.ocaml_libraries in
+  let libs      = format_libraries opts.ocaml_libraries in
   let ()        = if opts.verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
   let cflags    = format_compiler_flags default_compiler_flags in (* 2014-07-30: ignores the config's compiler flags *)
   let ()        = if opts.verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
@@ -174,7 +174,7 @@ let command =
       +> flag ~aliases:["-q"]           "-quiet"    no_arg            ~doc:" Compile quietly."
       +> flag ~aliases:["-v"]           "-verbose"  no_arg            ~doc:" Print debugging information (about compiler options, etc.)."
       +> flag ~aliases:["-t"; "-mktop"] "-toplevel" no_arg            ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
-      +> flag ~aliases:["-I"]           "-include"  (listed filename) ~doc:"DIR Search the directory DIR recursively for dependencies."
+      +> flag ~aliases:["-I"]           "-include"  (listed file)     ~doc:"DIR Search the directory DIR recursively for dependencies."
       +> flag ~aliases:["-p"; "-pkg"]   "-package"  (listed string)   ~doc:"PKG Include the OPAM package PKG."
       +> flag ~aliases:["-l"; "-lib"]   "-library"  (listed string)   ~doc:"LIB Include the OCaml library LIB."
       +> anon ("target" %: file)
@@ -182,7 +182,7 @@ let command =
     (fun q v mktop includes pkgs libs target () ->
       let ()  = assert_ocamlbuild_friendly_filepath target in
       let cfg = Cli_config.init () in
-      let opts = {
+      let opts = ({
         include_directories = begin match includes with
                                 | []   -> cfg.compile.include_directories
                                 | _::_ -> StringSet.of_list includes
@@ -196,6 +196,7 @@ let command =
                                 | _::_ -> StringSet.of_list libs
                               end;
         verbose = v;
-      } in
+      } : Cli_config.compile_command_options)
+      in
       check_code (compile ~quiet:q ~mktop:mktop ~opts:opts target)
     )
