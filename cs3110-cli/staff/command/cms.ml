@@ -114,17 +114,40 @@ let infer_delimiter (fname : string) : char option =
     | None       -> None
   end
 
+(** [get_delimiter cfg sheet sep_opt] Determine the delimiter for the spreadsheet file [sheet].
+    First see if [sep_opt] was set at the command line. Fall back to checking the file extension,
+    and finally the config file (which is, if nothing else, a comma). *)
+let get_delimiter (cfg : Cli_config.t) (sheet : string) (sep_opt : string option) : char =
+  begin match sep_opt with
+    | Some s when String.length s = 1 -> (try Char.of_string s with _ -> failwith "Delimiter must be a single character.")
+    | Some _ | None                   -> Option.value (infer_delimiter sheet) ~default:cfg.cms.delimiter
+  end
+
 (** [validate_columns ~sep ~sheet cols] Filter any column names in [cols] that
     do not actually appears as the title of a column in spreadsheet [~sheet]. *)
-let validate_columns ~sep ~sheet (cols : string list) : StringSet.t =
-  let titles = get_titles_exn ~sep:sep sheet in
-  List.fold_left (* Filter invalid entries from 'cols'. *)
+let validate_columns ~sep ~sheet (cols : StringSet.t) : StringSet.t =
+  let title_set = StringSet.of_list (get_titles_exn ~sep:sep sheet) in
+  (* Filter invalid entries from 'cols'. *)
+  StringSet.fold cols
     ~f:(fun acc col ->
-         if List.mem titles col
+         if StringSet.mem title_set col
          then StringSet.add acc col
          else let () = Format.printf "[cms] WARNING: Ignoring invalid column name '%s'.\n" col in acc)
     ~init:StringSet.empty
-    cols
+
+(** [get_columns cfg delim sheet cols] Get the set of columns for the spreadsheet
+    file [sheet]. First look for column names [cols] given on the command line,
+    fall back to the config file and finally try parsing names from the spreadsheet
+     itself. No matter what, ensure that acquired columns are in the actual sheet. *)
+let get_columns (cfg : Cli_config.t) (delim : char) (sheet : string) (cols : string list) : StringSet.t =
+  begin match cols with
+    | _::_ ->
+      validate_columns ~sep:delim ~sheet:sheet (StringSet.of_list cols)
+    | []   ->
+      if StringSet.is_empty cfg.cms.column_names
+      then infer_columns ~sep:delim sheet
+      else validate_columns ~sep:delim ~sheet:sheet cfg.cms.column_names
+  end
 
 let command =
   Command.basic
@@ -144,28 +167,16 @@ let command =
       +> flag ~aliases:["-c"] "-column"  (listed string)   ~doc:"NAME Scrape the column titled NAME from the input spreadsheet."
       +> anon ("spreadsheet" %: string)
     )
-    (fun v inp sep out cols sheet () ->
+    (fun v inp sep_opt out cols sheet () ->
       let cfg   = Cli_config.init () in
       let ()    = assert_file_exists ~msg:"Input spreadsheet does not exist! Bye now." sheet in
       let ()    = if v then Format.printf "[cms] Preparing to read spreadsheet '%s'.\n" sheet in
       let input = Option.value inp ~default:cfg.cms.comments_directory in
-      (* TODO abstract *)
-      let delim =  begin match sep with
-                      | Some s -> (try Char.of_string s with _ -> failwith "Delimiter must be a single character.")
-                      | None   -> Option.value (infer_delimiter sheet) ~default:cfg.cms.delimiter
-                   end in
+      let delim = get_delimiter cfg sheet sep_opt in
       let ()    = if v then Format.printf "[cms] Identified delimiter '%c'.\n" delim in
       let ()    = if not ("NetID" = List.hd_exn (get_titles_exn ~sep:delim sheet))
                   then raise (Spreadsheet.Invalid_spreadsheet "First column should be 'NetID'.") in
-      (* TODO abstract *)
-      let cols  = begin match cols with
-                      | []   ->
-                         if StringSet.is_empty cfg.cms.column_names
-                         then infer_columns ~sep:delim sheet
-                         else cfg.cms.column_names
-                      | _::_ ->
-                         validate_columns ~sep:delim ~sheet:sheet cols
-                  end in
+      let cols  = get_columns cfg delim sheet cols in
       let ()    = if v then Format.printf "[cms] Target columns are [%s].\n" (String.concat ~sep:"; " (StringSet.to_list cols)) in
       let opts  = ({
         column_names       = cols;
