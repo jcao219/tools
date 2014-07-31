@@ -17,8 +17,7 @@ open Process_util
    - [43] : Nonoptional label applied as optional
    - [44] : Open statement shadows an identifier
    Note that warnings 40-45 are for [ocamlopt] and not for [ocamlc].
-   See more documentation here: http://caml.inria.fr/pub/docs/manual-ocaml/native.html
- *)
+   See more documentation here: http://caml.inria.fr/pub/docs/manual-ocaml/native.html *)
 let default_compiler_flags = [
   "-warn-error";
   "+a-4-33-34-40-41-42-43-44";
