@@ -465,13 +465,12 @@ let command =
       +> flag ~aliases:["-t"]               "-test"        (listed file)     ~doc:"FILE Use the unit tests in the module FILE."
       +> flag ~aliases:["-p"; "-ps"]        "-postscript"  (optional bool)   ~doc:" Generate postscript output."
       +> flag ~aliases:["-r";"-i";"-input"] "-release"     (optional file)   ~doc:"DIR Release directory. Used to get starter code and as a staging area."
-      +> flag ~aliases:["-n"]               "-num-qcheck"  (optional int)    ~doc:"INT Set the number of quickcheck tests to run."
       +> flag ~aliases:["-d"]               "-directory"   (optional file)   ~doc:"DIR Use all unit tests in all modules under directory DIR."
       +> flag ~aliases:["-o"]               "-output"      (optional string) ~doc:"DIR Set the output directory."
       +> flag ~aliases:["-s";"-sheet"]      "-spreadsheet" (optional string) ~doc:"FILE Location to write the spreadsheet."
       +> anon (sequence ("submission" %: string))
     )
-    (fun v tests ps input qc test_dir output_dir sheet_location subs () ->
+    (fun v tests ps input test_dir output_dir sheet_location subs () ->
       let ()         = if v then Format.printf "[harness] Parsing options...\n%!" in
       let cfg        = Cli_config.init () in
       let input_dir  = Option.value       ~default:cfg.harness.input_directory input in
@@ -482,7 +481,7 @@ let command =
         output_directory        = Option.value output_dir     ~default:cfg.harness.output_directory;
         output_spreadsheet      = Option.value sheet_location ~default:cfg.harness.output_spreadsheet;
         postscript              = Option.value ps             ~default:cfg.harness.postscript;
-        quickcheck_count        = Option.value qc             ~default:cfg.harness.quickcheck_count;
+        quickcheck_count        = cfg.harness.quickcheck_count;
         temporary_failures_file = cfg.harness.temporary_failures_file;
         test_suite              = test_file_set_of_list ~verbose:v ~staging_dir:input_dir test_files;
       } in
