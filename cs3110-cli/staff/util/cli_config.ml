@@ -7,29 +7,24 @@ type cms_command_options = {
   comments_directory : string;
   delimiter          : char;
   output_spreadsheet : string;
-  verbose            : bool;
 }
 type compile_command_options = {
   (* compiler_options    : string list; *) (* 2014-07-30: Not all compiler options seem to play nice with ocamlbuild. *)
   include_directories : StringSet.t;
   opam_packages       : StringSet.t;
   ocaml_libraries     : StringSet.t;
-  verbose             : bool;
 }
 type diff_command_options = {
   nocompile_directory : string;
   output_spreadsheet  : string;
-  verbose             : bool;
 }
 type doc_command_options = {
   output_directory : string;
-  verbose          : bool;
 }
 type email_command_options = {
   admins          : StringSet.t;
   input_directory : string;
   subject         : string;
-  verbose         : bool;
 }
 type harness_command_options = {
   input_directory         : string;
@@ -39,14 +34,12 @@ type harness_command_options = {
   quickcheck_count        : int;
   temporary_failures_file : string;
   tests_directory         : string;
-  verbose                 : bool;
 }
 type smoke_command_options = {
   compilation_targets : StringSet.t;
   email_directory     : string;
   input_directory     : string;
   nocompile_directory : string;
-  verbose             : bool;
 }
 
 type t = {
@@ -80,28 +73,23 @@ let default_config = {
     delimiter          = ',';
     comments_directory = default_comments_directory;
     output_spreadsheet = Format.sprintf "%s/_cms/CS3110_GRADES_TABLE.csv" cOUTPUT_DIRECTORY;
-    verbose            = false;
   };
   compile = {
     include_directories = StringSet.empty;
     opam_packages       = StringSet.of_list cREQUIRED_OPAM_PACKAGES;
     ocaml_libraries     = StringSet.empty;
-    verbose             = false;
   };
   diff    = {
     nocompile_directory = default_nocompile_directory;
     output_spreadsheet  = Format.sprintf "%s/_diff/diff_results.csv" cOUTPUT_DIRECTORY;
-    verbose             = false
   };
   doc     = {
     output_directory = Format.sprintf "%s/_doc" cOUTPUT_DIRECTORY;
-    verbose          = false;
   };
   email   = {
     admins          = StringSet.empty;
     input_directory = default_email_directory;
     subject         = "[CS 3110 test harness] compile error";
-    verbose         = false;
   };
   harness = {
     input_directory         = "_release";
@@ -111,14 +99,12 @@ let default_config = {
     quickcheck_count        = 100;
     temporary_failures_file = "inline_test_failures.log";
     tests_directory         = "_tests";
-    verbose                 = false;
   };
   smoke   = {
     compilation_targets = StringSet.empty;
     email_directory     = default_email_directory;
     input_directory     = "_release";
     nocompile_directory = default_nocompile_directory;
-    verbose             = false;
   };
 }
 
@@ -232,8 +218,6 @@ end = struct
                                                ~default:default.cms.delimiter;
             output_spreadsheet  = Option.value (parse_filename m ~key:"cms.output_spreadsheet" ~suffix:".csv")
                                                ~default:default.cms.output_spreadsheet;
-            verbose             = Option.value (parse_bool m ~key:"cms.verbose")
-                                               ~default:default.cms.verbose;
           };
           compile = {
              include_directories = Option.value (parse_string_set m ~key:"compile.include_directories")
@@ -243,21 +227,16 @@ end = struct
                                                          ~default:default.compile.opam_packages);
              ocaml_libraries     = Option.value (parse_string_set m ~key:"compile.opam_packages")
                                                 ~default:default.compile.ocaml_libraries;
-             verbose = false;
           };
           doc     = {
             output_directory = Option.value (parse_string m ~key:"doc.output_directory")
                                             ~default:default.doc.output_directory;
-            verbose          = Option.value (parse_bool m ~key:"doc.verbose")
-                                            ~default:default.doc.verbose;
           };
           diff    = {
             nocompile_directory = Option.value (parse_string m ~key:"diff.nocompile_directory")
                                                ~default:default.diff.nocompile_directory;
             output_spreadsheet  = Option.value (parse_filename m ~key:"diff.output_spreadsheet" ~suffix:".csv")
                                                ~default:default.diff.output_spreadsheet;
-            verbose             = Option.value (parse_bool m ~key:"diff.verbose")
-                                               ~default:default.diff.verbose;
           };
           email   = {
              admins           = Option.value (parse_string_set m ~key:"email.admins")
@@ -266,8 +245,6 @@ end = struct
                                              ~default:default.email.input_directory;
              subject          = Option.value (parse_string m ~key:"email.subject")
                                              ~default:default.email.subject;
-             verbose          = Option.value (parse_bool m ~key:"email.verbose")
-                                             ~default:default.email.verbose;
            };
            harness = {
              input_directory           = Option.value (parse_string m ~key:"harness.input_directory")
@@ -284,8 +261,6 @@ end = struct
                                                       ~default:default.harness.temporary_failures_file;
              tests_directory           = Option.value (parse_string m ~key:"harness.tests_directory")
                                                       ~default:default.harness.tests_directory;
-             verbose                   = Option.value (parse_bool  m ~key:"harness.verbose")
-                                                      ~default:default.harness.verbose;
            };
            smoke   = {
              compilation_targets = Option.value (parse_string_set m ~key:"smoke.compilation_targets")
@@ -296,8 +271,6 @@ end = struct
                                                 ~default:default.smoke.input_directory;
              nocompile_directory = Option.value (parse_string m ~key:"smoke.nocompile_directory")
                                                 ~default:default.smoke.nocompile_directory;
-             verbose             = Option.value (parse_bool m ~key:"smoke.verbose")
-                                                ~default:default.smoke.verbose;
            };
          }
     end
