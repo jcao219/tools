@@ -87,11 +87,11 @@ let format_ocamlbuild_flags ?(mktop=false) ?(thread=false) (pkgs : StringSet.t) 
     in
     default_ocamlbuild_flags @ [
       "-tag-line";
-      "<*.ml{,i}> : syntax(camlp4o), " ^ pkgs_str;
+      "<**/*.ml{,i}> : syntax(camlp4o), " ^ pkgs_str;
       "-tag-line";
-      "<*.d.byte> : "                  ^ pkgs_str;
+      "<**/*.d.byte> : "                  ^ pkgs_str;
       "-tag-line";
-      "<*.native> : "                  ^ pkgs_str;
+      "<**/*.native> : "                  ^ pkgs_str;
     ]
 
 (** [get_target ?mktop main] Return the compilation target
