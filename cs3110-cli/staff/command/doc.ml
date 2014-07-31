@@ -28,14 +28,14 @@ let filter_invalid_doc_targets (targets : string list) : string list =
           end)
     ~init:[]
 
-(** [doc ?r o ts] Generate ocamldoc documentation for the targets [ts].
+(** [doc ?v ?r o ts] Generate ocamldoc documentation for the targets [ts].
     If [r] is true, recompile before building docs. *)
-let doc ?(recompile=false) (opts : options) (targets : string list) : int =
+let doc ?(verbose=false) ?(recompile=false) (opts : options) (targets : string list) : int =
   let tgts = filter_invalid_doc_targets targets in
-  let ()   = if opts.verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
+  let ()   = if verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
   let ()   = if recompile then List.iter ~f:(fun t -> check_code (Compile.compile (strip_suffix t))) tgts in
   let args = default_ocamldoc_options @ ["-I"; Cli_config.cBUILD_DIRECTORY; "-d"; opts.output_directory] @ tgts in
-  let ()   = if opts.verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n%!" (String.concat ~sep:" " args) in
+  let ()   = if verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n%!" (String.concat ~sep:" " args) in
   run_process "ocamldoc" args
 
 let command =
@@ -58,10 +58,9 @@ let command =
       let cfg  = Cli_config.init () in
       let opts = ({
         output_directory = Option.value o ~default:cfg.doc.output_directory;
-        verbose          = v;
       } : Cli_config.doc_command_options)
       in
       let () = ensure_dir Cli_config.cBUILD_DIRECTORY in
       let () = ensure_dir opts.output_directory in
-      check_code (doc ~recompile:r opts ts)
+      check_code (doc ~verbose:v ~recompile:r opts ts)
     )
