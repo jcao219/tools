@@ -27,44 +27,44 @@ let get_titles_exn ~sep (sheet : string) : string list =
        raise (Spreadsheet.Invalid_spreadsheet msg)
   end
 
-(** [parse_comments o n] Convert the comments file for netid [n] into
+(** [parse_comments ?v o n] Convert the comments file for netid [n] into
     a spreadsheet-ready string. *)
-let parse_comments (opts : options) (netid : string) : string =
+let parse_comments ?(verbose=false) (opts : options) (netid : string) : string =
   let fname = Format.sprintf "%s/%s.md" opts.comments_directory netid in
   begin match Sys.file_exists fname with
     | `No | `Unknown ->
-      let () = if opts.verbose then Format.printf "[cms] Could not find comments for student '%s'.\n" netid in
+      let () = if verbose then Format.printf "[cms] Could not find comments for student '%s'.\n" netid in
       ""
     | `Yes           ->
       let lines = In_channel.read_lines fname in
       Format.sprintf "\"%s\"" (String.concat ~sep:" \n " lines)
   end
 
-(** [parse_row_exn opts ~titles line] Read the data values from a row [line] of the spreadsheet.
+(** [parse_row_exn ?v opts ~titles line] Read the data values from a row [line] of the spreadsheet.
     Pull out the netid and filter the data columns and read the comments from an external file. *)
-let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
-  let ()       = if opts.verbose then Format.printf "[cms] Reading line '%s'.\n" line in
+let parse_row_exn ?(verbose=false) (opts : options) ~titles (line : string) : cms_row =
+  let ()       = if verbose then Format.printf "[cms] Reading line '%s'.\n" line in
   let data     = String.split ~on:opts.delimiter line in
-  let ()       = if opts.verbose then Format.printf "[cms] Matching values with titles.\n" in
+  let ()       = if verbose then Format.printf "[cms] Matching values with titles.\n" in
   let ()       = if not ((List.length titles) = (List.length data))
                  then raise (Spreadsheet.Invalid_spreadsheet "Row does not match titles") in
   let lr       = List.fold2_exn titles data
                    ~f:(fun acc t d -> LabeledRow.add acc (t,d))
                    ~init:LabeledRow.empty
   in
-  let ()       = if opts.verbose then Format.printf "[cms] Extracting netid...\n" in
+  let ()       = if verbose then Format.printf "[cms] Extracting netid...\n" in
   let netid    = snd (LabeledRow.find_exn ~f:(fun (lbl,_) -> lbl = "NetID") lr) in
-  let ()       = if opts.verbose then Format.printf "[cms] Filtering columns...\n" in
+  let ()       = if verbose then Format.printf "[cms] Filtering columns...\n" in
   let scores   = LabeledRow.filter ~f:(fun (lbl,_) -> StringSet.mem opts.column_names lbl) lr in
-  let ()       = if opts.verbose then Format.printf "[cms] Reading comments...\n" in
+  let ()       = if verbose then Format.printf "[cms] Reading comments...\n" in
   let comments = parse_comments opts netid in
   (netid, scores, comments)
 
 (** [cms o sheet] Read the spreadsheet [sheet] and extract
     particular columns. Save these columns along with
     harness-generated comments in a new spreadsheet. *)
-let cms (opts : options) (sheet : string) =
-  let () = if opts.verbose then Format.printf "[cms] Creating spreadsheet template...\n" in
+let cms ?(verbose=false) (opts : options) (sheet : string) =
+  let () = if verbose then Format.printf "[cms] Creating spreadsheet template...\n" in
   let module CmsSpreadsheet = Spreadsheet.Make(struct
       type row                          = cms_row
       let compare_row (l1,_,_) (l2,_,_) = Pervasives.compare l1 l2
@@ -76,17 +76,17 @@ let cms (opts : options) (sheet : string) =
                                           String.concat ~sep:(Char.escaped opts.delimiter) (["NetID"] @ names @ ["Add Comments"])
     end)
   in
-  let ()        = if opts.verbose then Format.printf "[cms] Parsing input file '%s'...\n" sheet in
+  let ()        = if verbose then Format.printf "[cms] Parsing input file '%s'...\n" sheet in
   let in_chn    = In_channel.create sheet in
-  let ()        = if opts.verbose then Format.printf "[cms] Reading & saving column headers.\n" in
+  let ()        = if verbose then Format.printf "[cms] Reading & saving column headers.\n" in
   let titles    = String.split ~on:opts.delimiter (Option.value_exn (In_channel.input_line in_chn)) in
-  let ()        = if opts.verbose then Format.printf "[cms] Reading & parsing spreadsheet body.\n" in
+  let ()        = if verbose then Format.printf "[cms] Reading & parsing spreadsheet body.\n" in
   let cms_sheet = In_channel.fold_lines in_chn
-                    ~f:(fun acc ln -> CmsSpreadsheet.add_row acc ~row:(parse_row_exn opts ~titles:titles ln))
+                    ~f:(fun acc ln -> CmsSpreadsheet.add_row acc ~row:(parse_row_exn ~verbose:verbose opts ~titles:titles ln))
                     ~init:(CmsSpreadsheet.create ())
   in
   let ()        = In_channel.close in_chn in
-  let ()        = if opts.verbose then Format.printf "[cms] Finished! Saving results to '%s'.\n" opts.output_spreadsheet in
+  let ()        = if verbose then Format.printf "[cms] Finished! Saving results to '%s'.\n" opts.output_spreadsheet in
   CmsSpreadsheet.write cms_sheet
 
 (** [is_capitalized s] True if string [s] begins with a capital A-Z letter. *)
@@ -173,8 +173,7 @@ let command =
         comments_directory = input;
         delimiter          = delim;
         output_spreadsheet = Option.value out   ~default:cfg.cms.output_spreadsheet;
-        verbose            = v;
-      } : Cli_config.cms_command_options)
+      } : options)
       in
-      cms opts sheet
+      cms ~verbose:v opts sheet
     )
