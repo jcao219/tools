@@ -144,7 +144,7 @@ let pre_harness (opts : options) (dir : string) : unit =
   let () = if opts.verbose then Format.printf "[harness] Checking for unit tests in submission files...\n%!" in
   let () = sanitize_directory dir in
   let () = if opts.verbose then Format.printf "[harness] Copying release files...\n%!" in
-  let () = ignore (soft_copy opts.release_directory dir) in
+  let () = ignore (soft_copy opts.input_directory dir) in
   let () = if opts.verbose then Format.printf "[harness] Preparation complete!\n" in
   ()
 
@@ -404,7 +404,7 @@ let get_unittest_names ?(verbose=false) ~staging_dir (test_abs_path : string) : 
       (* Copy test into staging dir, compile test, run to get names out. *)
       let ()  = check_code (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
       let ()  = check_code (Test.test ~quiet:true ~verbose:verbose ~compile:true ~dir:staging_dir test_name)  in
-      let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir cPA_OUNIT_LOGFILE) in
+      let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir Cli_config.cPA_OUNIT_LOGFILE) in
       let ()  = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:staging_dir tgt)) ["compile";"test"] in
       let ()  = check_code (Sys.command (Format.sprintf "rm %s/%s" staging_dir test_name)) in
       List.fold_left raw
