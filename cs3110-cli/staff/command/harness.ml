@@ -471,20 +471,20 @@ let command =
       +> flag ~aliases:["-s";"-sheet"]      "-spreadsheet" (optional string) ~doc:"FILE Location to write the spreadsheet."
       +> anon (sequence ("submission" %: string))
     )
-    (fun v tests ps release qc test_dir output_dir sheet_location subs () ->
-      let ()          = if v then Format.printf "[harness] Parsing options...\n%!" in
-      let cfg         = Cli_config.init () in
-      let release_dir = Option.value       ~default:cfg.harness.input_directory release in
-      let ()          = assert_file_exists ~msg:"Release directory missing"     release_dir in
-      let test_files  = get_test_files cfg ~test_dir:test_dir                   tests in
+    (fun v tests ps input qc test_dir output_dir sheet_location subs () ->
+      let ()         = if v then Format.printf "[harness] Parsing options...\n%!" in
+      let cfg        = Cli_config.init () in
+      let input_dir  = Option.value       ~default:cfg.harness.input_directory input in
+      let ()         = assert_file_exists ~msg:"Release directory missing"     input_dir in
+      let test_files = get_test_files cfg ~test_dir:test_dir                   tests in
       let opts = {
-        input_directory         = release_dir;
+        input_directory         = input_dir;
         output_directory        = Option.value output_dir     ~default:cfg.harness.output_directory;
         output_spreadsheet      = Option.value sheet_location ~default:cfg.harness.output_spreadsheet;
         postscript              = Option.value ps             ~default:cfg.harness.postscript;
         quickcheck_count        = Option.value qc             ~default:cfg.harness.quickcheck_count;
         temporary_failures_file = cfg.harness.temporary_failures_file;
-        test_suite              = test_file_set_of_list ~verbose:v ~staging_dir:release_dir test_files;
+        test_suite              = test_file_set_of_list ~verbose:v ~staging_dir:input_dir test_files;
       } in
       let () = ensure_dir opts.output_directory in
       if TestFileSet.is_empty opts.test_suite

@@ -117,11 +117,11 @@ let command =
     (fun v bccs subject dir () ->
       let cfg  = Cli_config.init () in
       let opts = ({
-        admins           = begin match bccs with
+        admins          = begin match bccs with
                              | []   -> cfg.email.admins
                              | _::_ -> parse_bccs bccs
                            end;
-        subject          = Option.value subject ~default:cfg.email.subject;
+        subject         = Option.value subject  ~default:cfg.email.subject;
         input_directory = Option.value dir      ~default:cfg.email.input_directory;
       } : options) in
       let ()   = assert_file_exists opts.input_directory in

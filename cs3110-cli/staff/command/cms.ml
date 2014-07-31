@@ -185,5 +185,6 @@ let command =
         output_spreadsheet = Option.value out   ~default:cfg.cms.output_spreadsheet;
       } : options)
       in
+      let () = assert_file_exists ~msg:"Comments directory does not exist. Bye now." opts.comments_directory in
       cms ~verbose:v opts sheet
     )

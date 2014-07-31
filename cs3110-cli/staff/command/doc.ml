@@ -60,7 +60,7 @@ let command =
         output_directory = Option.value o ~default:cfg.doc.output_directory;
       } : Cli_config.doc_command_options)
       in
-      let () = ensure_dir Cli_config.cBUILD_DIRECTORY in
+      let () = if not r then assert_file_exists Cli_config.cBUILD_DIRECTORY in
       let () = ensure_dir opts.output_directory in
       check_code (doc ~verbose:v ~recompile:r opts ts)
     )

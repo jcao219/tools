@@ -140,9 +140,9 @@ let command =
         input_directory     = Option.value release_dir   ~default:cfg.smoke.input_directory;
         nocompile_directory = Option.value nocompile_dir ~default:cfg.smoke.nocompile_directory;
       } : options) in
-      let () = ensure_dir opts.email_directory in
-      let () = ensure_dir opts.input_directory in
-      let () = ensure_dir opts.nocompile_directory in
+      let () = assert_file_exists opts.input_directory in
+      let () = ensure_dir         opts.email_directory in
+      let () = ensure_dir         opts.nocompile_directory in
       let () = validate_smoke_targets ~release:opts.input_directory opts.compilation_targets in
       smoke ~verbose:v opts (at_expand subs)
     )

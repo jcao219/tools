@@ -154,12 +154,13 @@ let command =
       +> anon (sequence ("submission" %: file))
     )
     (fun v input output subs () ->
-      let cfg = Cli_config.init () in
-      let ()  = assert_installed "diff" in
+      let cfg  = Cli_config.init () in
       let opts = ({
         nocompile_directory = Option.value input  ~default:cfg.diff.nocompile_directory;
         output_spreadsheet  = Option.value output ~default:cfg.diff.output_spreadsheet;
       } : options)
       in
+      let ()   = assert_installed "diff" in
+      let ()   = assert_file_exists opts.nocompile_directory in
       diff ~verbose:v opts (at_expand subs)
     )
