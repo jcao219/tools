@@ -28,7 +28,7 @@ let command =
       +> anon ("target" %: file)
       +> anon (sequence ("args" %: string))
     )
-    (fun v r main args () -> (* TODO TODO uncomment verbose *)
-      let () = if r then check_code (Compile.compile (* ~verbose:v *) main) in
+    (fun v r main args () ->
+      let () = if r then check_code (Compile.compile ~verbose:v main) in
       check_code (run ~verbose:v main args)
     )
