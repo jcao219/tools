@@ -1,7 +1,8 @@
-open Cli_config
 open Cli_util
 open Core.Std
 open Process_util
+
+type options = Cli_config.compile_command_options
 
 (* Default compiler flags. These are Jane Street's settings.
    [-warn-error] says "treat the following warnings as errors".
@@ -180,7 +181,7 @@ let command =
     )
     (fun q v mktop includes pkgs libs target () ->
       let ()  = assert_ocamlbuild_friendly_filepath target in
-      let cfg = init_config () in
+      let cfg = Cli_config.init () in
       let opts = {
         include_directories = begin match includes with
                                 | []   -> cfg.compile.include_directories
