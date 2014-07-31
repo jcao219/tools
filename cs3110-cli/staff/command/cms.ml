@@ -1,7 +1,8 @@
 open Core.Std
-open Cli_config
 open Cli_util
 open Process_util
+
+type options = Cli_config.cms_command_options
 
 module LabeledRow = Set.Make(struct
   type t = string * string
@@ -28,7 +29,7 @@ let get_titles_exn ~sep (sheet : string) : string list =
 
 (** [parse_comments o n] Convert the comments file for netid [n] into
     a spreadsheet-ready string. *)
-let parse_comments (opts : cms_command_options) (netid : string) : string =
+let parse_comments (opts : options) (netid : string) : string =
   let fname = Format.sprintf "%s/%s.md" opts.comments_directory netid in
   begin match Sys.file_exists fname with
     | `No | `Unknown ->
@@ -41,7 +42,7 @@ let parse_comments (opts : cms_command_options) (netid : string) : string =
 
 (** [parse_row_exn opts ~titles line] Read the data values from a row [line] of the spreadsheet.
     Pull out the netid and filter the data columns and read the comments from an external file. *)
-let parse_row_exn (opts : cms_command_options) ~titles (line : string) : cms_row =
+let parse_row_exn (opts : options) ~titles (line : string) : cms_row =
   let ()       = if opts.verbose then Format.printf "[cms] Reading line '%s'.\n" line in
   let data     = String.split ~on:opts.delimiter line in
   let ()       = if opts.verbose then Format.printf "[cms] Matching values with titles.\n" in
@@ -62,7 +63,7 @@ let parse_row_exn (opts : cms_command_options) ~titles (line : string) : cms_row
 (** [cms o sheet] Read the spreadsheet [sheet] and extract
     particular columns. Save these columns along with
     harness-generated comments in a new spreadsheet. *)
-let cms (opts : cms_command_options) (sheet : string) =
+let cms (opts : options) (sheet : string) =
   let () = if opts.verbose then Format.printf "[cms] Creating spreadsheet template...\n" in
   let module CmsSpreadsheet = Spreadsheet.Make(struct
       type row                          = cms_row
@@ -137,7 +138,7 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg            ~doc:" Print debugging information."
+      +> flag ~aliases:["-v"] "-verbose"  no_arg           ~doc:" Print debugging information."
       +> flag ~aliases:["-i"] "-input"   (optional file)   ~doc:"DIR Specify the directory of harness-generated comments."
       +> flag ~aliases:["-s"] "-sep"     (optional string) ~doc:"STR Delimiter character (i.e. comma or tab) for the input sheet."
       +> flag ~aliases:["-o"] "-output"  (optional file)   ~doc:"FILE Write output to the file FILE."
@@ -145,7 +146,7 @@ let command =
       +> anon ("spreadsheet" %: string)
     )
     (fun v inp sep out cols sheet () ->
-      let cfg   = config_init () in
+      let cfg   = Cli_config.init () in
       let ()    = assert_file_exists ~msg:"Input spreadsheet does not exist! Bye now." sheet in
       let ()    = if v then Format.printf "[cms] Preparing to read spreadsheet '%s'.\n" sheet in
       let input = Option.value inp ~default:cfg.cms.comments_directory in
