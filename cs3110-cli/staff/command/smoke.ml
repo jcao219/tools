@@ -3,14 +3,6 @@ open Cli_constants
 open Cli_util
 open Process_util
 
-type options = {
-  email_directory     : string;
-  nocompile_directory : string;
-  release_directory   : string;
-  targets             : string list;
-  verbose             : bool;
-}
-
 (** [make_email_message n fs] Create the body of an email to send to student [n]
     because his/her files [fs] failed to compile. *)
 let make_email_message (netid : string) (failed_targets : string list) : string list =
@@ -28,7 +20,7 @@ let make_email_message (netid : string) (failed_targets : string list) : string 
     The options [o] specify where to save the copy. *)
 let copy_directory (opts : options) (netid : string) (dir : string) : unit =
   let target_dir = Format.sprintf "%s/%s" opts.nocompile_directory netid in
-  let () =
+  let ()         =
     begin match Sys.file_exists target_dir with
       | `No | `Unknown ->
         check_code (Sys.command (Format.sprintf "mkdir %s" target_dir))
@@ -37,9 +29,9 @@ let copy_directory (opts : options) (netid : string) (dir : string) : unit =
         check_code (Sys.command (Format.sprintf "rm -rf %s; mkdir %s" target_dir target_dir))
     end
   in
-  let () = if opts.verbose then Format.printf "[smoke] copying directory '%s' to folder '%s'.\n" dir target_dir in
-  let exit_code = Sys.command (Format.sprintf "cp -r %s/. %s" dir target_dir) in
-  let () = if exit_code <> 0 then Format.printf "[smoke] ERROR failed to save directory '%s'\n" dir in
+  let ()         = if opts.verbose then Format.printf "[smoke] copying directory '%s' to folder '%s'.\n" dir target_dir in
+  let exit_code  = Sys.command (Format.sprintf "cp -r %s/. %s" dir target_dir) in
+  let ()         = if exit_code <> 0 then Format.printf "[smoke] ERROR failed to save directory '%s'\n" dir in
   ()
 
 (** [write_email o n fs] Write an email to student [n] explaining that files [fs]
@@ -62,10 +54,10 @@ let compile_target (opts : options) (dir : string) (target : string) : bool =
 (** [smoke_target o d fs c] Smoke test a single file [c] for directory [d].
     First check whether the file exists, then compile it. On failure, save data
     for a future [cs3110 diff] and add the target [c] to the list [fs] of failed targets. *)
-let smoke_target (opts : options) (dir : string) (failed_targets : string list) (curr_target : string) : string list =
+let smoke_target (opts : options) (dir : string) (curr_target : string) (failed_targets : string list) : string list =
   let curr_target' = ensure_ml curr_target in
   let curr_path    = Format.sprintf "%s/%s" dir curr_target' in
-  let () = if opts.verbose then Format.printf "[smoke] searching for target '%s'...\n" curr_path in
+  let ()           = if opts.verbose then Format.printf "[smoke] searching for target '%s'...\n" curr_path in
   begin match Sys.file_exists curr_path with
     | `Yes           -> (* Compile. Need to flush printouts here. *)
       let () = if opts.verbose then Format.printf "[smoke] found target '%s', compiling...\n" curr_path in
@@ -85,17 +77,16 @@ let smoke_target (opts : options) (dir : string) (failed_targets : string list) 
 (** [smoke_directory o d] compile all targets in the folder [dir], generate
     an email message and save the results if any target fails to compile. *)
 let smoke_directory (opts : options) (dir : string) : unit =
-  let () = if opts.verbose then Format.printf "[smoke] copying release files from '%s' to '%s'.\n" opts.release_directory dir in
-  let () = ignore (soft_copy opts.release_directory dir) in
-  let () = if opts.verbose then Format.printf "[smoke] compiling directory '%s'\n" dir in
-  let failed_targets = List.rev (List.fold
-    ~f:(smoke_target opts dir)
-    ~init:[]
-    opts.targets)
+  let ()             = if opts.verbose then Format.printf "[smoke] copying release files from '%s' to '%s'.\n" opts.input_directory dir in
+  let ()             = ignore (soft_copy opts.input_directory dir) in
+  let ()             = if opts.verbose then Format.printf "[smoke] compiling directory '%s'\n" dir in
+  let failed_targets = StringSet.fold_right opts.compilation_targets
+                         ~f:(smoke_target opts dir)
+                         ~init:[]
   in
   begin match failed_targets with
     | []    -> (* Success! Nothing more to do. *)
-       let () = if opts.verbose then Format.printf "[smoke] successfully compiled all targets in '%s'\n" dir in
+       let ()    = if opts.verbose then Format.printf "[smoke] successfully compiled all targets in '%s'\n" dir in
        ()
     | _::_ -> (* Something failed to compile. Save the directory, send an email. *)
        let ()    = if opts.verbose then Format.printf "[smoke] failed to compile all targets in '%s'. Saving directory and email.\n" dir in
@@ -109,24 +100,14 @@ end
 let smoke (opts : options) (directories : string list) : unit =
   List.iter ~f:(smoke_directory opts) directories
 
-(** [get_smoke_targets o] figure out which files to compile. This could be
-    set in the config file or given as a command line option. *)
-let get_smoke_targets (tgts : string list) : string list =
-  begin match tgts with
-    | _::_ -> tgts
-    | []   -> (* TODO infer, or read config *)
-       raise (File_not_found "Could not determine which files to smoke test.")
-  end
-
 (** [validate_smoke_targets r tgts] Assert that the name of each target
     matches a file in the release directory. *)
-let validate_smoke_targets ~release (targets : string list) : unit =
+let validate_smoke_targets ~release (targets : StringSet.t) : unit =
   let prefix = release ^ "/" in
-  List.iter
+  StringSet.iter targets
     ~f:(fun t ->
         let msg = Format.sprintf "Smoke test target '%s' not included in release directory." t in
         assert_file_exists ~msg:msg (prefix ^ (ensure_ml t)))
-    targets
 
 let command =
   Command.basic
@@ -139,22 +120,28 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg          ~doc:" Print debugging information."
-      +> flag ~aliases:["-t"] "-target"  (listed string) ~doc:"TARGET Attempt to compile file TARGET in each SUBMISSION directory."
-      +> flag ~aliases:["-r"] "-release" (required file) ~doc:"DIR Copy starter code from directory DIR."
+      +> flag ~aliases:["-v"]               "-verbose"        no_arg           ~doc:" Print debugging information."
+      +> flag ~aliases:["-t"]               "-target"        (listed string)   ~doc:"TARGET Attempt to compile file TARGET in each SUBMISSION directory."
+      +> flag ~aliases:["-r";"-i";"-input"] "-release"       (optional file)   ~doc:"DIR Copy starter code from directory DIR."
+      +> flag ~aliases:["-e"]               "-email-dir"     (optional string) ~doc:"DIR Save generated email messages to directory DIR."
+      +> flag ~aliases:["-n"]               "-nocompile-dir" (optional string) ~doc:"DIR Save submissions that do not compile to directory DIR."
       +> anon (sequence ("submission" %: string))
     )
-    (fun v tgts r subs () ->
-      let () = ensure_dir cEMAIL_DIR in
-      let () = ensure_dir cNOCOMPILE_DIR in
-      let () = assert_file_exists r in
+    (fun v targets release_dir email_dir nocompile_dir subs () ->
+      let cfg = Cli_config.init () in
       let opts = {
-        email_directory     = cEMAIL_DIR;
-        nocompile_directory = cNOCOMPILE_DIR;
-        release_directory   = r;
-        targets             = get_smoke_targets tgts;
+        compilation_targets = begin match targets with
+                                | []   -> cfg.smoke.compilation_targets
+                                | _::_ -> StringSet.of_list targets
+                              end;
+        email_directory     = Option.value email_dir     ~default:cfg.smoke.email_directory;
+        input_directory     = Option.value release_dir   ~default:cfg.smoke.input_directory;
+        nocompile_directory = Option.value nocompile_dir ~default:cfg.smoke.nocompile_directory;
         verbose             = v;
       } in
-      let () = validate_smoke_targets ~release:opts.release_directory opts.targets in
+      let () = ensure_dir opts.email_directory in
+      let () = ensure_dir opts.input_directory in
+      let () = ensure_dir opts.nocompile_directory in
+      let () = validate_smoke_targets ~release:opts.input_directory opts.compilation_targets in
       smoke opts (at_expand subs)
     )
