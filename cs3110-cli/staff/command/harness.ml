@@ -7,7 +7,7 @@ open Cli_util
 open Process_util
 
 (* aka 'ordered list', used only to keep unit test names ordered within a test file. *)
-module UnittestSet = Set.Make(String)
+module UnittestSet = StringSet
 
 type test_file = {
   absolute_path : string;        (* Exact path to the test file. Ends with the filename. *)
