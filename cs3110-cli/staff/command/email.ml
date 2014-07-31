@@ -77,7 +77,7 @@ let send_one_email (opts : options) (msg_file : string) : bool =
                    opts.subject
                    (format_bcc opts.bccs)
                    recipient
-                   opts.output_directory
+                   opts.input_directory
                    msg_file
        in
        let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
@@ -123,7 +123,7 @@ let command =
                              | _::_ -> parse_bccs bccs
                            end;
         subject          = Option.value subject ~default:cfg.email.subject;
-        output_directory = Option.value dir     ~default:cfg.email.output_directory;
+        input_directory = Option.value dir      ~default:cfg.email.input_directory;
         verbose          = v;
       } in
       let ()   = assert_file_exists dir in
