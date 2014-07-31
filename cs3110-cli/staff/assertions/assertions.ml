@@ -1,5 +1,3 @@
-open Cli_constants
-
 exception Assert_true of string
 let assert_true = function
 | true -> ()
@@ -124,11 +122,12 @@ let timeout (time : int) (f : 'a -> 'b) (arg : 'a) =
 
 exception QCheck_result of int * string
 let assert_qcheck cases test =
-  match QCheck.check ~rand:(Random.State.make [|4;2|]) ~n:cNUM_QCHECK cases test with
+  let cfg = Cli_config.init () in
+  match QCheck.check ~rand:(Random.State.make [|4;2|]) ~n:cfg.harness.quickcheck_count cases test with
   | QCheck.Ok _ -> raise (QCheck_result (0,"All qcheck passed!"))
   | QCheck.Failed [] ->
     let msg = "qcheck says 'failed', but could not generate a failed instance." in
-    raise (QCheck_result (cNUM_QCHECK+1, msg))
+    raise (QCheck_result (cfg.harness.quickcheck_count+1, msg))
   | QCheck.Failed (x::xs) ->
     let num_failed = 1 + List.length xs in
     let msg = Printf.sprintf "Sample failing instance '%s'" (Serializer.truncate x) in
