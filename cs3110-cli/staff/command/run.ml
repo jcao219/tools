@@ -7,7 +7,7 @@ let run ?(verbose=false) (main_module : string) (args : string list) : int =
   let ()        = if verbose then Format.printf "[run] Preparing to run target '%s' with args '%s'.\n"
                                                 main_module (String.concat ~sep:" " args) in
   let main      = strip_suffix main_module in
-  let exec      = Format.sprintf "%s/%s.d.byte" cBUILD_DIRECTORY main in
+  let exec      = Format.sprintf "%s/%s.d.byte" Cli_config.cBUILD_DIRECTORY main in
   let ()        = if verbose then Format.printf "[run] Searching for executable '%s'.\n" exec in
   let ()        = assert_file_exists
                     ~msg:(Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main_module)
@@ -28,7 +28,7 @@ let command =
       +> anon ("target" %: file)
       +> anon (sequence ("args" %: string))
     )
-    (fun v r main args () ->
-      let () = if r then check_code (Compile.compile ~verbose:v main) in
+    (fun v r main args () -> (* TODO TODO uncomment verbose *)
+      let () = if r then check_code (Compile.compile (* ~verbose:v *) main) in
       check_code (run ~verbose:v main args)
     )
