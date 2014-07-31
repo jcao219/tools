@@ -276,10 +276,12 @@ end = struct
 end
 
 let add_local_config (cfg : t) : t =
-  Parser.parse "./.cs3110"  ~default:cfg
+  let local_conf = "./.cs3110" in
+  Parser.parse local_conf  ~default:cfg
 
 let add_global_config (cfg : t) : t =
-  Parser.parse "~/.cs3110"  ~default:cfg
+  let global_conf = Format.sprintf "%s/.cs3110" (Sys.getenv_exn "HOME") in
+  Parser.parse global_conf ~default:cfg
 
 let init () : t =
   let () = ensure_dir cOUTPUT_DIRECTORY in
