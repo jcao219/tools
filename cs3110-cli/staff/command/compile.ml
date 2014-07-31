@@ -28,8 +28,9 @@ let default_ocamlbuild_flags = [
   "-no-links"
 ]
 
-(* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
- * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
+(** [assert_ocamlbuild_friendly_filepath path] Make sure the target is
+    somewhere that [ocamlbuild] can find. To quote: "ocamlbuild must be invoked from the root of the project"
+    {href {http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html}} *)
 let assert_ocamlbuild_friendly_filepath (path : string) : unit =
   let is_relative =
     try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
@@ -120,38 +121,38 @@ let get_target ?(mktop=false) (main : string) : string =
   else
     Format.sprintf "%s.d.byte" main
 
-(** [compile q? v? d? main] compile [main] into a bytecode executable.
+(** [compile ?q ?v ?d main] compile [main] into a bytecode executable.
     Relies on ocamlbuild. When [q] is high, suppress compiler printouts.
-    When [v] is high, print debugging information. When [d] is given,
+    When [verbose] is high, print debugging information. When [d] is given,
     change into directory [d] before compiling [main]. *)
-let compile ?(quiet=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
+let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
   let opts      = (begin match opts with
-                    | Some o -> o
-                    | None   -> (Cli_config.init ()).compile
-                  end : options)
+                     | Some o -> o
+                     | None   -> (Cli_config.init ()).compile
+                   end : options)
   in
   let main      = ensure_ml main_module in
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir (Option.value ~default:cwd dir) in
-  let ()        = if opts.verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
+  let ()        = if verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
   let target    = get_target ~mktop:mktop main in
-  let ()        = if opts.verbose then Format.printf "[compile] Target is '%s'\n" target in
+  let ()        = if verbose then Format.printf "[compile] Target is '%s'\n" target in
   let deps      = format_includes opts.include_directories in
-  let ()        = if opts.verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
+  let ()        = if verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
   let libs      = format_libraries opts.ocaml_libraries in
-  let ()        = if opts.verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
+  let ()        = if verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
   let cflags    = format_compiler_flags default_compiler_flags in (* 2014-07-30: ignores the config's compiler flags *)
-  let ()        = if opts.verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
+  let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
   let oflags    = format_ocamlbuild_flags ~mktop:mktop opts.opam_packages in
-  let ()        = if opts.verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
+  let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
-  let ()        = if opts.verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
+  let ()        = if verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
   let exit_code = run_process "ocamlbuild" command in
   let ()        = Sys.chdir cwd in
-  let ()        = if opts.verbose && (not quiet) then Format.printf "\n" in (* more required whitespace for ocambuild *)
-  let ()        = if opts.verbose && (exit_code = 0) then Format.printf "[compile] Compilation succeeded!\n" in
+  let ()        = if verbose && (not quiet) then Format.printf "\n" in (* more required whitespace for ocambuild *)
+  let ()        = if verbose && (exit_code = 0) then Format.printf "[compile] Compilation succeeded!\n" in
   exit_code
 
 let command =
@@ -180,8 +181,8 @@ let command =
       +> anon ("target" %: file)
     )
     (fun q v mktop includes pkgs libs target () ->
-      let ()  = assert_ocamlbuild_friendly_filepath target in
-      let cfg = Cli_config.init () in
+      let ()   = assert_ocamlbuild_friendly_filepath target in
+      let cfg  = Cli_config.init () in
       let opts = ({
         include_directories = begin match includes with
                                 | []   -> cfg.compile.include_directories
@@ -195,8 +196,6 @@ let command =
                                 | []   -> cfg.compile.ocaml_libraries
                                 | _::_ -> StringSet.of_list libs
                               end;
-        verbose = v;
-      } : Cli_config.compile_command_options)
-      in
-      check_code (compile ~quiet:q ~mktop:mktop ~opts:opts target)
+      } : options) in
+      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~opts:opts target)
     )
