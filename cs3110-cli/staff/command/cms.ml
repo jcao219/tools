@@ -168,12 +168,13 @@ let command =
                          validate_columns ~sep:delim ~sheet:sheet cols
                   end in
       let ()    = if v then Format.printf "[cms] Target columns are [%s].\n" (String.concat ~sep:"; " (StringSet.to_list cols)) in
-      let opts  = {
+      let opts  = ({
         column_names       = cols;
-        comments_directory = Option.value input ~default:cfg.cms.comments_directory;
+        comments_directory = input;
         delimiter          = delim;
         output_spreadsheet = Option.value out   ~default:cfg.cms.output_spreadsheet;
         verbose            = v;
-      } in
+      } : Cli_config.cms_command_options)
+      in
       cms opts sheet
     )
