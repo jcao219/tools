@@ -1,5 +1,3 @@
-(* 2014-07-30: Check 'http://stackoverflow.com/questions/25031886/ocaml-core-equivalent-of-unix-create-process'
-   for help porting # *)
 (** [return_code_of_exit_status st] Convert the process_status into an int *)
 let return_code_of_exit_status (st : Unix.process_status) : int =
   match st with
