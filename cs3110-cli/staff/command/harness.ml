@@ -108,12 +108,12 @@ let unittest_name_of_line (line : string) : string =
     Str.matched_group 1 line
   with _ -> failwith (Format.sprintf "SERIOUS ERROR: harness couldn't parse line '%s' of failures file." line)
 
-(** [sanitize_file f] Check if the file [f] contains the word TEST. Ask
+(** [sanitize_file ?v f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
     to approve if TEST was in a comment or part of a variable name like
     [cTESTING_MY_BOUNDARIES]. *)
-let sanitize_file (fname : string) : unit =
-  let () = Format.printf "[harness] Sanitizing file '%s'\n%!" fname in
+let sanitize_file ?(verbose=false) (fname : string) : unit =
+  let () = if verbose then Format.printf "[harness] Sanitizing file '%s'\n%!" fname in
   (* Use [grep -q], which returns 0 if any matches are found *)
   let cmd = Format.sprintf "grep -q \"TEST\" %s" fname in
   let not_clean = ref (0 = (Sys.command cmd)) in
@@ -130,18 +130,18 @@ let sanitize_file (fname : string) : unit =
     else not_clean := (0 = (Sys.command cmd))
   ) done
 
-(** [sanitize_directory d] Check all [.ml] files in directory [d]
+(** [sanitize_directory ?v d] Check all [.ml] files in directory [d]
     for unit tests. If any, ask the user to remove them before continuing. *)
-let sanitize_directory (dir : string) : unit =
+let sanitize_directory ?(verbose=false) (dir : string) : unit =
   let ml_filenames = filter_directory ~f:is_valid_submission  dir in
   let all_paths    = List.map ~f:(fun nm -> Format.sprintf "%s/%s" dir nm) ml_filenames in
-  List.iter ~f:sanitize_file all_paths
+  List.iter ~f:(sanitize_file ~verbose) all_paths
 
 (** [pre_harness ?v o d] Prepare the directory [d] for testing. *)
 let pre_harness ?(verbose=false) (opts : options) (dir : string) : unit =
   let () = if verbose then Format.printf "[harness] Preparing directory '%s' for testing.\n" dir in
   let () = if verbose then Format.printf "[harness] Checking for unit tests in submission files...\n%!" in
-  let () = sanitize_directory dir in
+  let () = sanitize_directory ~verbose dir in
   let () = if verbose then Format.printf "[harness] Copying release files...\n%!" in
   let () = ignore (soft_copy opts.input_directory dir) in
   let () = if verbose then Format.printf "[harness] Preparation complete!\n" in
