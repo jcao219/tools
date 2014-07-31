@@ -481,7 +481,7 @@ let command =
         output_directory        = Option.value output_dir     ~default:cfg.harness.output_directory;
         output_spreadsheet      = Option.value sheet_location ~default:cfg.harness.output_spreadsheet;
         postscript              = Option.value ps             ~default:cfg.harness.postscript;
-        quickcheck_count        = cfg.harness.quickcheck_count;
+        quickcheck_count        = 100; (* 2014-07-31: Very ugly hardcode. See 'assertions.ml'. *)
         temporary_failures_file = cfg.harness.temporary_failures_file;
         test_suite              = test_file_set_of_list ~verbose:v ~staging_dir:input_dir test_files;
       } in

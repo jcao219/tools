@@ -30,7 +30,6 @@ type harness_command_options = {
   output_directory        : string;       (** Directory to save individual test results and (optionally) postscript output to. *)
   output_spreadsheet      : string;       (** Spreadsheet to save aggregate results to. *)
   postscript              : bool;         (** When set, generate postscript copies of each student's code and test results. *)
-  quickcheck_count        : int;          (** Number of quickcheck tests to run. *)
   temporary_failures_file : string;       (** Internal to harness. File to pipe [pa_ounit] results to. *)
   tests_directory         : string;       (** Directory to get test files from. *)
 }

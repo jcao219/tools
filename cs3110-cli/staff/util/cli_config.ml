@@ -31,7 +31,6 @@ type harness_command_options = {
   output_directory        : string; (* For comments and postscript *)
   output_spreadsheet      : string;
   postscript              : bool;
-  quickcheck_count        : int;
   temporary_failures_file : string;
   tests_directory         : string;
 }
@@ -94,7 +93,6 @@ let default_config = {
     output_directory        = default_comments_directory;
     output_spreadsheet      = Format.sprintf "%s/_harness/test-results.csv" cOUTPUT_DIRECTORY;
     postscript              = false;
-    quickcheck_count        = 100;
     temporary_failures_file = "inline_test_failures.log";
     tests_directory         = "_tests";
   };
@@ -254,8 +252,6 @@ end = struct
                                                       ~default:default.harness.output_spreadsheet;
              postscript                = Option.value (parse_bool m ~key:"harness.postscript")
                                                       ~default:default.harness.postscript;
-             quickcheck_count          = Option.value (parse_int m ~key:"harness.quickcheck_count")
-                                                      ~default:default.harness.quickcheck_count;
              temporary_failures_file   = Option.value (parse_filename m ~key:"harness.temporary_failures_file" ~suffix:".log")
                                                       ~default:default.harness.temporary_failures_file;
              tests_directory           = Option.value (parse_string m ~key:"harness.tests_directory")
