@@ -4,6 +4,7 @@ open Cli_util
 
 type cms_command_options = {
   column_names       : StringSet.t;
+  comments_directory : string;
   delimiter          : char;
   output_spreadsheet : string;
   verbose            : bool;
@@ -85,6 +86,7 @@ let default_config = {
     include_directories = StringSet.empty;
     opam_packages       = StringSet.of_list cREQUIRED_OPAM_PACKAGES;
     ocaml_libraries     = StringSet.empty;
+    verbose             = false;
   };
   diff    = {
     nocompile_directory = default_nocompile_directory;
@@ -96,7 +98,7 @@ let default_config = {
     verbose          = false;
   };
   email   = {
-    admins          = [];
+    admins          = StringSet.empty;
     input_directory = default_email_directory;
     subject         = "[CS 3110 test harness] compile error";
     verbose         = false;
@@ -127,6 +129,7 @@ module Parser : sig
 end = struct
 
   module StringMap = Map.Make(String)
+  type raw_config = string StringMap.t
 
   (** [strip2 (a,b)] remove leading and trailing whitespace from strings [a] and [b]. *)
   let strip2 ((a,b) : string * string) : string * string =
@@ -139,7 +142,7 @@ end = struct
 
   (** [parse_line f l] augment the map [f] with the setting in line [l]. Return [f]
       unchanged if [l] is not properly formatted. *)
-  let parse_line (acc : StringMap.t) (line : string) : StringMap.t =
+  let parse_line (acc : raw_config) (line : string) : raw_config =
     if valid_line line then
       let k,v = strip2 (String.lsplit2_exn line ~on:'=') in
       StringMap.add acc ~key:k ~data:v
@@ -148,23 +151,30 @@ end = struct
 
   (** [parse_whole_file f] read the settings in the file [f], return
       a map from labels to raw values. *)
-  let parse_whole_file (fname : string) : StringMap.t =
+  let parse_whole_file (fname : string) : raw_config =
     In_channel.with_file fname
       ~f:(fun t -> In_channel.fold_lines t
                      ~f:parse_line
                      ~init:StringMap.empty)
 
   (** [parse_bool map key] try to read a boolean from the raw value associated with [key] in [map]. *)
-  let parse_bool (map : StringMap.t) ~key : bool option =
+  let parse_bool (map : raw_config) ~key : bool option =
     begin match StringMap.find map key with
       | Some "true"   -> Some true
       | Some "false"  -> Some false
       | Some _ | None -> None
     end
 
+  (** [parse_char map key] try to read a single character from the raw value associated with [key] in [map]. *)
+  let parse_char (map : raw_config) ~key : char option =
+    begin match StringMap.find map key with
+      | Some s when String.length s = 1 -> Some s.[0]
+      | Some _ | None                   -> None
+    end
+
   (** [parse_string map key] get the raw value associated with the key [key] in the parsed
       config file [map]. *)
-  let parse_string (map : StringMap.t) ~key : string option =
+  let parse_string (map : raw_config) ~key : string option =
     StringMap.find map key
 
   (** [infer_sep s] Assumes [s] is a something-separated list of values. Tries to figure out
@@ -178,7 +188,7 @@ end = struct
 
   (** [parse_string_list map key] interpret the raw value for [key] in raw config [map]
       as a list of strings. *)
-  let parse_string_list (map : StringMap.t) ~key : string list option =
+  let parse_string_list (map : raw_config) ~key : string list option =
     begin match StringMap.find map key with
       | Some s -> Some (List.map (String.split s ~on:(infer_sep s)) ~f:String.strip)
       | None   -> None
@@ -186,21 +196,21 @@ end = struct
 
   (** [parse_string_set map key] interpret the raw value for [key] in raw config [map]
       as a set of strings. *)
-  let parse_string_set (map : StringMap.t) ~key : StringSet.t option =
+  let parse_string_set (map : raw_config) ~key : StringSet.t option =
     begin match parse_string_list map ~key:key with
       | Some s -> Some (StringSet.of_list s)
       | None   -> None
     end
 
   (** [parse_filename map key suffix] Check that the raw value for [key] ends with [suffix]. *)
-  let parse_filename (map : StringMap.t) ~key ~suffix : string option =
+  let parse_filename (map : raw_config) ~key ~suffix : string option =
     begin match StringMap.find map key with
       | Some s when (String.is_suffix s ~suffix:suffix) -> Some s
       | Some _ | None                                   -> None
     end
 
   (** [parse_int map key] try to read an integer from the raw value associated with [key] in [map]. *)
-  let parse_int (map : StringMap.t) ~key : int option =
+  let parse_int (map : raw_config) ~key : int option =
     begin match StringMap.find map key with
       | Some s -> (try Some (int_of_string s) with _ -> None)
       | None   -> None
@@ -214,12 +224,12 @@ end = struct
         let m = parse_whole_file fname in
         {
           cms     = {
-            column_names        = Option.value (parse_string_list m ~key:"cms.column_names")
+            column_names        = Option.value (parse_string_set m ~key:"cms.column_names")
                                                ~default:default.cms.column_names;
-            delimiter           = Option.value (parse_string m ~key:"cms.delimiter")
-                                               ~default:default.cms.delimiter;
             comments_directory  = Option.value (parse_string m ~key:"cms.comments_directory")
                                                ~default:default.cms.comments_directory;
+            delimiter           = Option.value (parse_char m ~key:"cms.delimiter")
+                                               ~default:default.cms.delimiter;
             output_spreadsheet  = Option.value (parse_filename m ~key:"cms.output_spreadsheet" ~suffix:".csv")
                                                ~default:default.cms.output_spreadsheet;
             verbose             = Option.value (parse_bool m ~key:"cms.verbose")
@@ -231,8 +241,9 @@ end = struct
              opam_packages       = List.fold_left cREQUIRED_OPAM_PACKAGES ~f:StringSet.add
                                      ~init:(Option.value (parse_string_set m ~key:"compile.opam_packages")
                                                          ~default:default.compile.opam_packages);
-             ocaml_libraries     = Option.value (parse_string_sett m ~key:"compile.opam_packages")
+             ocaml_libraries     = Option.value (parse_string_set m ~key:"compile.opam_packages")
                                                 ~default:default.compile.ocaml_libraries;
+             verbose = false;
           };
           doc     = {
             output_directory = Option.value (parse_string m ~key:"doc.output_directory")
@@ -251,10 +262,10 @@ end = struct
           email   = {
              admins           = Option.value (parse_string_set m ~key:"email.admins")
                                              ~default:default.email.admins;
+             input_directory = Option.value (parse_string m ~key:"email.input_directory")
+                                             ~default:default.email.input_directory;
              subject          = Option.value (parse_string m ~key:"email.subject")
                                              ~default:default.email.subject;
-             output_directory = Option.value (parse_string m ~key:"email.output_directory")
-                                             ~default:default.email.output_directory;
              verbose          = Option.value (parse_bool m ~key:"email.verbose")
                                              ~default:default.email.verbose;
            };
@@ -266,7 +277,7 @@ end = struct
              output_spreadsheet        = Option.value (parse_filename m ~key:"harness.output_spreadsheet" ~suffix:".csv")
                                                       ~default:default.harness.output_spreadsheet;
              postscript                = Option.value (parse_bool m ~key:"harness.postscript")
-                                                      ~default:defaut.harness.postscript;
+                                                      ~default:default.harness.postscript;
              quickcheck_count          = Option.value (parse_int m ~key:"harness.quickcheck_count")
                                                       ~default:default.harness.quickcheck_count;
              temporary_failures_file   = Option.value (parse_filename m ~key:"harness.temporary_failures_file" ~suffix:".log")
@@ -284,7 +295,7 @@ end = struct
              input_directory     = Option.value (parse_string m ~key:"smoke.input_directory")
                                                 ~default:default.smoke.input_directory;
              nocompile_directory = Option.value (parse_string m ~key:"smoke.nocompile_directory")
-                                                ~default:smoke.nocompile_directory;
+                                                ~default:default.smoke.nocompile_directory;
              verbose             = Option.value (parse_bool m ~key:"smoke.verbose")
                                                 ~default:default.smoke.verbose;
            };
