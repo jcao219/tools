@@ -3,6 +3,8 @@ open Cli_constants
 open Cli_util
 open Process_util
 
+type options = Cli_config.smoke_command_options
+
 (** [make_email_message n fs] Create the body of an email to send to student [n]
     because his/her files [fs] failed to compile. *)
 let make_email_message (netid : string) (failed_targets : string list) : string list =
@@ -46,7 +48,8 @@ let write_email (opts : options) (netid : string) (failures : string list) : uni
 let compile_target (opts : options) (dir : string) (target : string) : bool =
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir dir in
-  let exit_code = Compile.compile ~verbose:opts.verbose target in
+  let _         = opts.verbose in
+  let exit_code = Compile.compile (* ~verbose:opts.verbose *) target in
   let ()        = ignore (Clean.clean "compile") in
   let ()        = Sys.chdir cwd in
   0 = exit_code
@@ -129,7 +132,7 @@ let command =
     )
     (fun v targets release_dir email_dir nocompile_dir subs () ->
       let cfg = Cli_config.init () in
-      let opts = {
+      let opts = ({
         compilation_targets = begin match targets with
                                 | []   -> cfg.smoke.compilation_targets
                                 | _::_ -> StringSet.of_list targets
@@ -138,7 +141,7 @@ let command =
         input_directory     = Option.value release_dir   ~default:cfg.smoke.input_directory;
         nocompile_directory = Option.value nocompile_dir ~default:cfg.smoke.nocompile_directory;
         verbose             = v;
-      } in
+      } : options) in
       let () = ensure_dir opts.email_directory in
       let () = ensure_dir opts.input_directory in
       let () = ensure_dir opts.nocompile_directory in
