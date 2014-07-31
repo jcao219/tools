@@ -48,7 +48,7 @@ let get_recipient (msg_file : string) : string option =
 let parse_bccs (addrs : string list) : StringSet.t =
   List.fold addrs
     ~f:(fun acc x ->
-        if is_email x
+        if is_valid_email x
         then StringSet.add acc x
         else StringSet.union acc (bcc_of_file x))
     ~init:StringSet.empty
@@ -72,10 +72,9 @@ let send_one_email (opts : options) (msg_file : string) : bool =
        let () = Format.printf "[email] Skipping invalid message file '%s'. The file name should be '<netid>.txt'.\n" msg_file in
        false
     | Some recipient ->
-       let recipient = get_recipient msg_file in
        let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
                    opts.subject
-                   (format_bcc opts.bccs)
+                   (format_bcc opts.admins)
                    recipient
                    opts.input_directory
                    msg_file
@@ -117,7 +116,7 @@ let command =
     )
     (fun v bccs subject dir () ->
       let cfg  = Cli_config.init () in
-      let opts = {
+      let opts = ({
         admins           = begin match bccs with
                              | []   -> cfg.email.admins
                              | _::_ -> parse_bccs bccs
@@ -125,8 +124,8 @@ let command =
         subject          = Option.value subject ~default:cfg.email.subject;
         input_directory = Option.value dir      ~default:cfg.email.input_directory;
         verbose          = v;
-      } in
-      let ()   = assert_file_exists dir in
+      } : options) in
+      let ()   = assert_file_exists opts.input_directory in
       let ()   = assert_installed "mutt" in
-      email opts (Sys.readdir dir)
+      email opts (Sys.readdir opts.input_directory)
     )
