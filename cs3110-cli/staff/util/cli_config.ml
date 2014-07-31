@@ -138,8 +138,7 @@ end = struct
     1 = String.count line ~f:(fun c -> c = '=')
 
   (** [parse_line f l] augment the map [f] with the setting in line [l]. Return [f]
-      unchanged if [l] is not properly formatted.
-      TODO verbose/doctor mode: print warning if line is bad. *)
+      unchanged if [l] is not properly formatted. *)
   let parse_line (acc : StringMap.t) (line : string) : StringMap.t =
     if valid_line line then
       let k,v = strip2 (String.lsplit2_exn line ~on:'=') in
