@@ -1,4 +1,3 @@
-open Cli_constants
 open Core.Std
 
 exception Command_not_found of string
