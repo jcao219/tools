@@ -63,10 +63,10 @@ let print_results (num_success:int) (num_failure:int) =
      - %d failed to send.\n"
     total num_success num_failure
 
-(** [send_one_email o f] Send the email message in file [f]
+(** [send_one_email ?v o f] Send the email message in file [f]
     to the recipient determined by [f].
     The options [o] change behavior a little. See the command readme. *)
-let send_one_email (opts : options) (msg_file : string) : bool =
+let send_one_email ?(verbose=false) (opts : options) (msg_file : string) : bool =
   begin match get_recipient msg_file with
     | None           ->
        let () = Format.printf "[email] Skipping invalid message file '%s'. The file name should be '<netid>.txt'.\n" msg_file in
@@ -79,20 +79,20 @@ let send_one_email (opts : options) (msg_file : string) : bool =
                    opts.input_directory
                    msg_file
        in
-       let () = if opts.verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
+       let () = if verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
        (* Print a message if command failed *)
        ((Sys.command cmd) = 0) ||
          (Format.printf "[email] Failed to send message to: '%s'\n" recipient; false)
   end
 
-(** [email o ms] Send all messages in the collection [ms].
+(** [email ?v o ms] Send all messages in the collection [ms].
     See the command readme for available options [o]. *)
-let email (opts : options) (message_files : string array) : unit =
+let email ?(verbose=false) (opts : options) (message_files : string array) : unit =
   let num_success, num_failure =
     Array.fold message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
-           if send_one_email opts msg_file
+           if send_one_email ~verbose:verbose opts msg_file
            then num_success+1 , num_failure
            else num_success   , num_failure+1)
   in
@@ -123,9 +123,8 @@ let command =
                            end;
         subject          = Option.value subject ~default:cfg.email.subject;
         input_directory = Option.value dir      ~default:cfg.email.input_directory;
-        verbose          = v;
       } : options) in
       let ()   = assert_file_exists opts.input_directory in
       let ()   = assert_installed "mutt" in
-      email opts (Sys.readdir opts.input_directory)
+      email ~verbose:v opts (Sys.readdir opts.input_directory)
     )
