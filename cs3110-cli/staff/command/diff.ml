@@ -16,7 +16,6 @@ module DiffSpreadsheet =
     type row                       = string * diff_result
 
     let compare_row (id,_) (id',_) = Pervasives.compare id id'
-    let filename : string          = "INTENTIONALLY NOT IMPLEMENTED" (* Should probably remove title from the sheet.*)
     let row_of_string str          = begin match String.lsplit2 ~on:',' str with
                                        | Some (id, data) ->
                                           (id, (diff_result_of_string data))
@@ -130,7 +129,7 @@ let diff_student ?(verbose=false) (opts : options) (tbl : DiffSpreadsheet.t) (ne
     with the result saved for the student on the last execution of [cs3110 smoke]. *)
 let diff ?(verbose=false) (opts : options) (dirs : string list) : unit =
   let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student ~verbose:verbose opts) in
-  let ()  = DiffSpreadsheet.write tbl ~file:opts.output_spreadsheet in
+  let ()  = DiffSpreadsheet.write tbl ~filename:opts.output_spreadsheet in
   let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n"
               (DiffSpreadsheet.count_rows tbl)
               opts.output_spreadsheet

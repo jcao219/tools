@@ -303,7 +303,6 @@ let harness ?(verbose=false) (opts : options) (subs : string list) : unit =
     Spreadsheet.Make(struct
       type row              = string * TestFileResultSet.t
       let compare_row r1 r2 = Pervasives.compare (fst r1) (fst r2) (* compare netids *)
-      let filename : string = opts.output_spreadsheet
       let row_of_string str =
         (* 2014-07-26: string SHOULD be netid, unit_test_scores. The scores SHOULD match the current suite. *)
         begin match String.split str ~on:',' with
@@ -376,7 +375,7 @@ let harness ?(verbose=false) (opts : options) (subs : string list) : unit =
       subs
   in
   let () = if verbose then Format.printf "[harness] Testing complete, writing spreadsheet to '%s'...\n" opts.output_spreadsheet in
-  let () = HarnessSpreadsheet.write final_sheet in
+  let () = HarnessSpreadsheet.write final_sheet ~filename:opts.output_spreadsheet in
   let () = if verbose then Format.printf "[harness] All done!\n" in
   ()
 

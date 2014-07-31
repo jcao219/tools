@@ -6,7 +6,6 @@ module type SpecType = sig
   type row
 
   val compare_row : row -> row -> int
-  val filename : string
   val row_of_string : string -> row
   val string_of_row : row -> string
   val title : string
@@ -45,12 +44,12 @@ module Make =
       in
       RowSet.of_list lines
 
-    let write ?(file=Spec.filename) (sheet : t) : unit =
+    let write ~filename (sheet : t) : unit =
       let rows =
         List.map
           ~f:Spec.string_of_row
           (RowSet.to_list sheet)
       in
-      Out_channel.write_lines file (Spec.title :: rows)
+      Out_channel.write_lines filename (Spec.title :: rows)
 
   end

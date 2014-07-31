@@ -68,7 +68,6 @@ let cms ?(verbose=false) (opts : options) (sheet : string) =
   let module CmsSpreadsheet = Spreadsheet.Make(struct
       type row                          = cms_row
       let compare_row (l1,_,_) (l2,_,_) = Pervasives.compare l1 l2
-      let filename                      = opts.output_spreadsheet
       let row_of_string _               = failwith "CMS.row_of_string intentionally not implemented"
       let string_of_row (id, lrow, cs)  = let scores = LabeledRow.fold_right ~f:(fun (_,s) acc -> s::acc) ~init:[] lrow in
                                           String.concat ~sep:(Char.escaped opts.delimiter) ([id] @ scores @ [cs])
@@ -87,7 +86,7 @@ let cms ?(verbose=false) (opts : options) (sheet : string) =
   in
   let ()        = In_channel.close in_chn in
   let ()        = if verbose then Format.printf "[cms] Finished! Saving results to '%s'.\n" opts.output_spreadsheet in
-  CmsSpreadsheet.write cms_sheet
+  CmsSpreadsheet.write cms_sheet ~filename:opts.output_spreadsheet
 
 (** [is_capitalized s] True if string [s] begins with a capital A-Z letter. *)
 let is_capitalized (str : string) : bool =
