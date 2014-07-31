@@ -485,6 +485,7 @@ let command =
         temporary_failures_file = cfg.harness.temporary_failures_file;
         test_suite              = test_file_set_of_list ~verbose:v ~staging_dir:input_dir test_files;
       } in
+      let () = ensure_dir (Format.sprintf "%s/_harness" Cli_config.cOUTPUT_DIRECTORY) in
       let () = ensure_dir opts.output_directory in
       if TestFileSet.is_empty opts.test_suite
       then Format.printf "[harness] Empty test suite, nothing to run (tests should end with suffix '_test.ml'). Bye now!\n"

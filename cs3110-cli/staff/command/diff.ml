@@ -162,5 +162,6 @@ let command =
       in
       let ()   = assert_installed "diff" in
       let ()   = assert_file_exists opts.nocompile_directory in
+      let ()   = ensure_dir (Format.sprintf "%s/_diff" Cli_config.cOUTPUT_DIRECTORY) in
       diff ~verbose:v opts (at_expand subs)
     )

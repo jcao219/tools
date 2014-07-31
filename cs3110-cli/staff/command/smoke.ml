@@ -140,6 +140,7 @@ let command =
         nocompile_directory = Option.value nocompile_dir ~default:cfg.smoke.nocompile_directory;
       } : options) in
       let () = assert_file_exists opts.input_directory in
+      let () = ensure_dir (Format.sprintf "%s/_smoke" Cli_config.cOUTPUT_DIRECTORY) in
       let () = ensure_dir         opts.email_directory in
       let () = ensure_dir         opts.nocompile_directory in
       let () = validate_smoke_targets ~release:opts.input_directory opts.compilation_targets in
