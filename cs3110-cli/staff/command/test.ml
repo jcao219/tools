@@ -6,10 +6,10 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
   let main      = ensure_ml main_module in
   let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main in
   let cwd       = Sys.getcwd () in
-  let dir       = Option.value ~default:cwd dir in
-  let ()        = if compile then check_code (Compile.compile ~quiet:quiet ~verbose:verbose ~dir:dir main) in
+  let dir       = Option.value ~default:cwd dir in (* TODO TODO TODO TODO uncomment 'verbose' *)
+  let ()        = if compile then check_code (Compile.compile ~quiet:quiet (* ~verbose:verbose *) ~dir:dir main) in
   let ()        = Sys.chdir dir in
-  let exec      = Format.sprintf "%s/%s.d.byte" cBUILD_DIRECTORY (strip_suffix main) in
+  let exec      = Format.sprintf "%s/%s.d.byte" Cli_config.cBUILD_DIRECTORY (strip_suffix main) in
   (* [-log] required by [cs3110 harness] and nice to have in general.
      Generates the file './inline_tests.log' with all unit test names. *)
   let base_args = ["inline-test-runner"; "dummy"; "-log"] in
