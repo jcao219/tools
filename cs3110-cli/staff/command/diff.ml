@@ -149,18 +149,19 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg              ~doc:" Print debugging information."
-      +> flag ~aliases:["-i"] "-input"   (optional filename) ~doc:"DIR Set location of input (nocompile) submissions."
-      +> flag ~aliases:["-o"] "-output"  (optional filename) ~doc:"FILE Set location of output spreadsheet."
+      +> flag ~aliases:["-v"] "-verbose" no_arg          ~doc:" Print debugging information."
+      +> flag ~aliases:["-i"] "-input"   (optional file) ~doc:"DIR Set location of input (nocompile) submissions."
+      +> flag ~aliases:["-o"] "-output"  (optional file) ~doc:"FILE Set location of output spreadsheet."
       +> anon (sequence ("submission" %: file))
     )
     (fun v input output subs () ->
-      let cfg = Config.init () in
+      let cfg = Cli_config.init () in
       let ()  = assert_installed "diff" in
-      let opts = {
+      let opts = ({
         nocompile_directory = Option.value input  ~default:cfg.diff.nocompile_directory;
         output_spreadsheet  = Option.value output ~default:cfg.diff.output_spreadsheet;
         verbose             = v;
-      } in
+      } : Cli_config.diff_command_options)
+      in
       diff opts (at_expand subs)
     )
