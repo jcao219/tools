@@ -61,9 +61,8 @@ let format_includes (includes : StringSet.t) : string list =
     to be passed in to the ocamlbuild command line. *)
 let format_libraries (libs : StringSet.t) : string list =
   begin match StringSet.to_list libs with
-    | []  -> []
-    | [x] -> ["-lib"; x]
-    | xs  -> ["-libs"; (String.concat ~sep:"," xs)]
+    | [] -> ["-lib"; "assertions"]
+    | xs -> ["-libs"; "assertions," ^ (String.concat ~sep:"," xs)]
   end
 
 (** [format_ocamlbuild_flags ?mktop pkgs] Prepare the set of opam packages [pkgs]
