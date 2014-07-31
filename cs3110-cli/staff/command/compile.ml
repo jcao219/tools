@@ -69,7 +69,7 @@ let format_libraries (libs : StringSet.t) : string list =
 (** [format_ocamlbuild_flags ?mktop pkgs] Prepare the set of opam packages [pkgs]
     to be passed in to the ocamlbuild command line. Output differs if we are
     making an executable toplevel i.e. when [mktop] is true. *)
-let format_ocamlbuild_flags ?(mktop=false) (pkgs : StringSet.t) : string list =
+let format_ocamlbuild_flags ?(mktop=false) ?(thread=false) (pkgs : StringSet.t) : string list =
   if mktop then
     let pkgs = begin match StringSet.to_list pkgs with
                  | []  -> []
@@ -80,8 +80,10 @@ let format_ocamlbuild_flags ?(mktop=false) (pkgs : StringSet.t) : string list =
   else
     let pkgs_str =
       begin match StringSet.to_list pkgs with
-        | [] -> ""
-        | xs -> String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") xs)
+        | [] -> if thread then "thread" else ""
+        | xs ->
+           let pkgs = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") xs) in
+           if thread then "thread, " ^ pkgs else pkgs
       end
     in
     default_ocamlbuild_flags @ [
@@ -121,11 +123,9 @@ let get_target ?(mktop=false) (main : string) : string =
   else
     Format.sprintf "%s.d.byte" main
 
-(** [compile ?q ?v ?d main] compile [main] into a bytecode executable.
-    Relies on ocamlbuild. When [q] is high, suppress compiler printouts.
-    When [verbose] is high, print debugging information. When [d] is given,
-    change into directory [d] before compiling [main]. *)
-let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
+(** [compile ?q ?v ?m ?t ?d ?o main] compile [main] into a bytecode executable.
+    Relies on ocamlbuild. *)
+let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?(thread=false) ?dir ?opts (main_module : string) : int =
   let opts      = (begin match opts with
                      | Some o -> o
                      | None   -> (Cli_config.init ()).compile
@@ -144,7 +144,7 @@ let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?dir ?opts (main_modu
   let cflags    = format_compiler_flags default_compiler_flags in (* 2014-07-30: ignores the config's compiler flags *)
   let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
-  let oflags    = format_ocamlbuild_flags ~mktop:mktop opts.opam_packages in
+  let oflags    = format_ocamlbuild_flags ~mktop:mktop ~thread:thread opts.opam_packages in
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
   let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
@@ -172,15 +172,16 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-q"]           "-quiet"    no_arg            ~doc:" Compile quietly."
-      +> flag ~aliases:["-v"]           "-verbose"  no_arg            ~doc:" Print debugging information (about compiler options, etc.)."
-      +> flag ~aliases:["-t"; "-mktop"] "-toplevel" no_arg            ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
-      +> flag ~aliases:["-I"]           "-include"  (listed file)     ~doc:"DIR Search the directory DIR recursively for dependencies."
-      +> flag ~aliases:["-p"; "-pkg"]   "-package"  (listed string)   ~doc:"PKG Include the OPAM package PKG."
-      +> flag ~aliases:["-l"; "-lib"]   "-library"  (listed string)   ~doc:"LIB Include the OCaml library LIB."
+      +> flag ~aliases:["-q"]             "-quiet"    no_arg            ~doc:" Compile quietly."
+      +> flag ~aliases:["-v"]             "-verbose"  no_arg            ~doc:" Print debugging information (about compiler options, etc.)."
+      +> flag ~aliases:["-top"; "-mktop"] "-toplevel" no_arg            ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
+      +> flag ~aliases:["-t"]             "-thread"   no_arg            ~doc:" Compile with threading libraries."
+      +> flag ~aliases:["-I"]             "-include"  (listed file)     ~doc:"DIR Search the directory DIR recursively for dependencies."
+      +> flag ~aliases:["-p"; "-pkg"]     "-package"  (listed string)   ~doc:"PKG Include the OPAM package PKG."
+      +> flag ~aliases:["-l"; "-lib"]     "-library"  (listed string)   ~doc:"LIB Include the OCaml library LIB."
       +> anon ("target" %: file)
     )
-    (fun q v mktop includes pkgs libs target () ->
+    (fun q v mktop thread includes pkgs libs target () ->
       let ()   = assert_ocamlbuild_friendly_filepath target in
       let cfg  = Cli_config.init () in
       let opts = ({
@@ -197,5 +198,5 @@ let command =
                                 | _::_ -> StringSet.of_list libs
                               end;
       } : options) in
-      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~opts:opts target)
+      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~thread:thread ~opts:opts target)
     )
