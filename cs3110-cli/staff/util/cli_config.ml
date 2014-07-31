@@ -165,7 +165,7 @@ end = struct
       the something. Examples of [s] might be 'itemA, itemB, itemC' or 'itemA; itemB' or 'itemA-itemB-itemC'.
       The inferred separators for these would be ',', ';', and '-', respectively. *)
   let infer_sep (s : string) : char =
-    begin match String.find s ~f:(fun c -> not (Char.is_alphanum c)) with
+    begin match String.find s ~f:(fun c -> c = ',' || c = ';' || c = ' ') with
       | Some c -> c
       | None   -> ' ' (* Hopefully it's a singleton list *)
     end
@@ -193,12 +193,12 @@ end = struct
       | Some _ | None                                   -> None
     end
 
-  (** [parse_int map key] try to read an integer from the raw value associated with [key] in [map]. *)
-  let parse_int (map : raw_config) ~key : int option =
-    begin match StringMap.find map key with
-      | Some s -> (try Some (int_of_string s) with _ -> None)
-      | None   -> None
-    end
+  (* (\** [parse_int map key] try to read an integer from the raw value associated with [key] in [map]. *\) *)
+  (* let parse_int (map : raw_config) ~key : int option = *)
+  (*   begin match StringMap.find map key with *)
+  (*     | Some s -> (try Some (int_of_string s) with _ -> None) *)
+  (*     | None   -> None *)
+  (*   end *)
 
   let parse (fname : string) ~default : t =
     begin match (Sys.file_exists fname) with
