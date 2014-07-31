@@ -50,6 +50,9 @@ module Make =
           ~f:Spec.string_of_row
           (RowSet.to_list sheet)
       in
-      Out_channel.write_lines filename (Spec.title :: rows)
+      try Out_channel.write_lines filename (Spec.title :: rows)
+      with Sys_error _ ->
+        let msg = Format.sprintf "Could not write to file '%s'. Make sure the containing directory exists." filename in
+        raise (Sys_error msg)
 
   end
