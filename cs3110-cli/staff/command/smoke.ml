@@ -32,7 +32,7 @@ let compile_target ?(verbose=false) (dir : string) (target : string) : bool =
   let ()        = Sys.chdir cwd in
   0 = exit_code
 
-(** [smoke_target ?v d fs c] Smoke test a single file [c] for directory [d].
+(** [smoke_target ?v d c fs] Smoke test a single file [c] for directory [d].
     First check whether the file exists, then compile it. On failure, save data
     for a future [cs3110 diff] and add the target [c] to the list [fs] of failed targets. *)
 let smoke_target ?(verbose=false) (dir : string) (curr_target : string) (failed_targets : string list) : string list =
@@ -101,7 +101,7 @@ end
 let smoke ?(verbose=false) (opts : options) (directories : string list) : unit =
   List.iter ~f:(smoke_directory ~verbose:verbose opts) directories
 
-(** [validate_smoke_targets r tgts] Assert that the name of each target
+(** [validate_smoke_targets ~release tgts] Assert that the name of each target
     matches a file in the release directory. *)
 let validate_smoke_targets ~release (targets : StringSet.t) : unit =
   let prefix = release ^ "/" in

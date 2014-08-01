@@ -4,6 +4,7 @@ open Process_util
 
 type options = Cli_config.cms_command_options
 
+(* used for pulling values from an input sheet *)
 module LabeledRow = Set.Make(struct
   type t = string * string
   let compare (l1,_) (l2,_) = Pervasives.compare l1 l2
@@ -60,7 +61,7 @@ let parse_row_exn ?(verbose=false) (opts : options) ~titles (line : string) : cm
   let comments = parse_comments opts netid in
   (netid, scores, comments)
 
-(** [cms o sheet] Read the spreadsheet [sheet] and extract
+(** [cms ?v o sheet] Read the spreadsheet [sheet] and extract
     particular columns. Save these columns along with
     harness-generated comments in a new spreadsheet. *)
 let cms ?(verbose=false) (opts : options) (sheet : string) =

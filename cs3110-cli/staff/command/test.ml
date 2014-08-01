@@ -2,6 +2,7 @@ open Core.Std
 open Cli_util
 open Process_util
 
+(** [test ?q ?v ?c ?o ?d main] Run the inline tests in the executable created by [cs3110 compile main]. *)
 let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_module : string) : int =
   let main      = ensure_ml main_module in
   let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main in

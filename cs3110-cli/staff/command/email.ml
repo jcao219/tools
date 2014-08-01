@@ -53,7 +53,7 @@ let parse_bccs (addrs : string list) : StringSet.t =
         else StringSet.union acc (bcc_of_file x))
     ~init:StringSet.empty
 
-(** [print_results pass fail] pretty-print details on the number
+(** [print_results npass nfail] pretty-print details on the number
     of emails sent. *)
 let print_results (num_success:int) (num_failure:int) =
   let total = num_success + num_failure in
