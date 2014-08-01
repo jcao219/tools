@@ -2,16 +2,9 @@ open Core.Std
 open Cli_util
 open Process_util
 
-type options = {
-  build_dir : string;
-  output    : string;
-  recompile : bool;
-  verbose   : bool;
-}
+type options = Cli_config.doc_command_options
 
-(* TODO replace with config file, ensure directories nicer *)
-let cDOC_OUTPUT = "./_doc"
-let cOCAMLDOC_OPTIONS = [
+let default_ocamldoc_options = [
     "-v";             (* run verbose                                     *)
     "-sort";          (* sort the output modules                         *)
     "-stars";         (* remove leading blank characters in doc comments *)
@@ -20,19 +13,29 @@ let cOCAMLDOC_OPTIONS = [
     "-colorize-code"; (* provide syntax highlighting in the HTML         *)
 ]
 
-(** [doc o ts] Generate ocamldoc documentation for the targets [ts]. *)
-let doc (opts : options) (targets : string list) : int =
-  let tgts = List.fold_right targets
-               ~f:(fun tgt acc ->
-                    if (String.is_suffix tgt ~suffix:".ml") || (String.is_suffix tgt ~suffix:".mli")
-                    then tgt :: acc
-                    else let () = Format.printf "[doc] WARNING skipping curious file '%s'.\n" tgt in acc)
-               ~init:[]
-  in
-  let ()   = if opts.verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
-  let ()   = if opts.recompile then List.iter ~f:(fun t -> check_code (Compile.compile (strip_suffix t))) tgts in
-  let args = cOCAMLDOC_OPTIONS @ ["-I"; opts.build_dir; "-d"; opts.output] @ tgts in
-  let ()   = if opts.verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n%!" (String.concat ~sep:" " args) in
+(** [filter_invalid_doc_targets tgts] Remove files from the list [tgts] that
+    either do not exist or are not .ml or .mli files. *)
+let filter_invalid_doc_targets (targets : string list) : string list =
+  List.fold_right targets
+    ~f:(fun tgt acc ->
+          begin match Sys.file_exists tgt with
+            | `No | `Unknown ->
+              let () = Format.printf "[doc] WARNING skipping nonexistant file '%s'.\n" tgt in acc
+            | `Yes           ->
+              if (String.is_suffix tgt ~suffix:".ml") || (String.is_suffix tgt ~suffix:".mli")
+              then tgt :: acc
+              else let () = Format.printf "[doc] WARNING skipping curious file '%s'.\n" tgt in acc
+          end)
+    ~init:[]
+
+(** [doc ?v ?r o ts] Generate ocamldoc documentation for the targets [ts].
+    If [r] is true, recompile before building docs. *)
+let doc ?(verbose=false) ?(recompile=false) (opts : options) (targets : string list) : int =
+  let tgts = filter_invalid_doc_targets targets in
+  let ()   = if verbose   then Format.printf "[doc] Generating documentation for targets: '%s'\n" (String.concat ~sep:", " tgts) in
+  let ()   = if recompile then List.iter ~f:(fun t -> check_code (Compile.compile (strip_suffix t))) tgts in
+  let args = default_ocamldoc_options @ ["-I"; Cli_config.cBUILD_DIRECTORY; "-d"; opts.output_directory] @ tgts in
+  let ()   = if verbose   then Format.printf "[doc] Running ocamldoc with arguments '%s'.\n%!" (String.concat ~sep:" " args) in
   run_process "ocamldoc" args
 
 let command =
@@ -46,18 +49,18 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose"    no_arg ~doc:" Print debugging information."
-      +> flag ~aliases:["-r"] "-recompile"  no_arg ~doc:" Compile the target before generating documentation."
+      +> flag ~aliases:["-v"] "-verbose"    no_arg          ~doc:" Print debugging information."
+      +> flag ~aliases:["-r"] "-recompile"  no_arg          ~doc:" Compile the target before generating documentation."
       +> flag ~aliases:["-o"] "-output-dir" (optional file) ~doc:"DIR Save outputted documentation to the directory DIR."
       +> anon (sequence  ("target" %: string))
     )
     (fun v r o ts () ->
-      let opts = {
-        build_dir = "_build"; (* TODO replace with a constant *)
-        output    = Option.value o ~default:cDOC_OUTPUT;
-        recompile = r;
-        verbose   = v;
-      } in
-      let () = ensure_dir opts.build_dir in
-      let () = ensure_dir opts.output in
-      check_code (doc opts ts))
+      let cfg  = Cli_config.init () in
+      let opts = ({
+        output_directory = Option.value o ~default:cfg.doc.output_directory;
+      } : Cli_config.doc_command_options)
+      in
+      let () = if not r then assert_file_exists Cli_config.cBUILD_DIRECTORY in
+      let () = ensure_dir opts.output_directory in
+      check_code (doc ~verbose:v ~recompile:r opts ts)
+    )

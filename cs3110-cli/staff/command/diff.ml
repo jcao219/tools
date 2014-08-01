@@ -1,11 +1,8 @@
 open Core.Std
-open Cli_constants
 open Cli_util
 
 type diff_result = Ok | NotOk
-type options = {
-  verbose : bool
-}
+type options     = Cli_config.diff_command_options
 
 let diff_result_of_string = function
   | "ok" | "Ok" -> Ok
@@ -19,7 +16,6 @@ module DiffSpreadsheet =
     type row                       = string * diff_result
 
     let compare_row (id,_) (id',_) = Pervasives.compare id id'
-    let filename : string          = cDIFF_RESULTS
     let row_of_string str          = begin match String.lsplit2 ~on:',' str with
                                        | Some (id, data) ->
                                           (id, (diff_result_of_string data))
@@ -45,9 +41,9 @@ let show_repl_help () : unit =
     "  s : Show the source files (first old, then new)"
   ])
 
-(** [diff_repl o old new] Display a diff, prompt user for a response. *)
-let diff_repl (opts : options) (old_file : string) (new_file : string) : diff_result =
-  let () = if opts.verbose then Format.printf "[diff] Entering diff REPL for files '%s' and '%s'.\n" old_file new_file in
+(** [diff_repl ?v old new] Display a diff, prompt user for a response. *)
+let diff_repl ?(verbose=false) (old_file : string) (new_file : string) : diff_result =
+  let () = if verbose then Format.printf "[diff] Entering diff REPL for files '%s' and '%s'.\n" old_file new_file in
   let diff_cmd =
     let which_diff = if (check_installed "colordiff") then "colordiff" else "diff" in
     Format.sprintf "%s -u %s %s | less -R" which_diff old_file new_file
@@ -69,7 +65,7 @@ let diff_repl (opts : options) (old_file : string) (new_file : string) : diff_re
       end
     ) done
   in
-  let () = if opts.verbose then print_endline "[diff] Exiting diff REPL." in
+  let () = if verbose then print_endline "[diff] Exiting diff REPL." in
   Option.value_exn
     ~message:"MAJOR PROBLEM WITH DIFF REPL! user input should NEVER be [None] at this point (but it is)."
     (!user_input)
@@ -79,34 +75,33 @@ let files_match (old_file : string) (new_file : string) : bool =
   let cmd = Format.sprintf "diff -q %s %s > /dev/null" old_file new_file in
   0 = (Sys.command cmd)
 
-(** [diff_files o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
-let diff_files (opts : options) (old_file : string) (new_file : string) : diff_result =
-  let ()   = if opts.verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
+(** [diff_files ?v o old new] Run a diff between files [old] and [new]. Prompt the user for judgment *)
+let diff_files ?(verbose=false) (old_file : string) (new_file : string) : diff_result =
+  let ()   = if verbose then Format.printf "[diff] Diffing files '%s' and '%s'.\n" old_file new_file in
   if not (files_exist [old_file; new_file]) then
     (* 2014-07-15: file2 is sure to exist, but whatever *)
-    let () = if opts.verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
+    let () = if verbose then Format.printf "[diff] Passes trivially. One of the files is missing.\n" in
     Ok
   else if files_match old_file new_file then
-    let () = if opts.verbose then Format.printf "[diff] Passes trivially. Both files identical.\n" in
+    let () = if verbose then Format.printf "[diff] Passes trivially. Both files identical.\n" in
     Ok
   else if file_is_empty old_file then
-    let () = if opts.verbose then Format.printf "[diff] Fails trivially. The old file was empty.\n" in
+    let () = if verbose then Format.printf "[diff] Fails trivially. The old file was empty.\n" in
     NotOk
   else
-    diff_repl opts old_file new_file
+    diff_repl ~verbose:verbose old_file new_file
 
-(** [diff_files o old new] run multiple diffs comparing the files in [new] against matching files in [old].
+(** [diff_directories ?v old new] run multiple diffs comparing the files in [new] against matching files in [old].
     We only care about files that exist in [old]. (Note: those files may be empty) *)
-let diff_directories (opts : options) (old_dir : string) (new_dir : string) : diff_result =
+let diff_directories ?(verbose=false) (old_dir : string) (new_dir : string) : diff_result =
   let old_files = Sys.readdir old_dir in
-  Array.fold
-    old_files
+  Array.fold old_files
     ~init:Ok
     ~f:(fun r1 fname ->
         (* Need full path to each file *)
         let new_file = new_dir ^ "/" ^ fname in
         let old_file = old_dir ^ "/" ^ fname in
-        let r2 = diff_files opts old_file new_file in
+        let r2 = diff_files ~verbose:verbose old_file new_file in
         begin match (r1, r2) with
           | Ok, Ok    -> Ok
           | _, NotOk -> NotOk
@@ -114,29 +109,31 @@ let diff_directories (opts : options) (old_dir : string) (new_dir : string) : di
         end
        )
 
-(** [diff_student o t d] diff the current submission [d] of a student against
+(** [diff_student ?v o t d] diff the current submission [d] of a student against
     the most recent past submission. Save results in the spreadsheet [t]. *)
-let diff_student (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
+let diff_student ?(verbose=false) (opts : options) (tbl : DiffSpreadsheet.t) (new_dir : string) : DiffSpreadsheet.t =
   let netid      = filename_of_path new_dir in
-  let old_dir    = Format.sprintf "%s/%s" cNOCOMPILE_DIR netid in
+  let old_dir    = Format.sprintf "%s/%s" opts.nocompile_directory netid in
   begin match Sys.file_exists old_dir with
     | `No | `Unknown ->
-      let ()     = if opts.verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
+      let ()     = if verbose then Format.printf "[diff] Skipping student '%s'. No prior submission.\n" netid in
       tbl
-    | `Yes ->
-      let ()     = if opts.verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
-      let result = diff_directories opts old_dir new_dir in
+    | `Yes           ->
+      let ()     = if verbose then Format.printf "[diff] Running diff on student '%s'.\n" netid in
+      let result = diff_directories ~verbose:verbose old_dir new_dir in
       let row    = (netid, result) in
       DiffSpreadsheet.add_row tbl ~row:row
   end
 
-(** [diff o dirs] Run a diff comparing the submission in each directory of [dirs]
+(** [diff ?v o dirs] Run a diff comparing the submission in each directory of [dirs]
     with the result saved for the student on the last execution of [cs3110 smoke]. *)
-let diff (opts : options) (dirs : string list) : unit =
-  let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student opts) in
-  let ()  = DiffSpreadsheet.write tbl ~file:cDIFF_RESULTS in
-  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n" (DiffSpreadsheet.count_rows tbl) cDIFF_RESULTS in
-  ()
+let diff ?(verbose=false) (opts : options) (dirs : string list) : unit =
+  let tbl = List.fold dirs ~init:(DiffSpreadsheet.create ()) ~f:(diff_student ~verbose:verbose opts) in
+  let ()  = DiffSpreadsheet.write tbl ~filename:opts.output_spreadsheet in
+  let ()  = Format.printf "Finished diffing %d submissions. See '%s' for results.\n"
+              (DiffSpreadsheet.count_rows tbl)
+              opts.output_spreadsheet
+  in  ()
 
 let command =
   Command.basic
@@ -151,14 +148,20 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-v"] "-verbose" no_arg          ~doc:" Print debugging information."
+      +> flag ~aliases:["-i"] "-input"   (optional file) ~doc:"DIR Set location of input (nocompile) submissions."
+      +> flag ~aliases:["-o"] "-output"  (optional file) ~doc:"FILE Set location of output spreadsheet."
       +> anon (sequence ("submission" %: file))
     )
-    (fun v subs () ->
-      (* TODO replace constants with options *)
-      let ()  = assert_installed "diff" in
-      let opts = {
-        verbose = v;
-      } in
-      diff opts (at_expand subs)
+    (fun v input output subs () ->
+      let cfg  = Cli_config.init () in
+      let opts = ({
+        nocompile_directory = Option.value input  ~default:cfg.diff.nocompile_directory;
+        output_spreadsheet  = Option.value output ~default:cfg.diff.output_spreadsheet;
+      } : options)
+      in
+      let ()   = assert_installed "diff" in
+      let ()   = assert_file_exists opts.nocompile_directory in
+      let ()   = ensure_dir (Format.sprintf "%s/_diff" Cli_config.cOUTPUT_DIRECTORY) in
+      diff ~verbose:v opts (at_expand subs)
     )
