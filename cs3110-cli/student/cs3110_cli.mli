@@ -12,5 +12,6 @@ val clean : unit -> unit
 val build : string -> unit
 val test : string -> unit
 val run : string -> string list -> unit
+val inspiration : unit -> unit
 val help : unit -> unit
 val config_env : unit -> unit

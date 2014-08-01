@@ -1,8 +1,8 @@
 LINK=$(dir $(shell which ocamlc))
 STD_LIB=`ocamlc -where`
 
-# without the .PHONY, make thinks that the assertions target is built because an assertions folder exists
-.PHONY: assertions
+# without the .PHONY, make thinks that these targets are built because folders of the same name exist
+.PHONY: assertions inspiration
 
 all: compile
 
@@ -16,6 +16,10 @@ compile:
 
 clean:
 	corebuild -clean
+
+inspiration: inspiration/.inspirations.fortune
+	cd inspiration; ./make_inspiration_ml.sh; cd ..
+	mv inspiration/inspiration.ml command/inspiration.ml
 
 install: assertions compile link clean
 
