@@ -1,7 +1,8 @@
 open Core.Std
-open Filepath_util
+open Cli_util
 open Process_util
 
+(** [test ?q ?v ?c ?o ?d main] Run the inline tests in the executable created by [cs3110 compile main]. *)
 let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_module : string) : int =
   let main      = ensure_ml main_module in
   let ()        = if verbose then Format.printf "[test] Preparing to run inline tests from target '%s'.\n" main in
@@ -9,14 +10,11 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
   let dir       = Option.value ~default:cwd dir in
   let ()        = if compile then check_code (Compile.compile ~quiet:quiet ~verbose:verbose ~dir:dir main) in
   let ()        = Sys.chdir dir in
-  let ()        = if verbose then Format.printf "[test] Searching for build directory.\n" in
-  let build_dir = "_build" in (* TODO abstract this *)
-  (* TODO clean this all up *)
-  let exec      = Format.sprintf "%s/%s.d.byte" build_dir (strip_suffix main) in
-  (* -log required by harness, nice to have in general, but
-     destination './inline_tests.log' is hardcoded *)
+  let exec      = Format.sprintf "%s/%s.d.byte" Cli_config.cBUILD_DIRECTORY (strip_suffix main) in
+  (* [-log] required by [cs3110 harness] and nice to have in general.
+     Generates the file './inline_tests.log' with all unit test names. *)
   let base_args = ["inline-test-runner"; "dummy"; "-log"] in
-  let args =
+  let args      =
     begin match output with
       | Some dest ->
         if quiet
@@ -32,16 +30,16 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
   (* 2014-07-24: This match is a little messy, but cleaning it might affect the harness. Be careful. *)
    begin match Sys.file_exists exec with
     | `Yes           ->
-       let test_cmd = Format.sprintf "./%s %s" exec (String.concat ~sep:" " args) in
-       let ()  = if verbose then Format.printf "[test] Test command is '%s'.\n" test_cmd in
-      let exit_code = Sys.command test_cmd in
-      let ()        = Sys.chdir cwd in
-      exit_code
+       let test_cmd  = Format.sprintf "./%s %s" exec (String.concat ~sep:" " args) in
+       let ()        = if verbose then Format.printf "[test] Test command is '%s'.\n" test_cmd in
+       let exit_code = Sys.command test_cmd in
+       let ()        = Sys.chdir cwd in
+       exit_code
     | `No | `Unknown ->
-      let ()  = Sys.chdir cwd in
-      let ()  = Format.printf "%!" in
-      let msg = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main in
-      raise (Cli_constants.File_not_found msg)
+      let ()         = Sys.chdir cwd in
+      let ()         = Format.printf "%!" in
+      let msg        = Format.sprintf "Could not find file '%s'. Have you compiled target '%s'?" exec main in
+      raise (File_not_found msg)
   end
 
 let command =
@@ -55,13 +53,13 @@ let command =
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
       +> flag ~aliases:["-v"] "-verbose"   no_arg ~doc:" Print debugging information."
+      +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before testing."
       +> flag ~aliases:["-q"] "-quiet"     no_arg ~doc:" Run tests quietly."
       +> flag ~aliases:["-o"] "-output"    (optional string) ~doc:"FILE Save test output to the file FILE."
       +> anon ("target" %: file)
     )
-    (fun r v q output target () ->
+    (fun v r q output target () ->
       check_code (begin match output with
       | Some dest -> test ~quiet:q ~compile:r ~verbose:v ~output:dest target
       | None      -> test ~quiet:q ~compile:r ~verbose:v target end)

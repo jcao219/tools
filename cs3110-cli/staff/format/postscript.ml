@@ -13,9 +13,10 @@ let close t : unit =
   ignore (Unix.close_process_out t)
 
 (** [init f t] opens a stream to file [f] with title [t]
- * that pipes its input into a postscript-formatted file *)
+    that pipes its input into a postscript-formatted file *)
 let init (fname : string) (title : string) : out_channel =
-  Unix.open_process_out (Format.sprintf "enscript --quiet -p %s -b '%s' -M Letter --fancy-header --escapes=\001 --no-formfeed" fname title)
+  Unix.open_process_out (Format.sprintf "enscript --quiet -p %s -b '%s' -M Letter --fancy-header --escapes=\001 --no-formfeed"
+                                        fname title)
 
 (** [set_font c f] Resets the font of text output to channel [c] *)
 let set_font t (font : font) : unit =

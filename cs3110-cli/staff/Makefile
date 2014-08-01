@@ -7,7 +7,7 @@ STD_LIB=`ocamlc -where`
 all: compile
 
 assertions: unassertions
-	corebuild -package qcheck -Is assertions,include,util assertions.cma
+	corebuild -package qcheck -Is assertions,util assertions.cma
 	mv _build/assertions/assertions.cmi _build/assertions/assertions.cmo _build/assertions/assertions.cma ${STD_LIB}
 
 compile:

@@ -8,21 +8,21 @@ let config_env () =
   end
 
 (* available subcommands *)
-let targets = [
-  ("clean"       , Clean.command);
-  ("cms"         , Cms.command);
-  ("compile"     , Compile.command);
-  ("doc"         , Doc.command);
-  ("diff"        , Diff.command);
-  ("email"       , Email.command);
-  ("harness"     , Harness.command);
-  ("inspiration" , Inspiration.command);
-  ("run"         , Run.command);
-  ("smoke"       , Smoke.command);
-  ("test"        , Test.command)
+let basic_targets = [
+  ("clean"   , Clean.command);
+  ("compile" , Compile.command);
+  ("doc"     , Doc.command);
+  ("run"     , Run.command);
+  ("test"    , Test.command);
+]
+let staff_targets = [
+  ("cms"     , Cms.command);
+  ("diff"    , Diff.command);
+  ("email"   , Email.command);
+  ("harness" , Harness.command);
+  ("smoke"   , Smoke.command);
 ]
 
-(* TODO define staff & student commands separately *)
 let main =
   Command.group
     ~summary:"cs3110 command line multitool"
@@ -30,7 +30,7 @@ let main =
       "The highly recommended way to compile, test, and execute OCaml programs.";
       "Each subcommand handles one stage of the development process."
     ])
-    targets
+    (basic_targets @ staff_targets)
 
 let _ =
   let () = config_env () in

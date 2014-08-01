@@ -1,7 +1,8 @@
-open Cli_constants
+open Cli_util
 open Core.Std
-open Filepath_util
 open Process_util
+
+type options = Cli_config.compile_command_options
 
 (* Default compiler flags. These are Jane Street's settings.
    [-warn-error] says "treat the following warnings as errors".
@@ -17,15 +18,19 @@ open Process_util
    - [43] : Nonoptional label applied as optional
    - [44] : Open statement shadows an identifier
    Note that warnings 40-45 are for [ocamlopt] and not for [ocamlc].
-   See more documentation here: http://caml.inria.fr/pub/docs/manual-ocaml/native.html
- *)
+   See more documentation here: http://caml.inria.fr/pub/docs/manual-ocaml/native.html *)
 let default_compiler_flags = [
   "-warn-error";
   "+a-4-33-34-40-41-42-43-44";
 ]
+let default_ocamlbuild_flags = [
+  "-use-ocamlfind";
+  "-no-links"
+]
 
-(* 2014-04-18: "ocamlbuild must be invoked from the root of the project"
- * http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html *)
+(** [assert_ocamlbuild_friendly_filepath path] Make sure the target is
+    somewhere that [ocamlbuild] can find. To quote: "ocamlbuild must be invoked from the root of the project"
+    {href {http://nicolaspouillard.fr/ocamlbuild/ocamlbuild-user-guide.html}} *)
 let assert_ocamlbuild_friendly_filepath (path : string) : unit =
   let is_relative =
     try let _ = Str.search_forward (Str.regexp "\\.\\./") path 0 in true
@@ -43,67 +48,104 @@ let format_compiler_flags (flags : string list) : string list =
     ~init:[]
     flags
 
-let get_compiler_flags () : string list =
-  (* TODO check init file *)
-  let fs = default_compiler_flags in
-  format_compiler_flags fs
-
-(* TODO deprecated *)
-let csv_of_file (file : string) : string =
-  let lines = In_channel.read_lines file in
-  String.concat ~sep:"," lines
-
-(* TODO change these constants to use config file *)
-(** [get_dependencies ()] read in config file,
-    return list of folders to search recursively during compilation. *)
-let get_dependencies () : string list =
-  begin match Sys.file_exists cDEPEND_FILE with
-    | `No  | `Unknown -> []
-    | `Yes            -> ["-Is"; csv_of_file cDEPEND_FILE]
-  end
-(** [get_libraries ()] read config file,
-    return list of OCaml libraries to include during compilation. *)
-let get_libraries () : string list =
-  begin match Sys.file_exists cLIB_FILE with
-    | `No  | `Unknown -> ["-libs"; "assertions"]
-    | `Yes            -> ["-libs"; "assertions," ^ csv_of_file cLIB_FILE]
+(** [format_dependencies deps] Prepare the set of dependencies [deps]
+    to be passed into the ocamlbuild command line. *)
+let format_includes (includes : StringSet.t) : string list =
+  begin match StringSet.to_list includes with
+    | []  -> []
+    | [x] -> ["-I"; x]
+    | xs  -> ["-Is"; (String.concat ~sep:"," xs)]
   end
 
-(** [get_opam_packages ()] read config file,
-    return list of opam packages to include during compilation. *)
-let get_opam_packages () : string list = cSTD_OPAM_PACKAGES @
-  begin match Sys.file_exists cOPAM_PACKAGES_FILE with
-    | `No  | `Unknown -> []
-    | `Yes            -> In_channel.read_lines cOPAM_PACKAGES_FILE
+(** [format_libraries libs] Prepare the set of libraries [libs]
+    to be passed in to the ocamlbuild command line. *)
+let format_libraries (libs : StringSet.t) : string list =
+  begin match StringSet.to_list libs with
+    | [] -> ["-lib"; "assertions"]
+    | xs -> ["-libs"; "assertions," ^ (String.concat ~sep:"," xs)]
   end
 
-(** [compile q? v? d? main] compile [main] into a bytecode executable.
-    Relies on ocamlbuild. When [q] is high, suppress compiler printouts.
-    When [v] is high, print debugging information. When [d] is given,
-    change into directory [d] before compiling [main]. *)
-let compile ?(quiet=false) ?(verbose=false) ?dir (main_module : string) : int =
+(** [format_ocamlbuild_flags ?mktop pkgs] Prepare the set of opam packages [pkgs]
+    to be passed in to the ocamlbuild command line. Output differs if we are
+    making an executable toplevel i.e. when [mktop] is true. *)
+let format_ocamlbuild_flags ?(mktop=false) ?(thread=false) (pkgs : StringSet.t) : string list =
+  if mktop then
+    let pkgs = begin match StringSet.to_list pkgs with
+                 | []  -> []
+                 | [x] -> ["-pkg"; x]
+                 | xs  -> ["-pkgs"; (String.concat ~sep:"," xs)]
+               end
+    in default_ocamlbuild_flags @ pkgs
+  else
+    let pkgs_str =
+      begin match StringSet.to_list pkgs with
+        | [] -> if thread then "thread" else ""
+        | xs ->
+           let pkgs = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)") xs) in
+           if thread then "thread, " ^ pkgs else pkgs
+      end
+    in
+    default_ocamlbuild_flags @ [
+      "-tag-line";
+      "<**/*.ml{,i}> : syntax(camlp4o), " ^ pkgs_str;
+      "-tag-line";
+      "<**/*.d.byte> : "                  ^ pkgs_str;
+      "-tag-line";
+      "<**/*.native> : "                  ^ pkgs_str;
+    ]
+
+(** [get_target ?mktop main] Return the compilation target
+    for module [main]. If [mktop] is true, prepare files to
+    create a custom toplevel. *)
+let get_target ?(mktop=false) (main : string) : string =
+  let main = strip_suffix main in
+  if mktop then (* Ensure that the .mltop file exists. *)
+    let mltop   = Format.sprintf "%s.mltop" main in
+    begin match Sys.file_exists mltop with
+      | `Yes           -> Format.sprintf "%s.top" main
+      | `No | `Unknown ->
+        let prefix = "*  " in
+        let border = String.make 80 '*' in
+        let ()     = print_endline (String.concat ~sep:"\n" [
+          border;
+          Format.sprintf "%sERROR: Could not find file '%s'." prefix mltop;
+          prefix ^ "A '.mltop' file is required to build a toplevel. This file should contain";
+          prefix ^ "the names of all modules you want to include in the toplevel. For example,";
+          prefix ^ Format.sprintf "the command 'echo '%s' > '%s' would create a minimal" main mltop;
+          prefix ^ "valid '.mltop' file. If the module has dependencies, be sure to include";
+          prefix ^ "those as well.";
+          border
+        ])
+        in
+        raise (File_not_found mltop)
+    end
+  else
+    Format.sprintf "%s.d.byte" main
+
+(** [compile ?q ?v ?m ?d ?o main] compile [main] into a bytecode executable.
+    Relies on ocamlbuild. *)
+let compile ?(quiet=false) ?(verbose=false) ?(mktop=false) ?dir ?opts (main_module : string) : int =
+  let opts      = (begin match opts with
+                     | Some o -> o
+                     | None   -> (Cli_config.init ()).compile
+                   end : options)
+  in
   let main      = ensure_ml main_module in
   let cwd       = Sys.getcwd () in
   let ()        = Sys.chdir (Option.value ~default:cwd dir) in
   let ()        = if verbose then Format.printf "[compile] Preparing to compile file '%s'\n" main in
-  let target    = Format.sprintf "%s.d.byte" (strip_suffix main) in
+  let target    = get_target ~mktop:mktop main in
   let ()        = if verbose then Format.printf "[compile] Target is '%s'\n" target in
-  let deps      = get_dependencies () in
+  let deps      = format_includes opts.include_directories in
   let ()        = if verbose then Format.printf "[compile] Included directories are [%s]\n" (String.concat ~sep:"; " deps) in
-  let libs      = get_libraries () in
+  let libs      = format_libraries opts.ocaml_libraries in
   let ()        = if verbose then Format.printf "[compile] Linked libraries are [%s]\n"     (String.concat ~sep:"; " libs) in
-  let cflags    = get_compiler_flags () in
+  let cflags    = format_compiler_flags default_compiler_flags in (* 2014-07-30: ignores the config's compiler flags *)
   let ()        = if verbose then Format.printf "[compile] Compiler flags are [%s]\n"       (String.concat ~sep:"; " cflags) in
   let run_quiet = if quiet then ["-quiet"] else [] in
-  let opkgs     = String.concat ~sep:", " (List.map ~f:(Format.sprintf "package(%s)")       (get_opam_packages ())) in
-  let oflags    =  ["-use-ocamlfind";
-                    "-no-links";
-                    "-tag-line"; "<*.ml{,i}> : syntax(camlp4o), " ^ opkgs;
-                    "-tag-line"; "<*.d.byte> : "                  ^ opkgs;
-                    "-tag-line"; "<*.native> : "                  ^ opkgs;
-                    target] in
+  let oflags    = format_ocamlbuild_flags ~mktop:mktop ~thread:opts.thread opts.opam_packages in
   let ()        = if verbose then Format.printf "[compile] ocamlbuild flags are [%s]\n"     (String.concat ~sep:"; " oflags) in
-  let command   = deps @ libs @ cflags @ run_quiet @ oflags in
+  let command   = deps @ libs @ cflags @ run_quiet @ oflags @ [target] in
   (* 2014-07-23: Need to flush before ocamlbuild prints. *)
   let ()        = if verbose && (not quiet) then Format.printf "%!" in (* whitespace to combat ocamlbuild *)
   let exit_code = run_process "ocamlbuild" command in
@@ -122,14 +164,39 @@ let command =
       "in a directory [_build], which will be created (if not already present)";
       "in the current working directory.";
       "You may pass a file in the current directory or a file in a sub-directory.";
+      "";
+      "Additionally, use this command for creating a custom OCaml toplevel with";
+      "the '-mktop' option. Custom toplevels are '.top' files. To use one, change";
+      "into the '_build' directory and execute it."
     ])
     Command.Spec.(
       empty
-      +> flag ~aliases:["-q"] "-quiet"   no_arg ~doc:" Compile quietly."
-      +> flag ~aliases:["-v"] "-verbose" no_arg ~doc:" Print debugging information (about compiler options, etc.)."
+      +> flag ~aliases:["-q"]             "-quiet"    no_arg            ~doc:" Compile quietly."
+      +> flag ~aliases:["-v"]             "-verbose"  no_arg            ~doc:" Print debugging information (about compiler options, etc.)."
+      +> flag ~aliases:["-top"; "-mktop"] "-toplevel" no_arg            ~doc:" Create a custom toplevel (.top file) inside the '_build' directory instead of an executable."
+      +> flag ~aliases:["-t"]             "-thread"   no_arg            ~doc:" Compile with threading libraries."
+      +> flag ~aliases:["-I"]             "-include"  (listed file)     ~doc:"DIR Search the directory DIR recursively for dependencies."
+      +> flag ~aliases:["-p"; "-pkg"]     "-package"  (listed string)   ~doc:"PKG Include the OPAM package PKG."
+      +> flag ~aliases:["-l"; "-lib"]     "-library"  (listed string)   ~doc:"LIB Include the OCaml library LIB."
       +> anon ("target" %: file)
     )
-    (fun q v target () ->
-      let () = assert_ocamlbuild_friendly_filepath target in
-      check_code (compile ~quiet:q ~verbose:v target)
+    (fun q v mktop thread includes pkgs libs target () ->
+      let ()   = assert_ocamlbuild_friendly_filepath target in
+      let cfg  = Cli_config.init () in
+      let opts = ({
+        include_directories = begin match includes with
+                                | []   -> cfg.compile.include_directories
+                                | _::_ -> StringSet.of_list includes
+                              end;
+        opam_packages       = begin match pkgs with
+                                | []   -> cfg.compile.opam_packages
+                                | _::_ -> StringSet.of_list pkgs
+                              end;
+        ocaml_libraries     = begin match libs with
+                                | []   -> cfg.compile.ocaml_libraries
+                                | _::_ -> StringSet.of_list libs
+                              end;
+        thread              = thread || cfg.compile.thread;
+      } : options) in
+      check_code (compile ~quiet:q ~verbose:v ~mktop:mktop ~opts:opts target)
     )
