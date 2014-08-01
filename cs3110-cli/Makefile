@@ -11,8 +11,8 @@ assertions: unassertions
 	mv _build/assertions/assertions.cmi _build/assertions/assertions.cmo _build/assertions/assertions.cma ${STD_LIB}
 
 compile:
-	corebuild -lib str -Is util,format,command main.native
-	mv main.native cs3110-staff
+	corebuild -lib str -Is util,format,command cli_main.native
+	mv cli_main.native cs3110
 
 clean:
 	corebuild -clean
@@ -29,10 +29,10 @@ unassertions:
 	-rm ${STD_LIB}/assertions.cma
 
 uninstall: unlink unassertions
-	rm cs3110-staff
+	rm cs3110
 
 link:
-	ln -sf `pwd`/cs3110-staff $(LINK)cs3110-staff
+	ln -sf `pwd`/cs3110 $(LINK)cs3110
 
 unlink:
-	rm $(LINK)cs3110-staff
+	rm $(LINK)cs3110
