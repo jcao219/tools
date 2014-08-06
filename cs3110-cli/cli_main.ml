@@ -9,11 +9,12 @@ let config_env () =
 
 (* available subcommands *)
 let basic_targets = [
-  ("clean"   , Clean.command);
-  ("compile" , Compile.command);
-  ("doc"     , Doc.command);
-  ("run"     , Run.command);
-  ("test"    , Test.command);
+  ("clean"       , Clean.command);
+  ("compile"     , Compile.command);
+  ("doc"         , Doc.command);
+  ("run"         , Run.command);
+  ("test"        , Test.command);
+  ("inspiration" , Inspiration.command);
 ]
 let staff_targets = [
   ("cms"     , Cms.command);

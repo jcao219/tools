@@ -4,7 +4,7 @@ STD_LIB=`ocamlc -where`
 # without the .PHONY, make thinks that these targets are built because folders of the same name exist
 .PHONY: assertions inspiration
 
-all: compile
+all: inspiration compile
 
 assertions: unassertions
 	corebuild -package qcheck -Is assertions,util assertions.cma
@@ -16,10 +16,12 @@ compile:
 
 clean:
 	corebuild -clean
+	rm command/inspiration.*
 
 inspiration: inspiration/.inspirations.fortune
 	cd inspiration; ./make_inspiration_ml.sh; cd ..
 	mv inspiration/inspiration.ml command/inspiration.ml
+	mv inspiration/inspiration.mli command/inspiration.mli
 
 install: assertions compile link clean
 
