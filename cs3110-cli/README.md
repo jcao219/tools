@@ -11,6 +11,9 @@ Dependencies
 * `enscript`, used to generate .ps output
 * `mutt`, used to send emails
 
+See also the dependencies listed in the STUDENT\_README for help building the tool.
+(These dependencies are just the extras you'll want as a grader.)
+
 Writing Tests
 =============
 
