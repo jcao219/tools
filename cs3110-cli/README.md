@@ -4,6 +4,8 @@ cs3110-cli
 Command line tools for cs3110, staff edition.
 The solution for compiling, testing, and running your code.
 
+See the README files in each directory for details on the modules therein.
+
 Dependencies
 ============
 
