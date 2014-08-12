@@ -114,3 +114,14 @@ The harness gives these arguments when executing `Test.test` on students' tests,
 This file is parsed in `Harness.run_test` to get scores and the error messages we give to students.
 This function again uses the helper `Harness.unittest_name_of_line` and additionally, for quickcheck tests, the helper `Harness.parse_qcheck_failures`.
 
+Partial Credit for Quickcheck Tests
+-----------------------------------
+
+Problem: the harness needs to know how many quickcheck test cases failed for a unit test.
+
+Solution: the wrapper `Assertions.assert_qcheck` throws an exception if any subcases fail.
+This exception contains the number that failed and is printed by the inline test runner (by `Test.test`) to the file `Cli_config.harness.temporary_failures_file`.
+This file is later read by the harness in `Harness.parse_harness_result` when trying to see if unit tests passed or failed, and the line of error is interpreted by `Harness.parse_qcheck_failures` as a QCheck result and parsed for an integer.
+
+That's how we determine partial credit.
+It is not pretty.
