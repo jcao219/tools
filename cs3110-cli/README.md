@@ -24,6 +24,18 @@ There are a few rules about writing tests for the harness.
 * Unit test names may not contain whitespace. So, the unit test `TEST_UNIT "my fave test" = ...` would cause problems with the harness.
 * The test for `file.ml` should be called `file_test.ml`. Otherwise postscript can't be generated easily.
 
+3110-specific features
+======================
+
+Most of the harness is generic.
+Things specific to `cs3110` and Cornell are:
+
+* NetIDs. We expect submission folders to be named with a NetID and leverage this to organize the spreadsheet, save comments, diff new and old submissions, and send emails.
+* Related to NetIDs, the `email` command assumes the `@cornell.edu` domain for all message recipients.
+* The name `cs3110`. We use this as the name of the executable, the name of the config files, and as reference all over the documentation.
+* The `cms` command. CMS expects precise column names and we cater to that. (Also, the name `cms`.)
+* All the inspirational quotes.
+
 FAQ
 ===
 
