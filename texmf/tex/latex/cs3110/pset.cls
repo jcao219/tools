@@ -45,7 +45,7 @@
 	\vspace*{-5em}
 	\begin{center}\framebox{\parbox{\boxlength}{\bf
 		Data Structures and Functional Programming\hfill Problem Set \@psnum \@psname\\ 
-		CS 3110, Spring 2014\hfill \@date \\
+		CS 3110, Fall 2014\hfill \@date \\
                 Version: \@versionnumber \hfill Last Modified: \@datemodified
 	}}
 	\end{center}
