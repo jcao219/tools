@@ -1,25 +1,32 @@
+# Bash completion function for the cs3110 executable
 
-_cs3110 () {
-  local cur prev opts
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  prev="${COMP_WORDS[COMP_CWORD-1]}"
+_cs3110()
+{
+	local cur prev opts
+	COMPREPLY=()
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+	commands="clean compile doc inspiration run test"
 
-  opts="compile run test clean help"
+	case "${prev}" in
+		clean|inspiration|*.ml*) # stop completion
+			return 0
+			;;
+		compile|run|test) # suggest .ml files
+			local mlfiles="$(ls -1 *.ml 2>/dev/null)"
+			COMPREPLY=( $(compgen -W "${mlfiles}" -- "${cur}") )
+			return 0
+			;;
+		doc) # suggest .mli and .ml files
+			local mlifiles="$(ls -1 *.mli *.ml 2>/dev/null)"
+			COMPREPLY=( $(compgen -W "${mlifiles}" -- "${cur}") )
+			return 0
+			;;
+		*)
+		;;
+	esac
 
-  case "${prev}" in
-    compile|run|test)
-      _filedir
-      return 0
-      ;;
-    help|clean)
-      return 0
-      ;;
-    *)
-      ;;
-  esac
-
-  COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+	COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
 }
 
 complete -F _cs3110 cs3110
