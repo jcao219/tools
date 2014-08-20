@@ -22,7 +22,10 @@
   defaultdialect=[Objective]Caml,
   keywords=[2]{int,float,bool,string,char,list,unit,option,Some,None,raise},
   showstringspaces=false,
-  basicstyle=\smaller\tt,
+% MRC: making the basic style smaller causes the type to blend poorly with
+%  surrounding inline text.  We shouldn't do that.
+%  basicstyle=\smaller\tt,
+  basicstyle=\tt,
   tabsize=2,
   frame=single,
   keywordstyle=\color{blue}\textbf,
@@ -71,7 +74,10 @@
 
 \newcommand\link[2]{\href{#1}{{\color{blue}\underline{\smash{#2}}}}}
 
-\renewcommand\emph[1]{{\bf\color{BlueViolet}#1}}
+% MRC:  Redefining \emph is particularly evil.  The following definition
+%  would not correctly handled nested \emph's, and it's not a good choice
+%  of color for many color-blind individuals (like me).
+%\renewcommand\emph[1]{{\bf\color{BlueViolet}#1}}
 
 \newcommand\filename[1]{{\smaller\tt#1}}
 

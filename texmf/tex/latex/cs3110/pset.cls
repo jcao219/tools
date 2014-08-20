@@ -44,10 +44,9 @@
 \renewcommand\maketitle{
 	\vspace*{-5em}
 	\begin{center}\framebox{\parbox{\boxlength}{\bf
-		Data Structures and Functional Programming\hfill Problem Set \@psnum \@psname\\ 
-		CS 3110, Fall 2014\hfill \@date \\
-                Version: \@versionnumber \hfill Last Modified: \@datemodified
-	}}
+		CS 3110 Fall 2014\hfill \@date \\
+        Problem Set \@psnum \@psname\\ 
+        Version \@versionnumber~(last modified \@datemodified)}}
 	\end{center}
 	\vspace{1em}
 }
@@ -123,10 +122,16 @@
 
 \newcommand\exercise[1]{
 	\refstepcounter{exercise}
-	\subsection*{Exercise \theexercise: #1}
+	\ifx&#1&%
+  		\subsection*{Exercise \theexercise.}
+	\else
+		\subsection*{Exercise \theexercise: #1.}  		
+	\fi
 }
 
 \newcommand\examples{\subsubsection*{Examples}}
+
+\newcommand{\todo}[1]{\textcolor{blue}{[[~\textit{TODO: #1}~]]}}
 
 %
 % vim: syntax=tex
