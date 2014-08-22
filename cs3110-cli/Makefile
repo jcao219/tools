@@ -23,7 +23,7 @@ inspiration: inspiration/.inspirations.fortune
 	mv inspiration/inspiration.ml command/inspiration.ml
 	mv inspiration/inspiration.mli command/inspiration.mli
 
-install: assertions compile link 
+install: assertions inspiration compile link 
 
 unassertions:
 	-rm ${STD_LIB}/assertions.cmi
