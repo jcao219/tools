@@ -84,3 +84,44 @@ Test
 Use `cs3110 test file` to run the inline tests within a file.
 This is essentially a wrapper for `./_build/file.d.byte inline-test-runner target`, but there are conveniences for making and saving output.
 
+Implementation Details
+======================
+As of August 12, 2014, these are things conscientious hackers should be aware of.
+
+Tests and print statements
+--------------------------
+
+When `Test.test` is run with the arg `?quiet`, all output (`stdout` and `stderr`) is redirected to `/dev/null`.
+When the options `?quiet` and `?output` is given, `stdout` is redirected to `/dev/null`, to hide students' print statements, and `stderr` is saved to a file.
+
+Otherwise, print statements should appear as they would at runtime.
+
+Harness-Test Contracts
+----------------------
+The connection between `harness.ml` and `test.ml` is important.
+
+First, any time `Test.test` is run (more specifically, any time the `pa_ounit` inline test runner is run with the `-log` option), a file is created containing all unit test names.
+This file is called `inline_tests.log`, better known to the harness as `Cli_config.cPA_OUNIT_LOGFILE`.
+We use this file in the harness to collect test names in the function `Harness.get_unittest_names` by doing the following for each test file:
+
+1. Copying the test file into a directory that is known to compile. (It can be the release, it doesn't have to work, but it's very important it compiles.)
+2. Running the unit test in the file and reading this logfile as a newline-separated list of strings.
+3. Using the function `Harness.unittest_name_of_line` to extract the unittest name from a line of this logfile.
+
+Second, any time `Test.test` is run with the arguments `?quiet` and `?output`, we redirect the error messages produced by the unit test runner to a file.
+(Specifically, we save `stderr` and suppress `stdout`. Leaving off the `?quiet` argument saves both `stdout` and `stderr`.)
+The harness gives these arguments when executing `Test.test` on students' tests, saving the output to the file `Cli_config.harness.temporary_failures_file`.
+This file is parsed in `Harness.run_test` to get scores and the error messages we give to students.
+This function again uses the helper `Harness.unittest_name_of_line` and additionally, for quickcheck tests, the helper `Harness.parse_qcheck_failures`.
+
+Partial Credit for Quickcheck Tests
+-----------------------------------
+
+Problem: the harness needs to know how many quickcheck test cases failed for a unit test.
+
+Solution: the wrapper `Assertions.assert_qcheck` throws an exception if any subcases fail.
+This exception contains the number that failed and is printed by the inline test runner (by `Test.test`) to the file `Cli_config.harness.temporary_failures_file`.
+This file is later read by the harness in `Harness.parse_harness_result` when trying to see if unit tests passed or failed, and the line of error is interpreted by `Harness.parse_qcheck_failures` as a QCheck result and parsed for an integer.
+
+That's how we determine partial credit.
+It is not pretty.

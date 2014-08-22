@@ -4,12 +4,17 @@ cs3110-cli
 Command line tools for cs3110, staff edition.
 The solution for compiling, testing, and running your code.
 
+See the README files in each directory for details on the modules therein.
+
 Dependencies
 ============
 
 * `colordiff`, used to make prettier diffs. See the FAQ.
 * `enscript`, used to generate .ps output
 * `mutt`, used to send emails
+
+See also the dependencies listed in the STUDENT\_README for help building the tool.
+(These dependencies are just the extras you'll want as a grader.)
 
 Writing Tests
 =============
@@ -18,6 +23,18 @@ There are a few rules about writing tests for the harness.
 
 * Unit test names may not contain whitespace. So, the unit test `TEST_UNIT "my fave test" = ...` would cause problems with the harness.
 * The test for `file.ml` should be called `file_test.ml`. Otherwise postscript can't be generated easily.
+
+3110-specific features
+======================
+
+Most of the harness is generic.
+Things specific to `cs3110` and Cornell are:
+
+* NetIDs. We expect submission folders to be named with a NetID and leverage this to organize the spreadsheet, save comments, diff new and old submissions, and send emails.
+* Related to NetIDs, the `email` command assumes the `@cornell.edu` domain for all message recipients.
+* The name `cs3110`. We use this as the name of the executable, the name of the config files, and as reference all over the documentation.
+* The `cms` command. CMS expects precise column names and we cater to that. (Also, the name `cms`.)
+* All the inspirational quotes.
 
 FAQ
 ===
