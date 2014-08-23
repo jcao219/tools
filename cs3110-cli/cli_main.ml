@@ -31,7 +31,8 @@ let main =
       "The highly recommended way to compile, test, and execute OCaml programs.";
       "Each subcommand handles one stage of the development process."
     ])
-    (basic_targets @ staff_targets)
+    (basic_targets (*@ staff_targets*))
+    (* to compile for staff for full cs3110 tools, uncomment staff_targets. *)
 
 let _ =
   let () = config_env () in
