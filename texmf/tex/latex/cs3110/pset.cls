@@ -54,41 +54,33 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Standard Instructions %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newcommand{\standardinstructions}{
-  \section*{Instructions}
-  \subsection*{Compile Errors}
+  \section*{Grading issues}
+  \paragraph*{Compilation errors:}
   All code you submit must compile.
-  {\bf Programs that do not compile will be heavily penalized.}
   If your submission does not compile, we will notify you
-  immediately.  You will have 48 hours after the submission date
+  immediately.  You will have 48 hours after the due date
   to supply us with a patch.  If you do not submit a patch, or if
   your patched code does not compile, you will receive an
   automatic zero.
   
-  \subsection*{Naming}
-  We will be using an automatic grading script, so it is
-  {\bf{crucial}} that you name your functions and order their
+  \paragraph*{Naming:}
+  We use automated grading, so it is
+  crucial that you name your functions and order their
   arguments according to the problem set instructions, and that you
   place the functions in the correct files. Incorrectly named
-  functions are {\bf treated as compile errors} and you will have to
-  submit a patch.
+  functions will be treated as compilation errors.
 
-  \subsection*{Code Style}
-  Finally, please pay attention to style. Refer to the
-  \link{http://www.cs.cornell.edu/courses/cs3110/2012fa/handouts/style.html}{CS
-    3110 style guide} and lecture notes. Ugly code that is
-  functionally correct may still lose points. Take the extra time to
-  think out the problems and find the most elegant solutions before
-  coding them up. Good programming style is important for all assignments
-  throughout the semester.
+  \paragraph*{Code style:}
+  Refer to the \href{http://www.cs.cornell.edu/Courses/cs3110/2014fa/handouts/style.html}
+  {CS 3110 style guide} and lecture notes. 
+  Ugly code that yet functionally correct will nonetheless be penalized. 
+  Take extra time to think and find elegant solutions. 
   
-  \subsection*{Late Assignments}
-  Please carefully review the course website's policy on late
-  assignments, as {\bf{all}} assignments handed in after the
-  deadline will be considered late. Verify on CMS that you have
-  submitted the correct version, {\bf{before}} the deadline.
-  Submitting the incorrect version before the deadline and realizing
-  that you have done so after the deadline will be counted as a late
-  submission.  }
+  \paragraph*{Late submissions:}
+  Carefully review the \href{http://www.cs.cornell.edu/Courses/cs3110/2014fa/course_info.php\#programming_assignments}
+  {course policy on submission and late assignments}.
+  Verify before the deadline on CMS that you have submitted the correct version. 
+}
 
 %% TODO:
 %%   Write a macro that generates the files to submit. Usage:
@@ -117,7 +109,11 @@
 \newcommand\problem[2]{
 	\refstepcounter{problem}
 	\setcounter{exercise}{0}
-	\section*{Problem \theproblem: #1 {\normalsize(#2 pts)}}
+	\ifx&#1&%
+  		\section*{Problem \theproblem~{\normalsize(#2 points)}}
+	\else
+		\section*{Problem \theproblem: #1~{\normalsize(#2 points)}} 		
+	\fi
 }
 
 \newcommand\exercise[1]{
