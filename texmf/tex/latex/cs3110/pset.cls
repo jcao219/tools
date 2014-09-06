@@ -11,6 +11,10 @@
 
 \RequirePackage{3110}
 \RequirePackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  urlcolor=blue
+}
 \RequirePackage[letterpaper,margin=1in]{geometry}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Page Layout %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
