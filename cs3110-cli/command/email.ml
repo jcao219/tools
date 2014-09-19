@@ -32,6 +32,21 @@ let is_valid_message_file (fname : string) : bool =
   (String.is_suffix fname ~suffix:".txt") &&
   (let netid = fst (String.lsplit2_exn fname ~on:'.') in is_valid_netid netid)
 
+(** [is_valid_group_message_file] True if file [fname] 
+    looks like group_of_<netid1>_<netid2>.txt  *)
+let is_valid_group_message_file (fname : string) : bool = 
+  let netIDs =
+    (* Generalize to more than just two *)
+    let prefix = String.chop_suffix_exn fname ~suffix:".txt" in 
+    let net_list = String.split prefix ~on:'_' in 
+    match net_list with 
+    |_::_::x::y::_ -> [x;y]
+    | _ -> raise Not_found 
+  in  
+  let correct = 
+    List.fold netIDs ~init:true ~f:(fun acc x -> acc && (is_valid_netid x)) in
+  (String.is_suffix fname ~suffix:".txt") && correct
+
 (** [is_email s] check if the string [s] looks like an email address. *)
 let is_valid_email (str : string) : bool =
   (* minimal email address would look like 'a@a.a' or '@.aaa' *)
