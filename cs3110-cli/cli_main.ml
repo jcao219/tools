@@ -32,6 +32,7 @@ let main =
       "Each subcommand handles one stage of the development process."
     ])
     (basic_targets @ staff_targets)
+    (* to compile for stutdents, comment out staff_targets. *)
 
 let _ =
   let () = config_env () in
