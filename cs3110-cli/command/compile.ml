@@ -190,7 +190,7 @@ let command =
                               end;
         opam_packages       = begin match pkgs with
                                 | []   -> cfg.compile.opam_packages
-                                | _::_ -> StringSet.of_list pkgs
+                                | _::_ -> StringSet.of_list (Cli_config.cREQUIRED_OPAM_PACKAGES @ pkgs)
                               end;
         ocaml_libraries     = begin match libs with
                                 | []   -> cfg.compile.ocaml_libraries
