@@ -102,11 +102,11 @@ let is_valid_submission (fname : string) : bool =
     inline test runner. Name should be the last 'word' of the string, separated
     from everything else by a colon *)
 let unittest_name_of_line (line : string) : string =
-  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters .*: \\(.*\\)$" in
+  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters .*: \\([^ ]*\\).*$" in
   try
     let () = ignore (Str.search_forward pattern line 0) in
     Str.matched_group 1 line
-  with _ -> failwith (Format.sprintf "SERIOUS ERROR: harness couldn't parse line '%s' of failures file." line)
+  with _ -> failwith (Format.sprintf "SERIOUS ERROR: Harness.unittest_name_of_line couldn't parse line '%s' of failures file." line)
 
 (** [sanitize_file ?v f] Check if the file [f] contains the word TEST. Ask
     user to remove all occurrences or approve the file as-is. You'd want
@@ -168,9 +168,9 @@ let parse_qcheck_failures (msg : string) : int option =
     passed, failed, or was a quickcheck. Return the score earned and appropriate error message. *)
 let parse_harness_result (opts : options) (failure_msg : string option) : int * (string option) =
   begin match failure_msg with
-    | None         -> (1, None) (* Test passed! *)
-    | Some err_msg ->           (* Test failed, or was a quickcheck *)
-       begin match parse_qcheck_failures err_msg with
+    | None                  -> (1, None) (* Test passed! *)
+    | Some line_that_failed ->           (* Test failed, or was a quickcheck *)
+       begin match parse_qcheck_failures line_that_failed with
          | None          -> (0, failure_msg) (* Regular test, not a quickcheck. *)
          | Some num_fail -> (* Qcheck. Success if 100% of quickchecks passed. *)
            let score = opts.quickcheck_count - num_fail in
@@ -192,8 +192,8 @@ let harness_run_test ?(verbose=false) opts ~dir (tf : test_file) : TestFileResul
          let raw_lines = In_channel.read_lines (Format.sprintf "%s/%s" dir opts.temporary_failures_file) in
          UnittestSet.fold
            ~f:(fun acc unit_name ->
-               let failure_msg = List.find raw_lines ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
-               let score, err_msg = parse_harness_result opts failure_msg in
+               let line_matching_test_that_failed_option = List.find raw_lines ~f:(fun line -> (unittest_name_of_line line) = unit_name) in
+               let score, err_msg = parse_harness_result opts line_matching_test_that_failed_option in
                TestFileResult.add acc {unittest_name=unit_name; points_earned=score; error_message=err_msg})
            ~init:TestFileResult.empty
            tf.unit_tests
