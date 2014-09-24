@@ -77,7 +77,7 @@
   \paragraph*{Code style:}
   Refer to the \href{http://www.cs.cornell.edu/Courses/cs3110/2014fa/handouts/style.html}
   {CS 3110 style guide} and lecture notes. 
-  Ugly code that yet functionally correct will nonetheless be penalized. 
+  Ugly code that is functionally correct will nonetheless be penalized. 
   Take extra time to think and find elegant solutions. 
   
   \paragraph*{Late submissions:}
