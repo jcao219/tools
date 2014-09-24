@@ -402,10 +402,13 @@ let get_unittest_names ?(verbose=false) ~staging_dir (test_abs_path : string) : 
       raise (File_not_found msg)
     | `Yes           ->
       (* Copy test into staging dir, compile test, run to get names out. *)
+      let ()  = if verbose then Format.printf "[harness] copying the test '%s' into directory '%s'...\n" test_abs_path staging_dir in
       let ()  = check_code (Sys.command (Format.sprintf "cp %s %s" test_abs_path staging_dir)) in
+      let ()  = if verbose then Format.printf "[harness] running tests in file '%s/%s'...\n" staging_dir test_name in
       let ()  = check_code (Test.test ~quiet:true ~verbose:verbose ~compile:true ~dir:staging_dir test_name)  in
       let raw = In_channel.read_lines (Format.sprintf "%s/%s" staging_dir Cli_config.cPA_OUNIT_LOGFILE) in
       let ()  = List.iter ~f:(fun tgt -> ignore (Clean.clean ~dir:staging_dir tgt)) ["compile";"test"] in
+      let ()  = if verbose then Format.printf "[harness] successfully ran tests and collected log file. Removing file '%s/%s'\n" staging_dir test_name in
       let ()  = check_code (Sys.command (Format.sprintf "rm %s/%s" staging_dir test_name)) in
       List.fold_left raw
         ~f:(fun acc line -> UnittestSet.add acc (unittest_name_of_line line))
@@ -442,7 +445,7 @@ let test_file_set_of_list ?(verbose=false) ~staging_dir (tests : string list) : 
 let get_test_files (cfg : Cli_config.t) ~test_dir (tests : string list) : string list =
   begin match tests with
     | _::_ ->
-       let () = List.iter ~f:assert_file_exists tests in
+       let () = List.iter ~f:(fun x -> assert_file_exists x) tests in
        tests
     | []   ->
        let test_dir  = Option.value       test_dir ~default:cfg.harness.tests_directory in
