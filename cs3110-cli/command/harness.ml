@@ -143,6 +143,8 @@ let pre_harness ?(verbose=false) (opts : options) (dir : string) : unit =
   let () = if verbose then Format.printf "[harness] Checking for unit tests in submission files...\n%!" in
   let () = sanitize_directory ~verbose dir in
   let () = if verbose then Format.printf "[harness] Copying release files...\n%!" in
+  (* If dir2 is empty, then we want to add some files. *)
+  let () = touch_all_files_from_directory opts.input_directory dir "ml" in
   let () = ignore (soft_copy opts.input_directory dir) in
   let () = if verbose then Format.printf "[harness] Preparation complete!\n" in
   ()

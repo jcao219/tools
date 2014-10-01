@@ -66,3 +66,9 @@ val soft_copy : string -> string -> int
 (** [strip_suffix str] strips all characters after and including the
     rightmost period. *)
 val strip_suffix : string -> string
+
+(** This is also a docstring. *)
+val touch_empty : string -> string -> int
+
+(** This is a docstring. *)
+val touch_all_files_from_directory : string -> string -> string -> unit

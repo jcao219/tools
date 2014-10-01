@@ -144,3 +144,18 @@ let strip_suffix (str : string) : string =
     | Some (hd,_) -> hd
     | None        -> str
   end
+
+(** [touch_empty f d] Touch an empty file: dir/filename.
+    Touch does not overwrite a file if it already exists. *)
+let touch_empty (filename : string) (dir : string): int =
+  Sys.command (Format.sprintf "touch %s/%s" dir filename)
+
+(** Given an input directory, extract all the .ml filenames and store in a 
+    string list. Extension should not contain a period. *)
+let touch_all_files_from_directory (dir : string) (dir2 : string)
+  (extension : string) : unit =
+  let filenames_in_dir = Sys.readdir dir in
+  let touch_filename index fname = 
+    if (String.is_suffix fname ~suffix:("." ^ extension)) then
+      ignore (touch_empty fname dir2) in
+   Array.iteri touch_filename filenames_in_dir
