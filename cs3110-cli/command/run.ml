@@ -26,10 +26,15 @@ let command =
       empty
       +> flag ~aliases:["-v"] "-verbose"   no_arg ~doc:" Print debugging information."
       +> flag ~aliases:["-r"] "-recompile" no_arg ~doc:" Compile target before running"
+      +> flag "--" escape ~doc:" Signifies the end of command flags."
       +> anon ("target" %: file)
       +> anon (sequence ("args" %: string))
     )
-    (fun v r main args () ->
+    (fun v r escaped main args () ->
       let () = if r then check_code (Compile.compile ~verbose:v main) in
+      let args =
+        match escaped with
+        | None -> args
+        | Some escaped_args -> args @ escaped_args in
       check_code (run ~verbose:v main args)
     )
