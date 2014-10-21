@@ -26,22 +26,20 @@ let is_valid_netid (str : string) : bool =
   let pattern = Str.regexp "^[a-z]+[0-9]+$" in
   Str.string_match pattern str 0
 
-(** [is_valid_message_file fname] True if file [fname] looks like '<netid>.txt'
-    for some sequence of letters and numbers <netid>. *)
-let is_valid_message_file (fname : string) : bool =
-  (String.is_suffix fname ~suffix:".txt") &&
-  (let netid = fst (String.lsplit2_exn fname ~on:'.') in is_valid_netid netid)
-
 (** [is_email s] check if the string [s] looks like an email address. *)
 let is_valid_email (str : string) : bool =
   (* minimal email address would look like 'a@a.a' or '@.aaa' *)
   String.contains str '@' && String.contains str '.' && (4 < String.length str)
 
-(** [get_recipient fname] generate an email address from a message file. *)
-let get_recipient (msg_file : string) : string option =
-  if is_valid_message_file msg_file
-  then Some ((strip_suffix msg_file) ^ "@cornell.edu")
-  else None
+(** [add_email_domain users] Append an email domain to a list of
+    half-complete addresses. Like, 'blg59' would map to 'blg59@cornell.edu' *)
+let add_email_domain (users : string list) : string list =
+  List.map ~f:(fun x -> x ^ "@cornell.edu") users
+
+(** [get_recipients fname] generate an email address from a message file.
+    Message files should look like '<netid>.txt' or 'group_of_<netid>_<netid>.txt'. *)
+let get_recipients (msg_file : string) : string list =
+  add_email_domain (List.filter ~f:is_valid_netid (String.split ~on:'_' (strip_suffix msg_file)))
 
 (** [parse_bccs addrs] parse a set of email addresses from a list of strings.
     If a string doesn't look like an email address, try reading it as a file. *)
@@ -63,26 +61,31 @@ let print_results (num_success:int) (num_failure:int) =
      - %d failed to send.\n"
     total num_success num_failure
 
-(** [send_one_email ?v o f] Send the email message in file [f]
-    to the recipient determined by [f].
+(** [send_email_for_file ?v o f] Send the email message in file [f]
+    to the recipient(s) determined by [f].
     The options [o] change behavior a little. See the command readme. *)
-let send_one_email ?(verbose=false) (opts : options) (msg_file : string) : bool =
-  begin match get_recipient msg_file with
-    | None           ->
-       let () = Format.printf "[email] Skipping invalid message file '%s'. The file name should be '<netid>.txt'.\n" msg_file in
+let send_email_for_file ?(verbose=false) (opts : options) (msg_file : string) : bool =
+  begin match get_recipients msg_file with
+    | []    ->
+       let () = Format.printf "[email] Skipping invalid message file '%s'. The file name should be '<netid>.txt' or 'group_of_<netid>_<netid>.txt'.\n" msg_file in
        false
-    | Some recipient ->
-       let cmd = Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
-                   opts.subject
-                   (format_bcc opts.admins)
-                   recipient
-                   opts.input_directory
-                   msg_file
+    | rcpts ->
+       let f_cmd = fun recipient -> Format.sprintf "mutt -s '%s' %s '%s' < %s/%s"
+                     opts.subject
+                     (format_bcc opts.admins)
+                     recipient
+                     opts.input_directory
+                     msg_file
        in
-       let () = if verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
-       (* Print a message if command failed *)
-       ((Sys.command cmd) = 0) ||
-         (Format.printf "[email] Failed to send message to: '%s'\n" recipient; false)
+       let all_pass =
+         List.fold_left rcpts ~init:true
+           ~f:(fun acc recipient ->
+                 let cmd = f_cmd recipient in
+                 let () = if verbose then Format.printf "[cs3110 email] Executing '%s'\n%!" cmd in
+                 (* Print a message if the command failed *)
+                 acc && ((Sys.command cmd) = 0 || (Format.printf "[email] Failed to send message to: '%s'\n" recipient; false)))
+       in
+       all_pass
   end
 
 (** [email ?v o ms] Send all messages in the collection [ms].
@@ -92,7 +95,7 @@ let email ?(verbose=false) (opts : options) (message_files : string array) : uni
     Array.fold message_files
       ~init:(0,0)
       ~f:(fun (num_success,num_failure) (msg_file : string) ->
-           if send_one_email ~verbose:verbose opts msg_file
+           if send_email_for_file ~verbose:verbose opts msg_file
            then num_success+1 , num_failure
            else num_success   , num_failure+1)
   in
