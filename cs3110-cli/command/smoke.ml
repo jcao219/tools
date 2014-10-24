@@ -60,10 +60,11 @@ let smoke_target ?(verbose=false) (dir : string) (curr_target : string) (failed_
 let make_email_message (netid : string) (failed_targets : string list) : string list =
   let prefix = "* " in
   [
-    Format.sprintf "Dear %s\n" netid;
-    "The following files from your CMS submission were either missing or failed to compile via `cs3110 compile`:\n";
+    Format.sprintf "Dear %s,\n" netid;
+    "The following files from your CMS submission were either missing or failed to compile against the interface we provided:\n";
   ] @ (List.map ~f:((^) prefix) (List.sort ~cmp:Pervasives.compare failed_targets)) @ [
-    "\nPlease update your submission on CMS so that `cs3110 compile <file>` succeeds for each of the above files. If the required changes were small, you will not be charged a late/slip day. If the changes were non-trivial, you will lose either a slip day (if you have any remaining) or the late penalty.\n";
+    "\nThe most likely cause for failed compilation is that you changed a type, name, or argument order in one of the provided .mli files.  Changing any of those things makes it impossible for our test cases to compile against your code.  We suggest that you double-check your .mli files against those that were provided on CMS.\n";
+    "Please update your submission on CMS by Saturday at 11:59 pm.  If your changes are small, there will be little-to-no penalty, and you will not be charged a late day.  If your changes are large, there will be correspondingly larger penalties.\n";
     "Good luck!\n\n";
     "--- Automatically generated message from the CS3110 test harness ---";
   ]
