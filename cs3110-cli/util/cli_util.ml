@@ -155,7 +155,9 @@ let touch_empty (filename : string) (dir : string): int =
 let touch_all_files_from_directory (dir : string) (dir2 : string)
   (extension : string) : unit =
   let filenames_in_dir = Sys.readdir dir in
-  let touch_filename index fname = 
+  let touch_filename index fname =
+    (* We should maybe print debug information here *)
     if (String.is_suffix fname ~suffix:("." ^ extension)) then
-      ignore (touch_empty fname dir2) in
-   Array.iteri touch_filename filenames_in_dir
+      ignore (touch_empty fname dir2)
+  in
+  Array.iteri ~f:touch_filename filenames_in_dir

@@ -67,8 +67,10 @@ val soft_copy : string -> string -> int
     rightmost period. *)
 val strip_suffix : string -> string
 
-(** This is also a docstring. *)
-val touch_empty : string -> string -> int
-
-(** This is a docstring. *)
+(** [touch_all_files_from_directory src_dir tgt_dir ext] For every file
+    in [src_dir] with file extension [ext], refresh/touch the corresponding
+    file in [tgt_dir]. Creates [tgt_dir] files if they did not already
+    exist.
+    We use this in the harness to create empty solutions for students who
+    did not submit anything. *)
 val touch_all_files_from_directory : string -> string -> string -> unit
