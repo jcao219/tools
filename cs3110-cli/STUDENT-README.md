@@ -36,6 +36,12 @@ This creates the supporting assertions library, the `cs3110` executable, and lin
 Note that linking is convenient, but optional.
 You can alternatively call the `cs3110` executable with the absolute path or extend your `PATH` environment variable to include the containing directory.
 
+Be Careful!
+-----------
+Make sure to run `make install` and not `sudo make install`.
+If you do the latter, the installation might fail because the root user cannot find your OPAM packages.
+This is because the normal install for OPAM only sets the environment for your current user.
+
 Removal
 =======
 
