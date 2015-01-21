@@ -48,7 +48,7 @@
 \renewcommand\maketitle{
 	\vspace*{-5em}
 	\begin{center}\framebox{\parbox{\boxlength}{\bf
-		CS 3110 Fall 2014\hfill \@date \\
+		CS 3110 Spring 2015\hfill \@date \\
         Problem Set \@psnum \@psname\\ 
         Version \@versionnumber~(last modified \@datemodified)}}
 	\end{center}
