@@ -34,9 +34,14 @@
 
 \newcommand\instructions{\section*{Instructions}}
 
-\renewcommand\@date{}
-\renewcommand\date[1]{\renewcommand{\@date}{#1}}
-\newcommand\psdue[1]{\date{Due at 11:59 PM, #1}}
+\newcommand\@harddate{}
+\newcommand\harddate[1]{\renewcommand{\@harddate}{#1}}
+\newcommand\harddue[1]{\harddate{Hard deadline: #1}}
+
+\newcommand\@softdate{}
+\newcommand\softdate[1]{\renewcommand{\@softdate}{#1}}
+\newcommand\softdue[1]{\softdate{Soft deadline: #1}}
+
 
 \newcommand\@versionnumber{}
 \newcommand\versionnumber[1]{\renewcommand{\@versionnumber}{#1}}
@@ -48,8 +53,8 @@
 \renewcommand\maketitle{
 	\vspace*{-5em}
 	\begin{center}\framebox{\parbox{\boxlength}{\bf
-		CS 3110 Spring 2015\hfill \@date \\
-        Problem Set \@psnum \@psname\\ 
+		CS 3110 Spring 2015\hfill \@softdate \\
+        Problem Set \@psnum \@psname\hfill \@harddate \\ 
         Version \@versionnumber~(last modified \@datemodified)}}
 	\end{center}
 	\vspace{1em}
@@ -59,29 +64,21 @@
 
 \newcommand{\standardinstructions}{
   \section*{Grading issues}
-  \paragraph*{Compilation errors:}
-  All code you submit must compile.
-  If your submission does not compile, we will notify you
-  immediately.  You will have 48 hours after the due date
-  to supply us with a patch.  If you do not submit a patch, or if
-  your patched code does not compile, you will receive an
-  automatic zero.
   
-  \paragraph*{Naming:}
-  We use automated grading, so it is
-  crucial that you name your functions and order their
-  arguments according to the problem set instructions, and that you
-  place the functions in the correct files. Incorrectly named
-  functions will be treated as compilation errors.
+  \paragraph*{Names and types:}
+  You are required to adhere to the names and types given in the
+  problem set instructions.  If your code does not compile against 
+  and pass all the tests in the provided public test file(s), your
+  solution will receive minimal credit.
 
   \paragraph*{Code style:}
-  Refer to the \href{http://www.cs.cornell.edu/Courses/cs3110/2014fa/handouts/style.html}
+  Refer to the \href{http://www.cs.cornell.edu/Courses/cs3110/2015sp/handouts/style.html}
   {CS 3110 style guide} and lecture notes. 
   Ugly code that is functionally correct will nonetheless be penalized. 
   Take extra time to think and find elegant solutions. 
   
   \paragraph*{Late submissions:}
-  Carefully review the \href{http://www.cs.cornell.edu/Courses/cs3110/2014fa/course_info.php\#programming_assignments}
+  Carefully review the \href{http://www.cs.cornell.edu/Courses/cs3110/2015sp/syllabus.php\#programming_assignments}
   {course policy on submission and late assignments}.
   Verify before the deadline on CMS that you have submitted the correct version. 
 }
