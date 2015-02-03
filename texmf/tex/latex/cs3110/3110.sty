@@ -34,13 +34,29 @@
   mathescape=true
 }
 
-\lstset{style=ocaml}
+\lstdefinestyle{ocamlunboxed}{
+  showstringspaces=false,
+  basicstyle=\tt,
+  tabsize=2,
+  frame=none,
+  keywordstyle=\color{blue}\textbf,
+  keywordstyle=[2]\color{DarkOrchid},
+  commentstyle=\color{ForestGreen},
+  stringstyle=\color{Red},
+  backgroundcolor=\color{White},
+  mathescape=true,
+}
 
-\let\code\lstinline
+%\lstset{style=ocaml}
+
+
+\newcommand{\code}[1]{\lstset{style=ocaml}\lstinline{#1}}
 
 \let\codeNoColor\texttt
 
 \lstnewenvironment{ocaml}{\lstset{style=ocaml}}{}
+
+\lstnewenvironment{ocamlunboxed}{\lstset{style=ocamlunboxed}}{}
 
 \lstdefinelanguage{terminal}{}
 \lstdefinestyle{terminal}{
