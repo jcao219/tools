@@ -100,9 +100,9 @@
 \newcounter{exercise}
 \newcounter{pspart}
 
-\renewcommand{\part}[1]{
+\renewcommand{\part}[2]{
 	\addtocounter{pspart}{1}
-	\section*{Part \spelled{pspart}: #1}
+	\section*{Part \thepspart: #1~{\normalsize(#2 points)}} 		
 }
 
 \newcommand\bracket[1]{\ifx#1\empty\else[#1]\fi}
