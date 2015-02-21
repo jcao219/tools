@@ -296,6 +296,16 @@ let parse_results_from_list (unit_tests : UnittestSet.t) (cols : string list) : 
     ~init:(TestFileResult.empty, cols)
     unit_tests
 
+(* From an int list calculate the mean and standard deviation  *)
+let mean_and_sd (lst:int list) : float * float = 
+  let sum = float_of_int (List.fold_left (+) 0 lst) in 
+  let n = float_of_int(List.length(lst)) in 
+  let mean = sum /. n in 
+  let sd = 
+    let f = (fun x -> acc + (float_of_int(x) -. m) *. (float_of_int(x) -. m)) in 
+    sqrt ((List.fold_left f 0 lst) /. n) in 
+  (mean, sd)
+
 (** [harness ?v o submissions] Initialize a spreadsheet with unit test names as columns.
     Iterate through students, filling out the sheet. *)
 let harness ?(verbose=false) (opts : options) (subs : string list) : unit =
