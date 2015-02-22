@@ -301,24 +301,27 @@ let parse_results_from_list (unit_tests : UnittestSet.t) (cols : string list) : 
   Note : Could be cleaned up a little bit
 *)
 let stats (lst:int list) : float * float * float =
-  let sum = float_of_int (List.fold_left (+) 0 lst) in 
-  let n = float_of_int(List.length(lst)) in 
-  let mean = sum /. n in 
-  let sd = 
-    let f = 
-      (fun x -> acc + (float_of_int(x) -. m) *. (float_of_int(x) -. m)) in
-    sqrt ((List.fold_left f 0 lst) /. n) in 
-  let med = 
-    let srted = List.sort compare srted in
-    let n = int_of_float(n) in 
-    if n mod 2 <> 0 then float_of_int (List.nth (n/2 + 1) srted)
-    else begin
-      let first = float_of_int (List.nth (n/2) srted) in
-      let second = float_of_int (List.nth (n/2 + 1) srted) in 
-      (first +. second) /. 2.
-    end
-  in
-  (mean, med, sd)
+  if lst = [] then failwith "Test has no runs left"
+  else
+    let sum = float_of_int (List.fold_left (+) 0 lst) in 
+    let n = float_of_int(List.length(lst)) in 
+    let mean = sum /. n in 
+    let sd = 
+      let f = 
+        (fun acc x -> acc +. (float_of_int(x) -. mean) *. (float_of_int(x) -. mean)) in
+      sqrt ((List.fold_left f 0. lst) /. n) in 
+    let med = 
+      let srted = List.sort compare lst in
+      let n = int_of_float(n) in 
+      if n mod 2 <> 0 then float_of_int (List.nth srted (n/2))
+      else begin
+        let first = float_of_int (List.nth srted (n/2)) in
+        let second = float_of_int (List.nth  srted (n/2 - 1)) in 
+        (first +. second) /. 2.
+      end
+    in
+    (mean, med, sd)
+
 
 (** [harness ?v o submissions] Initialize a spreadsheet with unit test names as columns.
     Iterate through students, filling out the sheet. *)
