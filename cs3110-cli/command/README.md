@@ -25,7 +25,7 @@ Expected workflow is:
 - Edit `grades_table.csv`, filling the blank columns with totals
 - Run `cs3110 cms grades_table2.csv -i comments/`, where `grades_table2.csv` is the spreadsheet with totals computed and `comments/` is the harness-generated directory of grading comments organized by net id.
 
-_Important Note_: the CMS command follows a 3-step fallback plan for choosing columns to save:
+__Important Note__: the CMS command follows a 3-step fallback plan for choosing columns to save:
 1. Taking the strings passed in with the `-c` option. For example, `cs3110 cms -c COL1 -c COL2 spreadsheet.csv`.
 2. Searching the config file `.cs3110` for any entry `cms.column_names = COL1, COL2`.
 3. Parsing capitalized column names from the input spreadsheet.
