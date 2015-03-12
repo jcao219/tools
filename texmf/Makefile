@@ -1,7 +1,6 @@
-install: /usr/local/share/texmf/latex/cs3110
-
-/usr/local/share/texmf/latex/cs3110: tex/latex/cs3110
+install:
 	sudo rm -rf $@
-	sudo ln -s $(shell pwd)/$< $(dir $@)
+	sudo ln -s $(shell pwd)/tex/latex/cs3110 $(dir $@)
 	sudo mktexlsr
+
 
