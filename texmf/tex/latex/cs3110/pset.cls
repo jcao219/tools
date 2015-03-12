@@ -101,7 +101,7 @@
 \newcounter{pspart}
 
 \renewcommand{\part}[2]{
-	\addtocounter{pspart}{1}
+	\refstepcounter{pspart}{1}
 	\section*{Part \thepspart: #1~{\normalsize(#2 points)}} 		
 }
 
