@@ -18,11 +18,11 @@ let test ?(quiet=false) ?(verbose=false) ?(compile=false) ?output ?dir (main_mod
     begin match output with
       | Some dest ->
         if quiet
-        then base_args @ ["2>& 1>/dev/null | grep '^File' > "; dest]
-        else base_args @ ["-show-counts"; "&>"; dest]
+        then base_args @ ["2>& 1>/dev/null | grep '^File' >"; dest]
+        else base_args @ ["-show-counts"; ">"; dest; "2>&1"]
       | None      ->
         if quiet
-        then base_args @ ["&>"; "/dev/null"]
+        then base_args @ [">/dev/null"; "2>&1"]
         else base_args @ ["-show-counts"]
     end
   in
