@@ -9,7 +9,9 @@
 \lstset{
   language=Caml,
   defaultdialect=[Objective]Caml,
-  keywords=[2]{int,float,bool,string,char,list,unit,option,Some,None,raise},
+  deletekeywords=[1]{value},
+  morekeywords=[1]{raise,val,struct,sig,module,type,end,let,begin,end},
+  morekeywords=[2]{int,float,bool,string,char,list,unit,option}
 }
 
 \lstdefinestyle{ocaml}{
@@ -30,7 +32,7 @@
   basicstyle=\tt,
   tabsize=2,
   frame=none,
-  keywordstyle=\color{blue}\textbf,
+  keywordstyle=[1]\color{blue}\textbf,
   keywordstyle=[2]\color{DarkOrchid},
   commentstyle=\color{ForestGreen},
   stringstyle=\color{Red},
