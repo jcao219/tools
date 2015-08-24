@@ -29,7 +29,7 @@ BEGIN { RS="\f" }
 	print "  )"
 	print "  (fun () -> print_inspiration ())"
 }
-' < .inspirations.fortune > inspiration.ml
+' < inspirations.fortune > inspiration.ml
 
 echo "val print_inspiration : unit -> unit" >> inspiration.mli
 echo "val command : Core.Std.Command.t" >> inspiration.mli

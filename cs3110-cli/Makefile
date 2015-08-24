@@ -18,7 +18,7 @@ clean:
 	corebuild -clean
 	rm command/inspiration.*
 
-inspiration: inspiration/.inspirations.fortune
+inspiration: inspiration/inspirations.fortune
 	cd inspiration; ./make_inspiration_ml.sh; cd ..
 	mv inspiration/inspiration.ml command/inspiration.ml
 	mv inspiration/inspiration.mli command/inspiration.mli

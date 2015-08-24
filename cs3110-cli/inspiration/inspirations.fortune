@@ -1,0 +1,198 @@
+Frankly, I would say I have a gluttony for parentheses.
+	- Ramin Zabih
+%
+Repeat after me: I am not a no-compile.
+	- 3110 TA
+%
+I talked to Mr. Springsteen and he suggested we defer logic.
+And he's The Boss.
+	- Ramin Zabih
+%
+A perfect hash function will take a Perl program and translate it to OCaml.
+	- 3110 student
+%
+We shared the work equally, with one student writing code,
+the other compiling it, and also using the general discussions
+that are prevalent in these group assignments.
+	- 3110 student's assignment documentation
+%
+A list of known (and unknown) problems.
+	- 3110 student's assignment documentation
+%
+Student A: "Does your function work?"
+Student B: "Well, it compiles."
+	- Office Hours
+%
+3110 is really just intro to match statements with some other stuff thrown in.
+	- 3110 student
+%
+Instructions: Light 7 candles and pray to the Gods of OCaml. Offer
+seven bowls of curry along with incense and then use the Makefile.
+	- 3110 student's design document
+%
+A computer is an instrument whose music is ideas.
+	- Alan Kay
+%
+Student A: "Is there an advanced programming languages course?"
+Student B: "Yeah, it's called coffee with Nate Foster."
+%
+You miss 100% of the shots you don't make.
+	- Michael Clarkson
+%
+The best thing about a Boolean is even if you are wrong, you are only off 
+by a bit.
+    - 3110 student
+%
+Debugging is twice as hard as writing the code in the first place.  
+Therefore, if you write the code as cleverly as possible, you are, 
+by definition, not smart enough to debug it. 
+	– Brian W. Kernighan
+%
+The 'mort' in "amortized analysis" is Latin for 'death'. That's 
+kind of cute I think. 
+	- Michael Clarkson
+%
+OCaml is bae
+    - 3110 student
+%
+Sshh, it's okay, I'm sure it's the typechecker *this* time.
+    - 3110 student
+%
+THIS IS 3110
+%
+(**
+ * Yo dawg, I heard you like interpreters, so I put an interpreter in your
+ * interpreter so you could interpret some extra examples and
+ * test cases while you interpret your interpreter
+ *) 
+ 	- Mike George
+% 	
+In 3110, trivial is never just trivial.
+    - 3110 student
+%
+Peace, love, and 3110.
+    - 3110 TA
+%
+01001001 01100110 00100000 01111001 01101111 01110101 00100000 01100001 
+01110010 01100101 00100000 01110100 01100001 01101011 01101001 01101110 
+01100111 00100000 01110100 01101000 01100101 00100000 01110100 01101001 
+01101101 01100101 00100000 01110100 01101111 00100000 01110100 01110010 
+01100001 01101110 01110011 01101100 01100001 01110100 01100101 00100000 
+01110100 01101000 01101001 01110011 00100000 00101101 00100000 01111001 
+01101111 01110101 00100000 01110011 01101000 01101111 01110101 01101100 
+01100100 00100000 01100010 01100101 00100000 01110111 01101111 01110010 
+01101011 01101001 01101110 01100111 00100000 01101111 01101110 00100000 
+01111001 01101111 01110101 01110010 00100000 01110000 01110010 01101111 
+01101010 01100101 01100011 01110100 00100000 01101001 01101110 01110011 
+01110100 01100101 01100001 01100100 00100001 
+%
+Haters gotta hate on functional programming. 
+	- Michael Clarkson
+%
+If you haven't experienced it yet, get ready to learn what computer science 
+really is.  Elegant, simple, adaptable, parallel, but most of all, functional.
+    - 3110 student
+%
+No power in the 'verse can stop [you].
+    - River Tam
+%
+In 3110, fun is a keyword.
+    - 3110 student
+%
+It's not about motivation. Motivation comes and goes. It's about discipline. 
+When you have discipline, it never leaves you.
+    - 3110 student
+%
+QED is its own reward.
+    - 3110 student
+%
+If it compiles, it's probably good enough.
+	- Overheard in consulting hours
+%
+Should array indices start at 0 or 1?  My compromise of 0.5 was rejected 
+without, I thought, proper consideration.
+	- Stan Kelly-Bootle
+%
+Try compiling it again, maybe it didn't compile right the first time.
+    - 3110 student
+%
+What the computer people don't realize, or they don't care, is we're 
+dancing animals. You know, we love to move around. And, we're not 
+supposed to dance at all anymore.
+	- Kurt Vonnegut
+%
+You either succeed, or you learn. There is no fail.
+	- 3110 student
+%
+It is quite likely you will have a huge resurgence of interest in this 
+material in approximately 6 months. So get good at it now.
+	- 3110 student
+%
+All your fun belong to us.
+	- 3110 student
+%
+Consider caching your curses to improve debug speed!
+	- 3110 student
+%
+Programs must be written for people to read, and only incidentally for 
+machines to execute.
+	- Abelson & Sussman, Structure and Interpretation of Computer Programs
+%
+Language is an instrument of human reason, and not merely a medium for 
+the expression of thought.
+	- George Boole
+%
+OCaml is a very sexy European car. It's not quite as fast as C, but it 
+never breaks down, so you end up going further in less time. However, 
+because it's French, none of the controls are in the usual places.
+	- Mike Vanier's "If Programming Languages Were Cars"
+%
+Haskell is not really a car; it's an abstract machine in which you give 
+a detailed description of what the process of driving would be like if 
+you were to do it. You have to put the abstract machine inside another 
+(concrete) machine in order to actually do any driving. You're not supposed 
+to ask how the concrete machine works. There is also a way to take multiple 
+abstract machines and make a single abstract machine, which you can then 
+give to the concrete machine to make multiple trips one after another.
+	- Mike Vanier's "If Programming Languages Were Cars"
+%
+C is a racing car that goes incredibly fast but breaks down every fifty miles.
+	- Mike Vanier's "If Programming Languages Were Cars"
+%
+Java is a family station wagon. It's easy to drive, it's not too fast, and 
+you can't hurt yourself.
+	- Mike Vanier's "If Programming Languages Were Cars"
+%
+The tools we use have a profound (and devious!) influence on our thinking 
+habits, and, therefore, on our thinking abilities.
+	- Edsger Dijkstra
+%
+With great OCaml comes great responsibility.
+	- 3110 student
+%
+NO PROBLEM IS INSOLUBLE IN ALL CONCEIVABLE CIRCUMSTANCES.
+	- The Cosmic AC in Isaac Asimov's "The Last Question"
+%
+Elegant, Powerful and Surprising.  Worth the effort!
+	- 3110 student
+%
+In class and the real world alike, code is read much more often 
+than it is written. Well-organized, understandable code is MUCH 
+more important than it seems. Take it from someone who learned 
+the hard way.
+	- 3110 student
+%
+If at first you don't succeed, ask a consultant for help. They know things.
+	- 3110 student
+%
+All of a sudden you'll love 3110, and you won't know why.
+	- 3110 student
+%
+Stop procrastinating.
+	- 3110 student
+%
+Never believe everything on the internet. Especially about OCaml.
+	- Abraham Lincoln
+%
+I swear there was only one bug when I tested this last night...
+	- 3110 student
