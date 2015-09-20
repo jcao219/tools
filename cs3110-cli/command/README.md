@@ -80,6 +80,8 @@ Test files are copied into students' directories, then compiled and run using `c
 Test output is saved into two intermediate files -- one containing unit test names and one containing failure messages.
 We scrape these to build the final results for each student.
 
+See below for tips on using the harness.
+
 Run
 ---
 Umm, `cs3110 run file args` is literally `./_build/file.d.byte args`.
@@ -138,3 +140,51 @@ This file is later read by the harness in `Harness.parse_harness_result` when tr
 
 That's how we determine partial credit.
 It is not pretty.
+
+
+
+# Tips for running `cs3110 harness` #
+
+## How do I run the harness? ##
+
+The most common use is when the release code provided to students is in a directory
+called `release`, and you want to run the all tests in a `tests` folder against each
+student submission in a `Submissions` folder (where the Submissions folder contains a
+subdirectory for each student/group submission). To do so, run the following:
+
+    cs3110 harness -v -i release -d tests Submissions/*
+
+## The harness says PASS, but `cs3110 test` gives `Assertion failed` ##
+
+Make sure your your assertions are using assert_* functions from the `Assertions` module
+(such as `assert_true` or `assert_equals`), *not* the `assert` function built into OCaml.
+
+## The harness just says `Error (exit code 2)` when I run it ##
+
+Make sure to remove or comment the `let () = Pa_ounit_lib.Runtime.summarize()` line in
+your test suite. It interferes with the test harness operation.
+
+## No, my issue is definitely something wrong with the harness ##
+
+If you want to debug the test harness itself, the following will be useful to get the
+harness code loaded into `utop`:
+
+    #require "core";;
+    #require "str";;
+    #directory "/home/vagrant/3110-tools/cs3110-cli/command";;
+    #directory "/home/vagrant/3110-tools/cs3110-cli/util";;
+    #directory "/home/vagrant/3110-tools/cs3110-cli/format";;
+    
+    #mod_use "cli_util.ml";;
+    #mod_use "cli_config.ml";;
+    #mod_use "process_util.ml";;
+    #mod_use "compile.ml";;
+    #mod_use "test.ml";;
+    #mod_use "postscript.ml";;
+    #mod_use "clean.ml";;
+    #mod_use "spreadsheet.ml";;
+    #mod_use "harness.ml";;
+
+You can then run the harness from within `utop` like so:
+
+    Core.Command.run ~argv:["harness"; "-v"; "-i"; "release"; "-d"; "tests"; "Submissions/*"] Harness.command;;
