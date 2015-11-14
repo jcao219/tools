@@ -102,7 +102,7 @@ let is_valid_submission (fname : string) : bool =
     inline test runner. Name should be the last 'word' of the string, separated
     from everything else by a colon *)
 let unittest_name_of_line (line : string) : string =
-  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters .*: \\([^ ]*\\).*$" in
+  let pattern = Str.regexp "^File \".*\", line [0-9]+, characters [0-9]+-[0-9]+: \\([^ ]*\\).*$" in
   try
     let () = ignore (Str.search_forward pattern line 0) in
     Str.matched_group 1 line
